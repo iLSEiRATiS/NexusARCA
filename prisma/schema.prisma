@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+
+enum FacturaEstado {
+  PENDIENTE
+  EMITIDA
+  RECHAZADA
+  ANULADA
+}
+
+enum CondicionIva {
+  RESPONSABLE_INSCRIPTO
+  MONOTRIBUTO
+  EXENTO
+  CONSUMIDOR_FINAL
+}
+
+enum MetodoPago {
+  TRANSFERENCIA
+  EFECTIVO
+  CHEQUE
+  OTRO
+}
+
+enum MovementType {
+  INGRESO
+  EGRESO
+  AJUSTE
+}
+
+// --- MODELOS ---
+
+model Product {
+  id           Int             @id @default(autoincrement())
+  nombre       String
+  precio_usd   Decimal         @db.Decimal(10, 2)
+  stock_actual Int             @default(0)
+  stock_minimo Int             @default(5)
+  saleItems    SaleItem[]
+  movements    StockMovement[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Client {
+  id            Int          @id @default(autoincrement())
+  razon_social  String
+  cuit          String       @unique
+  direccion     String?
+  condicion_iva CondicionIva @default(RESPONSABLE_INSCRIPTO)
+  telefono      String?
+  saldo_deuda   Decimal      @default(0) @db.Decimal(12, 2)
+  sales         Sale[]
+  payments      Payment[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Sale {
+  id                     Int           @id @default(autoincrement())
+  client                 Client        @relation(fields: [client_id], references: [id])
+  client_id              Int
+  fecha                  DateTime      @default(now())
+  
+  // Financiero
+  subtotal_ars           Decimal       @db.Decimal(12, 2)
+  iva_ars                Decimal       @db.Decimal(12, 2)
+  total_ars              Decimal       @db.Decimal(12, 2)
+  cotizacion_dolar_usada Decimal       @db.Decimal(10, 2)
+  
+  // Datos ARCA
+  estado_factura         FacturaEstado @default(PENDIENTE)
+  tipo_comprobante       String        // "Factura A", "Factura B", etc.
+  nro_comprobante        String?       // "0001-0000045"
+  cae                    String?
+  vto_cae                DateTime?
+  
+  items                  SaleItem[]
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+}
+
+model SaleItem {
+  id                  Int     @id @default(autoincrement())
+  sale                Sale    @relation(fields: [sale_id], references: [id])
+  sale_id             Int
+  product             Product @relation(fields: [product_id], references: [id])
+  product_id          Int
+  cantidad            Int
+  precio_unitario_ars Decimal @db.Decimal(12, 2)
+  precio_unitario_usd Decimal @db.Decimal(12, 2) // Recomendado: Trazabilidad dólar histórico
+}
+
+model Payment {
+  id          Int        @id @default(autoincrement())
+  client      Client     @relation(fields: [client_id], references: [id])
+  client_id   Int
+  monto_ars   Decimal    @db.Decimal(12, 2)
+  metodo_pago MetodoPago @default(TRANSFERENCIA)
+  fecha       DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+}
+
+model StockMovement {
+  id         Int          @id @default(autoincrement())
+  product    Product      @relation(fields: [product_id], references: [id])
+  product_id Int
+  cantidad   Int
+  tipo       MovementType
+  motivo     String?      // Ej: "Venta #10", "Ajuste de inventario", "Compra lote 45"
+  fecha      DateTime     @default(now())
+}
+
+model Settings {
+  id                      Int      @id @default(1)
+  cotizacion_dolar_actual Decimal  @db.Decimal(10, 2)
+  updatedAt               DateTime @updatedAt
+}
