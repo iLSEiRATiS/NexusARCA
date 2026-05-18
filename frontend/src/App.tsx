@@ -62,12 +62,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-[#EAE2D6] flex flex-col font-sans selection:bg-[#94D2BD]/30 overflow-x-hidden">
-      <nav className="glass border-b border-[#D6CCC2]/60 px-6 md:px-12 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
-        <Link to="/" className="flex items-center gap-4 group shrink-0">
-          <img src={logo} alt="EnGroncho" className="w-12 h-12 object-contain group-hover:rotate-6 transition-transform duration-500" />
+      <nav className="glass border-b border-[#D6CCC2]/60 px-4 md:px-12 py-3.5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <Link to="/" className="flex items-center gap-3 md:gap-4 group shrink-0">
+          <img src={logo} alt="EnGroncho" className="w-10 h-10 md:w-12 md:h-12 object-contain group-hover:rotate-6 transition-transform duration-500" />
           <div className="flex flex-col leading-tight">
-            <span className="text-2xl font-bold tracking-tighter text-[#333D29] italic">En<span className="text-[#005F73]">Groncho</span></span>
-            <span className="text-[9px] font-bold text-[#333D29]/40 uppercase tracking-[0.2em]">Gestión Industrial</span>
+            <span className="text-xl md:text-2xl font-bold tracking-tighter text-[#333D29] italic">En<span className="text-[#005F73]">Groncho</span></span>
+            <span className="text-[8px] md:text-[9px] font-bold text-[#333D29]/40 uppercase tracking-[0.2em]">Gestión Industrial</span>
           </div>
         </Link>
 
@@ -75,9 +75,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <div className="flex items-center gap-4 md:hidden">
            <button 
              onClick={() => setIsMenuOpen(!isMenuOpen)}
-             className="bg-[#F2EBE1] p-2.5 rounded-xl border border-[#D6CCC2] text-[#333D29] font-bold text-[10px] uppercase shadow-sm"
+             className="bg-[#F2EBE1] p-2.5 rounded-xl border border-[#D6CCC2] text-[#333D29] font-bold text-[10px] uppercase shadow-sm flex items-center gap-2"
            >
-             {isMenuOpen ? 'Cerrar' : 'Menú'}
+             {isMenuOpen ? (
+               <>
+                 <span className="text-xs">✕</span>
+                 <span>Cerrar</span>
+               </>
+             ) : (
+               <>
+                 <span className="text-xs">☰</span>
+                 <span>Menú</span>
+               </>
+             )}
            </button>
         </div>
 
@@ -109,11 +119,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Mobile Nav Dropdown */}
       {isMenuOpen && (
         <div className="md:hidden glass border-b border-[#D6CCC2] p-6 animate-fade-in absolute top-[70px] left-0 w-full z-40 shadow-xl space-y-2">
-          <NavLink to="/" onClick={() => setIsMenuOpen(false)}>Tablero</NavLink>
-          <NavLink to="/ventas" onClick={() => setIsMenuOpen(false)}>Ventas</NavLink>
-          <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)}>Presupuestos</NavLink>
-          <NavLink to="/productos" onClick={() => setIsMenuOpen(false)}>Stock</NavLink>
-          <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)}>Clientes</NavLink>
+          <NavLink to="/" onClick={() => setIsMenuOpen(false)}>📊 Tablero</NavLink>
+          <NavLink to="/ventas" onClick={() => setIsMenuOpen(false)}>💰 Ventas</NavLink>
+          <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)}>📄 Presupuestos</NavLink>
+          <NavLink to="/productos" onClick={() => setIsMenuOpen(false)}>📦 Stock</NavLink>
+          <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)}>👥 Clientes</NavLink>
           <button 
             onClick={handleLogout}
             className="w-full mt-4 bg-rose-100/50 text-rose-700 py-4 rounded-xl font-bold text-xs uppercase border border-rose-200"
@@ -123,8 +133,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       )}
 
-      <main className="flex-1 w-full max-w-[1600px] mx-auto px-4 md:px-8 py-6 md:py-8 animate-fade-in">
-        <div className="bg-[#F2EBE1]/80 backdrop-blur-md rounded-[48px] shadow-premium min-h-[82vh] border border-[#D6CCC2]/60 overflow-hidden">
+      <main className="flex-1 w-full max-w-[1600px] mx-auto px-2 md:px-8 py-4 md:py-8 animate-fade-in">
+        <div className="bg-[#F2EBE1]/80 backdrop-blur-md rounded-[24px] md:rounded-[48px] shadow-premium min-h-[82vh] border border-[#D6CCC2]/60 overflow-hidden">
           {children}
         </div>
       </main>

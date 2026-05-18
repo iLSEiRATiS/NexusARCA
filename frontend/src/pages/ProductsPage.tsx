@@ -194,7 +194,8 @@ const ProductsPage = () => {
       </div>
 
       <div className="bg-white border border-slate-100 rounded-[24px] shadow-soft overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -266,6 +267,74 @@ const ProductsPage = () => {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {filteredProducts?.map((product: any) => {
+            const costo = Number(product.costo_usd);
+            const precio = Number(product.precio_usd);
+            const margen = costo > 0 ? ((precio - costo) / precio * 100).toFixed(1) : '100';
+            const isLowStock = product.stock_actual <= product.stock_minimo;
+
+            return (
+              <div key={product.id} className="p-5 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-bold text-slate-700 text-lg uppercase leading-tight">
+                      {product.nombre}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                      {product.presentacion || `${product.peso_kg} KG`} • {product.batches?.length || 0} Lotes
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-xl font-bold ${isLowStock ? 'text-rose-500' : 'text-emerald-600'}`}>
+                      {product.stock_actual} <span className="text-[10px] uppercase">un</span>
+                    </div>
+                    {isLowStock && (
+                      <span className="text-[8px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full uppercase border border-rose-100">
+                        Reponer
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Precio Venta</p>
+                    <p className="font-bold text-slate-700">USD {precio.toFixed(2)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Margen Bruto</p>
+                    <p className={`font-bold ${Number(margen) > 30 ? 'text-emerald-600' : 'text-amber-600'}`}>{margen}%</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => openDetails(product)}
+                    className="flex-1 bg-sky-50 text-sky-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border border-sky-100"
+                  >
+                    Ver Lotes
+                  </button>
+                  <button 
+                    onClick={() => openAdjustModal(product)}
+                    className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase"
+                  >
+                    Ingreso
+                  </button>
+                  <button 
+                    onClick={() => handleClone(product)}
+                    className="w-12 bg-slate-50 text-slate-400 flex items-center justify-center rounded-xl border border-slate-200"
+                    title="Copiar"
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -56,7 +56,8 @@ const SalesPage = () => {
       </div>
 
       <div className="bg-white border border-slate-100 rounded-[24px] shadow-soft overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -97,16 +98,49 @@ const SalesPage = () => {
                   </td>
                 </tr>
               ))}
-              {filteredSales?.length === 0 && (
-                <tr>
-                   <td colSpan={5} className="py-20 text-center">
-                      <p className="text-slate-300 font-bold uppercase tracking-[0.2em] italic text-sm">Sin movimientos que mostrar</p>
-                   </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {filteredSales?.map((sale: any) => (
+            <div key={sale.id} className="p-5 space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-bold text-slate-700">#{String(sale.id).padStart(5, '0')}</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{new Date(sale.fecha).toLocaleDateString()}</div>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border ${sale.tipo_comprobante?.includes('Factura') ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
+                  {sale.tipo_comprobante || 'Venta'}
+                </span>
+              </div>
+
+              <div>
+                <div className="font-bold text-slate-700 uppercase text-sm truncate">{sale.client?.razon_social}</div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">CUIT: {sale.client?.cuit}</div>
+              </div>
+
+              <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div className="text-xl font-bold text-slate-700 tracking-tight">
+                  ${Number(sale.total_real_ars).toLocaleString('es-AR')}
+                </div>
+                <button 
+                  onClick={() => generateSalePDF(sale)}
+                  className="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-lg font-bold text-[9px] uppercase tracking-wider shadow-sm flex items-center gap-2"
+                >
+                  📄 PDF
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredSales?.length === 0 && (
+          <div className="py-20 text-center">
+            <p className="text-slate-300 font-bold uppercase tracking-[0.2em] italic text-sm">Sin movimientos que mostrar</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -154,7 +154,8 @@ const ClientsPage = () => {
       </div>
 
       <div className="bg-white border border-slate-100 rounded-[24px] shadow-soft overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -227,6 +228,64 @@ const ClientsPage = () => {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {filteredClients?.map((client: any) => {
+            const totalDebt = Number(client.saldo_deuda);
+            const hasDebt = totalDebt > 0;
+
+            return (
+              <div key={client.id} className="p-5 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-700 text-lg uppercase leading-tight truncate" onClick={() => openDetails(client)}>
+                      {client.razon_social}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                      CUIT: {client.cuit} • {client.porcentaje_facturacion}% Split
+                    </div>
+                  </div>
+                  <div className={`shrink-0 px-3 py-1 rounded-full border text-center ml-2 ${hasDebt ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}>
+                    <p className="text-[11px] font-bold">${totalDebt.toLocaleString('es-AR')}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                   <div className="p-3 rounded-xl bg-sky-50 border border-sky-100/50 text-center">
+                      <p className="text-[8px] font-bold text-sky-400 uppercase tracking-widest mb-1">Blanco</p>
+                      <p className="text-sm font-bold text-sky-700">${Number(client.saldo_blanco).toLocaleString('es-AR')}</p>
+                   </div>
+                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-100/50 text-center">
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">EnGroncho</p>
+                      <p className="text-sm font-bold text-slate-700">${Number(client.saldo_negro).toLocaleString('es-AR')}</p>
+                   </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => openDetails(client)}
+                    className="flex-1 bg-sky-50 text-sky-700 py-2.5 rounded-xl font-bold text-[10px] uppercase border border-sky-100"
+                  >
+                    Historial
+                  </button>
+                  <button 
+                    onClick={() => openPaymentModal(client)}
+                    className="flex-[1.5] bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase shadow-lg shadow-emerald-100"
+                  >
+                    Registrar Cobro
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(client.id)}
+                    className="w-12 bg-slate-50 text-slate-400 flex items-center justify-center rounded-xl border border-slate-200"
+                  >
+                    &times;
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
