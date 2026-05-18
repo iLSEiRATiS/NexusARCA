@@ -116,43 +116,85 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </nav>
 
-      {/* Mobile Nav Dropdown */}
-      {isMenuOpen && (
-        <div className="md:hidden bg-[#F2EBE1] border-b border-[#D6CCC2] p-6 animate-fade-in absolute top-[70px] left-0 w-full z-[100] shadow-2xl space-y-3">
-          <div className="flex flex-col gap-2">
-            <NavLink to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
-              <span className="text-xl">📊</span> Tablero
+      {/* Mobile Full-Screen Menu Overlay */}
+      <div className={`fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] transition-all duration-300 md:hidden ${isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsMenuOpen(false)}>
+        <div 
+          className={`absolute top-0 right-0 w-[80%] h-full bg-[#EAE2D6] shadow-2xl transition-transform duration-300 flex flex-col ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Menu Header */}
+          <div className="bg-[#333D29] p-6 flex justify-between items-center text-white shrink-0">
+            <div className="flex items-center gap-3">
+               <img src={logo} alt="EnGroncho" className="w-8 h-8 object-contain brightness-0 invert" />
+               <span className="font-bold tracking-tighter italic">Navegación</span>
+            </div>
+            <button 
+              onClick={() => setIsMenuOpen(false)}
+              className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full text-2xl font-light"
+            >
+              &times;
+            </button>
+          </div>
+
+          {/* Menu Links */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#EAE2D6]">
+            <NavLink to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
+              <span className="text-xl">📊</span> 
+              <div className="flex flex-col">
+                <span className="text-sm">Tablero</span>
+                <span className="text-[9px] text-slate-400 font-medium uppercase">Resumen General</span>
+              </div>
             </NavLink>
-            <NavLink to="/ventas" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
-              <span className="text-xl">💰</span> Ventas
+            <NavLink to="/ventas" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
+              <span className="text-xl">💰</span>
+              <div className="flex flex-col">
+                <span className="text-sm">Ventas</span>
+                <span className="text-[9px] text-slate-400 font-medium uppercase">Historial de Operaciones</span>
+              </div>
             </NavLink>
-            <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
-              <span className="text-xl">📄</span> Presupuestos
+            <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
+              <span className="text-xl">📄</span>
+              <div className="flex flex-col">
+                <span className="text-sm">Presupuestos</span>
+                <span className="text-[9px] text-slate-400 font-medium uppercase">Cotizaciones y Clientes</span>
+              </div>
             </NavLink>
-            <NavLink to="/productos" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
-              <span className="text-xl">📦</span> Stock
+            <NavLink to="/productos" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
+              <span className="text-xl">📦</span>
+              <div className="flex flex-col">
+                <span className="text-sm">Stock</span>
+                <span className="text-[9px] text-slate-400 font-medium uppercase">Gestión de Inventario</span>
+              </div>
             </NavLink>
-            <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
-              <span className="text-xl">👥</span> Clientes
+            <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
+              <span className="text-xl">👥</span>
+              <div className="flex flex-col">
+                <span className="text-sm">Clientes</span>
+                <span className="text-[9px] text-slate-400 font-medium uppercase">Cartera Comercial</span>
+              </div>
             </NavLink>
           </div>
           
-          <div className="pt-4 border-t border-[#D6CCC2]/60">
-            <div className="flex items-center justify-between px-2 mb-4">
+          {/* Menu Footer */}
+          <div className="p-6 bg-white border-t border-[#D6CCC2] mt-auto">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-[#005F73] rounded-full flex items-center justify-center text-white font-bold text-xl">
+                {auth.user?.nombre?.[0] || 'U'}
+              </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[#333D29]/60 uppercase tracking-widest">{auth.user?.nombre || 'Usuario'}</span>
-                <span className="text-xs font-bold text-[#005F73] capitalize">{auth.user?.role || 'Admin'}</span>
+                <span className="text-sm font-bold text-[#333D29]">{auth.user?.nombre || 'Usuario'}</span>
+                <span className="text-[10px] font-bold text-[#005F73] uppercase tracking-widest">{auth.user?.role || 'Administrador'}</span>
               </div>
             </div>
             <button 
               onClick={handleLogout}
-              className="w-full bg-rose-100 text-rose-700 py-4 rounded-2xl font-bold text-xs uppercase border border-rose-200 shadow-sm flex items-center justify-center gap-2"
+              className="w-full bg-rose-50 text-rose-600 py-4 rounded-2xl font-bold text-xs uppercase border border-rose-100 shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-transform"
             >
               <span>🚪</span> Cerrar Sesión
             </button>
           </div>
         </div>
-      )}
+      </div>
 
       <main className="flex-1 w-full max-w-[1600px] mx-auto px-2 md:px-8 py-4 md:py-8 animate-fade-in">
         <div className="bg-[#F2EBE1]/80 backdrop-blur-md rounded-[24px] md:rounded-[48px] shadow-premium min-h-[82vh] border border-[#D6CCC2]/60 overflow-hidden">
