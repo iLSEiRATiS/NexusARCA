@@ -293,7 +293,7 @@ const ClientsPage = () => {
         </div>
       </div>
 
-      {/* Details Modal with Timeline/History */}
+      {/* Details Modal */}
       {isDetailsModalOpen && selectedClient && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
           <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-slide-up border border-slate-200">

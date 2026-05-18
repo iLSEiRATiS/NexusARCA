@@ -10,6 +10,7 @@ import SalesPage from './pages/SalesPage';
 import QuotationsPage from './pages/QuotationsPage';
 import NewQuotationPage from './pages/NewQuotationPage';
 import LoginPage from './pages/LoginPage';
+import logo from './assets/logo.png';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,8 +26,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (!auth) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
-
-import logo from './assets/logo.png';
 
 const NavLink = ({ to, children, onClick, className }: { to: string, children: React.ReactNode, onClick?: () => void, className?: string }) => {
   const location = useLocation();
@@ -69,8 +68,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     window.location.href = '/login';
   };
 
-  const authData = localStorage.getItem('engroncho_auth');
-  const auth = authData ? JSON.parse(authData) : {};
+  let auth: any = {};
+  try {
+    const authData = localStorage.getItem('engroncho_auth');
+    auth = authData ? JSON.parse(authData) : {};
+  } catch (e) {
+    console.error('Error parsing auth data', e);
+  }
 
   return (
     <div className="min-h-screen bg-[#EAE2D6] flex flex-col font-sans selection:bg-[#94D2BD]/30 overflow-x-hidden">
@@ -114,9 +118,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
         <div className="hidden lg:flex items-center gap-6 shrink-0">
           <div className="flex flex-col text-right">
-            <span className="text-[10px] font-bold text-[#333D29]/60 uppercase tracking-widest leading-none">{auth.user?.nombre || 'Usuario'}</span>
+            <span className="text-[10px] font-bold text-[#333D29]/60 uppercase tracking-widest leading-none">{auth?.user?.nombre || 'Usuario'}</span>
             <span className="text-[12px] font-bold text-[#005F73] flex items-center justify-end gap-1 mt-0.5 capitalize">
-              {auth.user?.role || 'Admin'}
+              {auth?.user?.role || 'Admin'}
             </span>
           </div>
           <button 
@@ -191,11 +195,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="p-6 bg-white border-t border-[#D6CCC2] mt-auto">
             <div className="flex items-center gap-4 mb-6">
               <div className="w-12 h-12 bg-[#005F73] rounded-full flex items-center justify-center text-white font-bold text-xl">
-                {auth.user?.nombre?.[0] || 'U'}
+                {auth?.user?.nombre?.[0] || 'U'}
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-[#333D29]">{auth.user?.nombre || 'Usuario'}</span>
-                <span className="text-[10px] font-bold text-[#005F73] uppercase tracking-widest">{auth.user?.role || 'Administrador'}</span>
+                <span className="text-sm font-bold text-[#333D29]">{auth?.user?.nombre || 'Usuario'}</span>
+                <span className="text-[10px] font-bold text-[#005F73] uppercase tracking-widest">{auth?.user?.role || 'Administrador'}</span>
               </div>
             </div>
             <button 
