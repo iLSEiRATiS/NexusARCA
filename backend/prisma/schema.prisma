@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// --- ENUMS (Prisma los emula como Strings con validación en SQLite) ---
+
+enum MovementType {
+  INGRESO
+  EGRESO
+  AJUSTE
+}
+
+enum CondicionIva {
+  RESPONSABLE_INSCRIPTO
+  MONOTRIBUTO
+  EXENTO
+  CONSUMIDOR_FINAL
+}
+
+// --- MODELOS ---
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String   // Hash bcrypt
+  nombre    String
+  role      String   @default("ADMIN") // ADMIN, VENDEDOR
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id           Int             @id @default(autoincrement())
+  nombre       String
+  presentacion String?         // Ej: "Bolsa 25kg", "Tambor 210kg"
+  peso_kg      Decimal         @default(25.00) // Peso de cada unidad/bulto
+  costo_usd    Decimal         @default(0)     // Costo por KG
+  precio_usd   Decimal         // Precio por KG
+  iva_tasa     Decimal         @default(21.00) 
+  stock_actual Int             @default(0)
+  stock_minimo Int             @default(5)
+  batches      Batch[]
+  saleItems    SaleItem[]
+  quotationItems QuotationItem[]
+  movements    StockMovement[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Batch {
+  id                Int           @id @default(autoincrement())
+  product           Product       @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  product_id        Int
+  nro_lote          String
+  cantidad_bultos   Int
+  fecha_vencimiento DateTime?
+  ubicacion         String?
+  estado            String        @default("ACTIVO") // ACTIVO, BLOQUEADO, VENCIDO
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  saleItems         SaleItem[]
+}
+
+model Client {
+  id                      Int          @id @default(autoincrement())
+  razon_social            String
+  cuit                    String       @unique
+  direccion               String?
+  condicion_iva           CondicionIva @default(RESPONSABLE_INSCRIPTO)
+  nro_iibb                String?      // Ingresos Brutos
+  telefono                String?
+  
+  // Saldos Separados para mayor claridad
+  saldo_blanco            Decimal      @default(0) // Deuda que figura en facturas ARCA
+  saldo_negro             Decimal      @default(0) // Deuda que figura en presupuestos (informal)
+  saldo_deuda             Decimal      @default(0) // Suma total real
+  
+  porcentaje_facturacion  Decimal      @default(100.00) 
+  sales                   Sale[]
+  payments                Payment[]
+  quotations              Quotation[]
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+}
+
+model Quotation {
+  id                     Int             @id @default(autoincrement())
+  client                 Client          @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  client_id              Int
+  fecha                  DateTime        @default(now())
+  validez_dias           Int             @default(15)
+  estado                 String          @default("PENDIENTE") // PENDIENTE, ACEPTADO, RECHAZADO, CONVERTIDO
+  
+  total_real_ars         Decimal
+  cotizacion_dolar_usada Decimal
+  
+  items                  QuotationItem[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+}
+
+model QuotationItem {
+  id                  Int       @id @default(autoincrement())
+  quotation           Quotation @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+  quotation_id        Int
+  product             Product   @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  product_id          Int
+  cantidad            Int
+  precio_unitario_ars Decimal
+  precio_unitario_usd Decimal
+}
+
+model Sale {
+  id                     Int           @id @default(autoincrement())
+  client                 Client        @relation(fields: [client_id], references: [id], onDelete: Restrict)
+  client_id              Int
+  fecha                  DateTime      @default(now())
+  
+  // Financiero Total (Lo que el cliente debe)
+  total_real_ars         Decimal        
+  cotizacion_dolar_usada Decimal       
+  
+  // Split Blanco / Negro
+  monto_facturado_ars    Decimal        // Parte declarada a ARCA (Blanco)
+  monto_no_facturado_ars Decimal        // Parte presupuesto (Negro)
+  porcentaje_split       Decimal         // Porcentaje usado para el split (ej: 80.00)
+
+  // Datos Fiscales (Sobre el monto_facturado_ars)
+  subtotal_ars           Decimal       
+  iva_ars                Decimal       
+  estado_factura         String        @default("PENDIENTE")
+  tipo_comprobante       String        // "Factura A", "Factura B", etc.
+  nro_comprobante        String?       // "0001-0000045"
+  cae                    String?
+  vto_cae                DateTime?
+  
+  items                  SaleItem[]
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+}
+
+model SaleItem {
+  id                  Int     @id @default(autoincrement())
+  sale                Sale    @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  sale_id             Int
+  product             Product @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  product_id          Int
+  batch               Batch?  @relation(fields: [batch_id], references: [id], onDelete: SetNull)
+  batch_id            Int?
+  cantidad            Int     // Cantidad de bultos/unidades
+  precio_unitario_ars Decimal // Precio por KG en ARS
+  iva_tasa            Decimal   // Tasa de IVA al momento de la venta
+  precio_unitario_usd Decimal  // Precio por KG en USD
+}
+
+model Payment {
+  id          Int        @id @default(autoincrement())
+  client      Client     @relation(fields: [client_id], references: [id], onDelete: Restrict)
+  client_id   Int
+  monto_ars   Decimal    
+  tipo        String     @default("MIXTO") // "BLANCO", "NEGRO", "MIXTO"
+  metodo_pago String     @default("TRANSFERENCIA")
+  referencia  String?    // Nota o número de comprobante
+  fecha       DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+}
+
+model StockMovement {
+  id         Int          @id @default(autoincrement())
+  product    Product      @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  product_id Int
+  cantidad   Int          // Cantidad de bultos
+  tipo       MovementType
+  motivo     String?      // Ej: "Venta #10", "Ajuste de inventario", "Compra lote 45"
+  fecha      DateTime     @default(now())
+}
+
+model Settings {
+  id                      Int      @id @default(1)
+  cotizacion_dolar_actual Decimal  
+  updatedAt               DateTime @updatedAt
+}

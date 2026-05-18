@@ -1,0 +1,8 @@
+#BlueJ class context
+comment0.target=Piloto07
+comment1.params=nave
+comment1.target=void\ maniobrar(NaveDeAtaque)
+comment2.params=nave\ direccion\ cantidad
+comment2.target=void\ avanzarHaciaPor(NaveDeAtaque,\ Direccion,\ int)
+comment2.text=\r\n\ Subrutina\ modular\:\ Mueve\ la\ nave\ n\ veces.\r\n\ Declarada\ fuera\ de\ maniobrar\ para\ evitar\ errores\ de\ expresi\u00F3n.\r\n
+numComments=3

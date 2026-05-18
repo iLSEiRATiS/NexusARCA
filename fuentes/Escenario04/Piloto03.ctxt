@@ -1,0 +1,7 @@
+#BlueJ class context
+comment0.target=Piloto03
+comment1.params=nave
+comment1.target=void\ maniobrar(NaveDeAtaque)
+comment2.params=nave\ dir\ pasos
+comment2.target=void\ mover(NaveDeAtaque,\ Direccion,\ int)
+numComments=3
