@@ -50,6 +50,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const isLogin = location.pathname === '/login';
 
+  // Prevent background scroll when menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
+
   if (isLogin) return <>{children}</>;
 
   const handleLogout = () => {

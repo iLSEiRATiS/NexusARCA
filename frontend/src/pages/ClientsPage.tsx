@@ -16,7 +16,7 @@ const ClientsPage = () => {
     razon_social: '',
     cuit: '',
     direccion: '',
-    condicion_iva: 'Responsable Inscripto',
+    condicion_iva: 'RESPONSABLE_INSCRIPTO',
     nro_iibb: '',
     telefono: '',
     porcentaje_facturacion: 80
@@ -55,6 +55,10 @@ const ClientsPage = () => {
       setIsModalOpen(false);
       resetForm();
       toast.success('Cliente registrado correctamente');
+    },
+    onError: (err: any) => {
+      console.error('Error creating client:', err);
+      toast.error(err.response?.data?.message || 'Error al registrar cliente. Verifique los datos.');
     }
   });
 
@@ -87,7 +91,7 @@ const ClientsPage = () => {
       razon_social: '',
       cuit: '',
       direccion: '',
-      condicion_iva: 'Responsable Inscripto',
+      condicion_iva: 'RESPONSABLE_INSCRIPTO',
       nro_iibb: '',
       telefono: '',
       porcentaje_facturacion: 80
@@ -385,10 +389,10 @@ const ClientsPage = () => {
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Condición IVA</label>
                   <select value={formData.condicion_iva} onChange={e => setFormData({...formData, condicion_iva: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth text-lg sm:text-base shadow-sm">
-                    <option value="Responsable Inscripto">Responsable Inscripto</option>
-                    <option value="Monotributo">Monotributo</option>
-                    <option value="Exento">Exento</option>
-                    <option value="Consumidor Final">Consumidor Final</option>
+                    <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+                    <option value="MONOTRIBUTO">Monotributo</option>
+                    <option value="EXENTO">Exento</option>
+                    <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
                   </select>
                 </div>
                 <div className="sm:col-span-2">
