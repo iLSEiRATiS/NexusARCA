@@ -232,33 +232,33 @@ const ClientsPage = () => {
 
       {/* Details Modal with Timeline/History */}
       {isDetailsModalOpen && selectedClient && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-slide-up border border-slate-200">
-            <div className="bg-slate-50 p-8 border-b border-slate-100 flex justify-between items-start">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-slide-up border border-slate-200">
+            <div className="bg-slate-50 p-6 sm:p-8 border-b border-slate-100 flex justify-between items-start">
               <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight uppercase leading-tight">{selectedClient.razon_social}</h2>
-                <div className="flex gap-4 mt-2">
-                   <span className="text-slate-400 font-bold text-[10px] tracking-widest uppercase">CUIT: {selectedClient.cuit}</span>
-                   <span className="text-emerald-600 font-bold text-[10px] tracking-widest uppercase">Split: {selectedClient.porcentaje_facturacion}%</span>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 tracking-tight uppercase leading-tight">{selectedClient.razon_social}</h2>
+                <div className="flex flex-wrap gap-2 sm:gap-4 mt-2">
+                   <span className="text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase">CUIT: {selectedClient.cuit}</span>
+                   <span className="text-emerald-600 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase">Split: {selectedClient.porcentaje_facturacion}%</span>
                 </div>
               </div>
-              <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-smooth text-3xl font-light">&times;</button>
+              <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-smooth text-3xl font-light leading-none">&times;</button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-8 bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
-                 <div className="p-6 rounded-2xl bg-sky-50 border border-sky-100 shadow-sm">
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mb-10">
+                 <div className="p-5 sm:p-6 rounded-2xl bg-sky-50 border border-sky-100 shadow-sm">
                     <p className="text-[10px] font-bold text-sky-400 uppercase tracking-widest mb-2">Deuda en blanco</p>
-                    <p className="text-3xl font-bold text-sky-700">${Number(selectedClient.saldo_blanco).toLocaleString('es-AR')}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-sky-700">${Number(selectedClient.saldo_blanco).toLocaleString('es-AR')}</p>
                  </div>
-                 <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
+                 <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Deuda EnGroncho</p>
-                    <p className="text-3xl font-bold text-slate-700">${Number(selectedClient.saldo_negro).toLocaleString('es-AR')}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-slate-700">${Number(selectedClient.saldo_negro).toLocaleString('es-AR')}</p>
                  </div>
-                 <div className="p-6 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-100 flex flex-col justify-between">
+                 <div className="p-5 sm:p-6 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-100 flex flex-col justify-between">
                     <div>
                        <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest mb-1">Total Adeudado</p>
-                       <p className="text-3xl font-bold">${Number(selectedClient.saldo_deuda).toLocaleString('es-AR')}</p>
+                       <p className="text-2xl sm:text-3xl font-bold">${Number(selectedClient.saldo_deuda).toLocaleString('es-AR')}</p>
                     </div>
                     <button onClick={() => setIsPaymentModalOpen(true)} className="mt-4 bg-white/20 hover:bg-white/30 text-white py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-smooth">Registrar Cobro</button>
                  </div>
@@ -272,19 +272,19 @@ const ClientsPage = () => {
                     <div className="space-y-3">
                        {clientDetails?.sales?.length === 0 && <p className="text-center py-10 text-slate-400 italic text-sm">Sin movimientos registrados</p>}
                        {clientDetails?.sales?.map((sale: any) => (
-                          <div key={sale.id} className="p-5 rounded-2xl border border-slate-100 hover:bg-slate-50/50 transition-smooth flex flex-col sm:flex-row justify-between items-center gap-4">
-                             <div>
+                          <div key={sale.id} className="p-4 sm:p-5 rounded-2xl border border-slate-100 hover:bg-slate-50/50 transition-smooth flex flex-col sm:flex-row justify-between items-center gap-4">
+                             <div className="text-center sm:text-left">
                                 <p className="font-bold text-slate-700 text-sm uppercase">Venta #{String(sale.id).padStart(4, '0')}</p>
                                 <p className="text-[10px] font-medium text-slate-400 uppercase">{new Date(sale.fecha).toLocaleDateString()} • {sale.tipo_comprobante}</p>
                              </div>
-                             <div className="flex gap-6 text-right">
+                             <div className="flex gap-4 sm:gap-6 text-right">
                                 <div>
                                    <p className="text-[9px] font-bold text-sky-400 uppercase">En blanco</p>
-                                   <p className="text-sm font-bold text-slate-600">-${Number(sale.monto_facturado_ars).toLocaleString('es-AR')}</p>
+                                   <p className="text-xs sm:text-sm font-bold text-slate-600">-${Number(sale.monto_facturado_ars).toLocaleString('es-AR')}</p>
                                 </div>
                                 <div>
                                    <p className="text-[9px] font-bold text-slate-300 uppercase">EnGroncho</p>
-                                   <p className="text-sm font-bold text-slate-600">-${Number(sale.monto_no_facturado_ars).toLocaleString('es-AR')}</p>
+                                   <p className="text-xs sm:text-sm font-bold text-slate-600">-${Number(sale.monto_no_facturado_ars).toLocaleString('es-AR')}</p>
                                 </div>
                              </div>
                           </div>
@@ -299,17 +299,17 @@ const ClientsPage = () => {
 
       {/* New Client Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden animate-slide-up border border-slate-200">
-            <div className="bg-slate-800 px-10 py-8 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden animate-slide-up border border-slate-200 max-h-[95vh] flex flex-col">
+            <div className="bg-slate-800 px-6 sm:px-10 py-6 sm:py-8 text-white flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight uppercase">Nuevo Cliente</h2>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight uppercase">Nuevo Cliente</h2>
                 <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mt-1 italic">Alta en Cartera Comercial</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-smooth text-3xl font-light">&times;</button>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-smooth text-3xl font-light leading-none">&times;</button>
             </div>
-            <form onSubmit={handleSubmit} className="p-10">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <form onSubmit={handleSubmit} className="p-6 sm:p-10 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="sm:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Razón Social</label>
                   <input required type="text" value={formData.razon_social} onChange={e => setFormData({...formData, razon_social: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth"/>
@@ -340,9 +340,9 @@ const ClientsPage = () => {
                   <input required type="number" min="0" max="100" value={formData.porcentaje_facturacion} onChange={e => setFormData({...formData, porcentaje_facturacion: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth"/>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4 mt-10">
-                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 rounded-2xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
-                 <button type="submit" className="flex-[2] bg-slate-800 text-white py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl hover:bg-slate-900 transition-smooth">Registrar Cliente</button>
+              <div className="flex flex-col sm:flex-row gap-4 mt-8 sm:mt-10">
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 sm:py-4 rounded-2xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
+                 <button type="submit" className="flex-[2] bg-slate-800 text-white py-3 sm:py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl hover:bg-slate-900 transition-smooth">Registrar Cliente</button>
               </div>
             </form>
           </div>
@@ -351,11 +351,11 @@ const ClientsPage = () => {
 
       {/* Payment Modal */}
       {isPaymentModalOpen && selectedClient && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden animate-slide-up border border-emerald-100">
-            <div className="bg-emerald-600 px-10 py-8 text-white flex justify-between items-start">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden animate-slide-up border border-emerald-100 max-h-[95vh] flex flex-col">
+            <div className="bg-emerald-600 px-6 sm:px-10 py-6 sm:py-8 text-white flex justify-between items-start shrink-0">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight uppercase leading-tight">Registrar Cobro</h2>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight uppercase leading-tight">Registrar Cobro</h2>
                 <p className="text-emerald-100 text-[10px] font-bold tracking-widest uppercase mt-2 italic">{selectedClient.razon_social}</p>
               </div>
               <button 
@@ -366,24 +366,24 @@ const ClientsPage = () => {
                 &times;
               </button>
             </div>
-            <form onSubmit={handlePaymentSubmit} className="p-10 space-y-6">
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-center mb-4">
+            <form onSubmit={handlePaymentSubmit} className="p-6 sm:p-10 space-y-4 sm:space-y-6 overflow-y-auto">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100 flex justify-between items-center mb-4">
                  <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Deuda Total</p>
-                    <p className="text-2xl font-bold text-slate-700">${Number(selectedClient.saldo_deuda).toLocaleString('es-AR')}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-slate-700">${Number(selectedClient.saldo_deuda).toLocaleString('es-AR')}</p>
                  </div>
                  <div className="text-right">
                     <p className="text-[10px] font-bold text-[#0A9396] uppercase tracking-widest">EnGroncho</p>
-                    <p className="text-sm font-bold text-[#005F73]">${Number(selectedClient.saldo_negro).toLocaleString('es-AR')}</p>
+                    <p className="text-xs sm:text-sm font-bold text-[#005F73]">${Number(selectedClient.saldo_negro).toLocaleString('es-AR')}</p>
                  </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Monto a Cobrar (ARS)</label>
-                <input required type="number" step="0.01" value={paymentData.monto} onChange={e => setPaymentData({...paymentData, monto: Number(e.target.value)})} className="w-full bg-white border-2 border-emerald-100 rounded-2xl px-5 py-4 font-bold text-2xl text-emerald-700 focus:border-emerald-500 outline-none transition-smooth shadow-inner"/>
+                <input required type="number" step="0.01" value={paymentData.monto} onChange={e => setPaymentData({...paymentData, monto: Number(e.target.value)})} className="w-full bg-white border-2 border-emerald-100 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 font-bold text-xl sm:text-2xl text-emerald-700 focus:border-emerald-500 outline-none transition-smooth shadow-inner"/>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Método</label>
                   <select value={paymentData.metodo} onChange={e => setPaymentData({...paymentData, metodo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth">
@@ -410,7 +410,7 @@ const ClientsPage = () => {
                 </div>
               </div>
               
-              <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-6 bg-emerald-600 text-white py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-smooth">
+              <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-4 sm:mt-6 bg-emerald-600 text-white py-3 sm:py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-smooth">
                 {paymentMutation.isPending ? 'Procesando...' : 'Confirmar Cobro'}
               </button>
             </form>
