@@ -468,11 +468,18 @@ const ProductsPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Cantidad (Un)</label>
-                  <input required type="number" value={adjustData.cantidad} onChange={e => setAdjustData({...adjustData, cantidad: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
+                  <input 
+                    required 
+                    type="number" 
+                    value={adjustData.cantidad === 0 ? '' : adjustData.cantidad} 
+                    onChange={e => setAdjustData({...adjustData, cantidad: e.target.value === '' ? 0 : Number(e.target.value)})} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"
+                    placeholder="0"
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Vencimiento</label>
-                  <input type="date" value={adjustData.fecha_vencimiento} onChange={e => setAdjustData({...adjustData, fecha_vencimiento: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
+                  <input type="date" value={adjustData.fecha_vencimiento} onChange={e => setAdjustData({...adjustData, fecha_vencimiento: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"/>
                 </div>
               </div>
               <div>

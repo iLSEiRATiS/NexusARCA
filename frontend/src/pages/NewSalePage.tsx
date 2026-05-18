@@ -339,12 +339,26 @@ const NewSalePage = () => {
                     <div className="flex-1 min-w-0 pr-2 sm:pr-4">
                       <p className="font-bold uppercase text-xs sm:text-sm tracking-tight text-white mb-2 truncate">{item.nombre}</p>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                        <div className={`rounded-xl px-2 sm:px-3 py-1 sm:py-1.5 flex items-center gap-1.5 sm:gap-2 border ${isOverStock ? 'bg-rose-900 border-rose-400' : 'bg-slate-700 border-slate-600'}`}>
-                            <button onClick={() => updateQuantity(item.product_id, item.cantidad - 1)} className="text-slate-400 hover:text-white font-bold px-1">−</button>
-                            <span className="font-bold text-xs sm:text-sm w-4 sm:w-6 text-center">{item.cantidad}</span>
-                            <button onClick={() => updateQuantity(item.product_id, item.cantidad + 1)} className="text-slate-400 hover:text-white font-bold px-1">+</button>
+                        <div className={`rounded-xl px-2 py-1.5 flex items-center gap-2 border bg-white shadow-inner ${isOverStock ? 'border-rose-400' : 'border-slate-300'}`}>
+                            <button 
+                              type="button"
+                              onClick={() => updateQuantity(item.product_id, item.cantidad - 1)} 
+                              className="text-slate-400 hover:text-slate-900 font-bold px-1.5 h-full transition-colors"
+                            >−</button>
+                            <input 
+                              type="number"
+                              min="1"
+                              value={item.cantidad || ''}
+                              onChange={(e) => updateQuantity(item.product_id, parseInt(e.target.value) || 0)}
+                              className="font-bold text-xs sm:text-sm w-10 sm:w-12 text-center bg-transparent text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => updateQuantity(item.product_id, item.cantidad + 1)} 
+                              className="text-slate-400 hover:text-slate-900 font-bold px-1.5 h-full transition-colors"
+                            >+</button>
                         </div>
-                        <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase truncate">({item.peso_kg * item.cantidad} KG)</span>
+                        <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-tight">({(item.peso_kg * item.cantidad).toFixed(1)} KG)</span>
                       </div>
                       {isOverStock && (
                         <p className="text-[8px] sm:text-[10px] font-bold text-rose-400 uppercase mt-2 animate-pulse">
