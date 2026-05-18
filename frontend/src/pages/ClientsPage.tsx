@@ -358,28 +358,33 @@ const ClientsPage = () => {
 
       {/* New Client Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden animate-slide-up border border-slate-200 max-h-[95vh] flex flex-col">
+        <div className="fixed inset-0 bg-[#F2EBE1] sm:bg-slate-900/60 sm:backdrop-blur-sm z-[100] flex items-center justify-center">
+          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:rounded-[32px] sm:w-[95%] sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up">
             <div className="bg-slate-800 px-6 sm:px-10 py-6 sm:py-8 text-white flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight uppercase">Nuevo Cliente</h2>
-                <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mt-1 italic">Alta en Cartera Comercial</p>
+                <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mt-0.5 italic">Alta en Cartera Comercial</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-smooth text-3xl font-light leading-none">&times;</button>
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full text-2xl font-light sm:hover:bg-white/20 transition-smooth"
+              >
+                &times;
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 sm:p-10 overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <form onSubmit={handleSubmit} className="p-6 sm:p-10 overflow-y-auto flex-1 custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Razón Social</label>
-                  <input required type="text" value={formData.razon_social} onChange={e => setFormData({...formData, razon_social: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth"/>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Razón Social</label>
+                  <input required type="text" value={formData.razon_social} onChange={e => setFormData({...formData, razon_social: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth text-lg sm:text-base shadow-sm"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">CUIT</label>
-                  <input required type="text" value={formData.cuit} onChange={e => setFormData({...formData, cuit: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">CUIT</label>
+                  <input required type="text" value={formData.cuit} onChange={e => setFormData({...formData, cuit: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth text-lg sm:text-base shadow-sm"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Condición IVA</label>
-                  <select value={formData.condicion_iva} onChange={e => setFormData({...formData, condicion_iva: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Condición IVA</label>
+                  <select value={formData.condicion_iva} onChange={e => setFormData({...formData, condicion_iva: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth text-lg sm:text-base shadow-sm">
                     <option value="Responsable Inscripto">Responsable Inscripto</option>
                     <option value="Monotributo">Monotributo</option>
                     <option value="Exento">Exento</option>
@@ -387,21 +392,26 @@ const ClientsPage = () => {
                   </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
-                  <input type="text" value={formData.direccion} onChange={e => setFormData({...formData, direccion: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Dirección Fiscal</label>
+                  <input type="text" value={formData.direccion} onChange={e => setFormData({...formData, direccion: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth text-lg sm:text-base shadow-sm"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Teléfono</label>
-                  <input type="text" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Teléfono</label>
+                  <input type="text" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth text-lg sm:text-base shadow-sm"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-2">Split Oficial (%)</label>
-                  <input required type="number" min="0" max="100" value={formData.porcentaje_facturacion} onChange={e => setFormData({...formData, porcentaje_facturacion: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth"/>
+                  <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1.5">Split Oficial (%)</label>
+                  <input required type="number" min="0" max="100" value={formData.porcentaje_facturacion} onChange={e => setFormData({...formData, porcentaje_facturacion: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-2xl px-5 py-4 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth text-lg sm:text-base shadow-sm"/>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4 mt-8 sm:mt-10">
-                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 sm:py-4 rounded-2xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
-                 <button type="submit" className="flex-[2] bg-slate-800 text-white py-3 sm:py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl hover:bg-slate-900 transition-smooth">Registrar Cliente</button>
+              
+              <div className="mt-10 space-y-3">
+                 <button type="submit" className="w-full bg-slate-800 text-white py-5 rounded-2xl font-bold text-sm uppercase tracking-widest shadow-xl sm:hover:bg-slate-900 transition-smooth">
+                   Confirmar Alta
+                 </button>
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-4 rounded-2xl font-bold text-sm uppercase text-slate-400 sm:hover:bg-slate-50 transition-smooth">
+                   Cancelar
+                 </button>
               </div>
             </form>
           </div>
@@ -410,22 +420,22 @@ const ClientsPage = () => {
 
       {/* Payment Modal */}
       {isPaymentModalOpen && selectedClient && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden animate-slide-up border border-emerald-100 max-h-[95vh] flex flex-col">
+        <div className="fixed inset-0 bg-[#F2EBE1] sm:bg-slate-900/60 sm:backdrop-blur-sm z-[100] flex items-center justify-center">
+          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:rounded-[32px] sm:w-[95%] sm:max-w-lg shadow-2xl overflow-hidden flex flex-col animate-slide-up">
             <div className="bg-emerald-600 px-6 sm:px-10 py-6 sm:py-8 text-white flex justify-between items-start shrink-0">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight uppercase leading-tight">Registrar Cobro</h2>
-                <p className="text-emerald-100 text-[10px] font-bold tracking-widest uppercase mt-2 italic">{selectedClient.razon_social}</p>
+                <p className="text-emerald-100 text-[10px] font-bold tracking-widest uppercase mt-1 italic">{selectedClient.razon_social}</p>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsPaymentModalOpen(false)}
-                className="bg-white/20 w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/40 transition-smooth text-xl font-light shrink-0"
+                className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full text-2xl font-light sm:hover:bg-white/20 transition-smooth"
               >
                 &times;
               </button>
             </div>
-            <form onSubmit={handlePaymentSubmit} className="p-6 sm:p-10 space-y-4 sm:space-y-6 overflow-y-auto">
+            <form onSubmit={handlePaymentSubmit} className="p-6 sm:p-10 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
               <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100 flex justify-between items-center mb-4">
                  <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Deuda Total</p>

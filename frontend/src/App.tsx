@@ -118,18 +118,39 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Mobile Nav Dropdown */}
       {isMenuOpen && (
-        <div className="md:hidden glass border-b border-[#D6CCC2] p-6 animate-fade-in absolute top-[70px] left-0 w-full z-40 shadow-xl space-y-2">
-          <NavLink to="/" onClick={() => setIsMenuOpen(false)}>📊 Tablero</NavLink>
-          <NavLink to="/ventas" onClick={() => setIsMenuOpen(false)}>💰 Ventas</NavLink>
-          <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)}>📄 Presupuestos</NavLink>
-          <NavLink to="/productos" onClick={() => setIsMenuOpen(false)}>📦 Stock</NavLink>
-          <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)}>👥 Clientes</NavLink>
-          <button 
-            onClick={handleLogout}
-            className="w-full mt-4 bg-rose-100/50 text-rose-700 py-4 rounded-xl font-bold text-xs uppercase border border-rose-200"
-          >
-            Cerrar Sesión
-          </button>
+        <div className="md:hidden bg-[#F2EBE1] border-b border-[#D6CCC2] p-6 animate-fade-in absolute top-[70px] left-0 w-full z-[100] shadow-2xl space-y-3">
+          <div className="flex flex-col gap-2">
+            <NavLink to="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
+              <span className="text-xl">📊</span> Tablero
+            </NavLink>
+            <NavLink to="/ventas" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
+              <span className="text-xl">💰</span> Ventas
+            </NavLink>
+            <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
+              <span className="text-xl">📄</span> Presupuestos
+            </NavLink>
+            <NavLink to="/productos" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
+              <span className="text-xl">📦</span> Stock
+            </NavLink>
+            <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-[#D6CCC2]/50 font-bold text-[#333D29]">
+              <span className="text-xl">👥</span> Clientes
+            </NavLink>
+          </div>
+          
+          <div className="pt-4 border-t border-[#D6CCC2]/60">
+            <div className="flex items-center justify-between px-2 mb-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-[#333D29]/60 uppercase tracking-widest">{auth.user?.nombre || 'Usuario'}</span>
+                <span className="text-xs font-bold text-[#005F73] capitalize">{auth.user?.role || 'Admin'}</span>
+              </div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="w-full bg-rose-100 text-rose-700 py-4 rounded-2xl font-bold text-xs uppercase border border-rose-200 shadow-sm flex items-center justify-center gap-2"
+            >
+              <span>🚪</span> Cerrar Sesión
+            </button>
+          </div>
         </div>
       )}
 

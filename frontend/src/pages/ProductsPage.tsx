@@ -340,16 +340,21 @@ const ProductsPage = () => {
 
       {/* Modals with new aesthetic */}
       {isDetailsModalOpen && selectedProduct && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-slide-up border border-slate-200">
-            <div className="bg-slate-50 p-6 sm:p-8 border-b border-slate-100 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-[32px] sm:rounded-[32px] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-slide-up border border-slate-200">
+            <div className="bg-slate-50 p-6 sm:p-8 border-b border-slate-100 flex justify-between items-center shrink-0 relative">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight uppercase leading-tight">{selectedProduct.nombre}</h2>
-                <p className="text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase mt-1">Historial de Lotes y Trazabilidad</p>
+                <p className="text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase mt-0.5">Historial de Lotes y Trazabilidad</p>
               </div>
-              <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-smooth text-3xl font-light leading-none">&times;</button>
+              <button 
+                onClick={() => setIsDetailsModalOpen(false)} 
+                className="w-10 h-10 flex items-center justify-center bg-slate-200/50 hover:bg-slate-200 rounded-full transition-smooth text-2xl font-light"
+              >
+                &times;
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
               {isLoadingDetails ? (
                 <div className="text-center py-12 animate-pulse text-slate-300 font-bold uppercase text-sm">Sincronizando...</div>
               ) : (
@@ -397,24 +402,29 @@ const ProductsPage = () => {
 
       {/* Edit Batch Modal */}
       {isEditBatchModalOpen && selectedBatch && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-[24px] sm:rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-10 border border-slate-200 animate-slide-up max-h-[95vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6 sm:mb-8 border-b border-slate-50 pb-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-[32px] sm:rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-10 border border-slate-200 animate-slide-up max-h-[92vh] overflow-y-auto custom-scrollbar">
+            <div className="flex justify-between items-center mb-6 sm:mb-8 border-b border-slate-50 pb-4 relative">
                <h3 className="text-lg sm:text-xl font-bold text-slate-800 uppercase tracking-tight">Ajustar Lote</h3>
-               <button onClick={() => setIsEditBatchModalOpen(false)} className="text-slate-400 text-2xl font-light">&times;</button>
+               <button 
+                 onClick={() => setIsEditBatchModalOpen(false)} 
+                 className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full transition-smooth text-xl font-light"
+               >
+                 &times;
+               </button>
             </div>
             <div className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Código de Lote</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Código de Lote</label>
                 <input type="text" value={editBatchData.nro_lote} onChange={e => setEditBatchData({...editBatchData, nro_lote: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-sky-400 outline-none transition-smooth"/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cantidad</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Cantidad</label>
                   <input type="number" value={editBatchData.cantidad_bultos} onChange={e => setEditBatchData({...editBatchData, cantidad_bultos: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Estado</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Estado</label>
                   <select value={editBatchData.estado || 'ACTIVO'} onChange={e => setEditBatchData({...editBatchData, estado: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth uppercase text-[10px]">
                     <option value="ACTIVO">Activo</option>
                     <option value="BLOQUEADO">Bloqueado</option>
@@ -422,13 +432,13 @@ const ProductsPage = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Fecha Vencimiento</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Fecha Vencimiento</label>
                 <input type="date" value={editBatchData.fecha_vencimiento} onChange={e => setEditBatchData({...editBatchData, fecha_vencimiento: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth"/>
               </div>
             </div>
-            <div className="mt-8 sm:mt-10 flex gap-3">
-              <button onClick={() => setIsEditBatchModalOpen(false)} className="flex-1 py-3 rounded-xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
-              <button onClick={() => updateBatchMutation.mutate(editBatchData)} className="flex-[2] bg-sky-600 text-white py-3 rounded-xl font-bold text-[11px] uppercase shadow-lg shadow-sky-100 hover:bg-sky-700 transition-smooth">Guardar</button>
+            <div className="mt-8 sm:mt-10 flex flex-col gap-3">
+              <button onClick={() => updateBatchMutation.mutate(editBatchData)} className="w-full bg-sky-600 text-white py-4 rounded-2xl font-bold text-[11px] uppercase shadow-lg shadow-sky-100 hover:bg-sky-700 transition-smooth">Guardar Cambios</button>
+              <button onClick={() => setIsEditBatchModalOpen(false)} className="w-full py-3 rounded-2xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
             </div>
           </div>
         </div>
@@ -436,37 +446,45 @@ const ProductsPage = () => {
 
       {/* Stock Entry Modal */}
       {isAdjustModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden animate-slide-up border border-emerald-100 max-h-[95vh] flex flex-col">
-            <div className="bg-emerald-600 px-6 sm:px-10 py-6 sm:py-8 text-white shrink-0 flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-[32px] sm:rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden animate-slide-up border border-emerald-100 max-h-[92vh] flex flex-col">
+            <div className="bg-emerald-600 px-6 sm:px-10 py-5 sm:py-8 text-white shrink-0 flex justify-between items-center relative">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight uppercase">Ingreso de Mercadería</h2>
-                <p className="text-emerald-100 text-[10px] font-bold tracking-widest uppercase mt-1 italic leading-none">{selectedProduct?.nombre}</p>
+                <p className="text-emerald-100 text-[10px] font-bold tracking-widest uppercase mt-0.5 italic leading-none">{selectedProduct?.nombre}</p>
               </div>
-              <button onClick={() => setIsAdjustModalOpen(false)} className="text-white/60 hover:text-white transition-smooth text-3xl font-light leading-none">&times;</button>
+              <button 
+                onClick={() => setIsAdjustModalOpen(false)} 
+                className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-smooth text-2xl font-light"
+              >
+                &times;
+              </button>
             </div>
-            <form onSubmit={handleAdjustSubmit} className="p-6 sm:p-10 space-y-4 sm:space-y-6 overflow-y-auto">
+            <form onSubmit={handleAdjustSubmit} className="p-6 sm:p-10 space-y-4 sm:space-y-6 overflow-y-auto custom-scrollbar">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Identificador de Lote</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Identificador de Lote</label>
                 <input required type="text" value={adjustData.nro_lote} onChange={e => setAdjustData({...adjustData, nro_lote: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth"/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cantidad (Un)</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Cantidad (Un)</label>
                   <input required type="number" value={adjustData.cantidad} onChange={e => setAdjustData({...adjustData, cantidad: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Vencimiento</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Vencimiento</label>
                   <input type="date" value={adjustData.fecha_vencimiento} onChange={e => setAdjustData({...adjustData, fecha_vencimiento: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Proveedor / Motivo</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Proveedor / Motivo</label>
                 <input required type="text" placeholder="Ej: Compra a Quimica Sur" value={adjustData.motivo} onChange={e => setAdjustData({...adjustData, motivo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth placeholder:text-slate-300"/>
               </div>
-              <button type="submit" disabled={adjustMutation.isPending} className="w-full mt-4 sm:mt-6 bg-emerald-600 text-white py-3 sm:py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-smooth">
-                {adjustMutation.isPending ? 'Procesando...' : 'Confirmar Ingreso'}
-              </button>
+              <div className="flex flex-col gap-3 pt-2">
+                <button type="submit" disabled={adjustMutation.isPending} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-smooth">
+                  {adjustMutation.isPending ? 'Procesando...' : 'Confirmar Ingreso'}
+                </button>
+                <button type="button" onClick={() => setIsAdjustModalOpen(false)} className="w-full py-3 rounded-2xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
+              </div>
             </form>
           </div>
         </div>
@@ -474,41 +492,46 @@ const ProductsPage = () => {
 
       {/* New Product Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden animate-slide-up border border-slate-200 max-h-[95vh] flex flex-col">
-            <div className="bg-slate-800 px-6 sm:px-10 py-6 sm:py-8 text-white flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-[32px] sm:rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden animate-slide-up border border-slate-200 max-h-[92vh] flex flex-col">
+            <div className="bg-slate-800 px-6 sm:px-10 py-5 sm:py-8 text-white flex justify-between items-center shrink-0 relative">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight uppercase">Nuevo Producto</h2>
-                <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mt-1">Alta en Catálogo Maestro</p>
+                <p className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mt-0.5">Alta en Catálogo Maestro</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-smooth text-3xl font-light leading-none">&times;</button>
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-smooth text-2xl font-light"
+              >
+                &times;
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 sm:p-10 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 sm:p-10 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Nombre Comercial</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nombre Comercial</label>
                   <input required type="text" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Peso Unitario (KG)</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Peso Unitario (KG)</label>
                   <input required type="number" value={formData.peso_kg} onChange={e => setFormData({...formData, peso_kg: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Stock Mínimo</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Stock Mínimo</label>
                   <input required type="number" value={formData.stock_minimo} onChange={e => setFormData({...formData, stock_minimo: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-2">Costo (USD / KG)</label>
+                  <label className="block text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1.5">Costo (USD / KG)</label>
                   <input required type="number" step="0.01" value={formData.costo_usd} onChange={e => setFormData({...formData, costo_usd: Number(e.target.value)})} className="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-3 font-bold text-rose-700 focus:border-rose-400 outline-none transition-smooth"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-2">Venta (USD / KG)</label>
+                  <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1.5">Venta (USD / KG)</label>
                   <input required type="number" step="0.01" value={formData.precio_usd} onChange={e => setFormData({...formData, precio_usd: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth"/>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4 mt-8 sm:mt-10">
-                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 sm:py-4 rounded-2xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
-                 <button type="submit" className="flex-[2] bg-slate-800 text-white py-3 sm:py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl hover:bg-slate-900 transition-smooth">Registrar</button>
+              <div className="flex flex-col gap-3 mt-8 sm:mt-10">
+                 <button type="submit" className="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl hover:bg-slate-900 transition-smooth">Registrar Item</button>
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 rounded-2xl font-bold text-[11px] uppercase text-slate-400 hover:bg-slate-50 transition-smooth">Cancelar</button>
               </div>
             </form>
           </div>
