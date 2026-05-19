@@ -25,13 +25,15 @@ const Dashboard = () => {
     queryFn: clientService.getAll 
   });
 
-  const { data: sales, isLoading: loadingSales } = useQuery({
+  const { data, isLoading: loadingSales } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const res = await api.get('/sales');
       return res.data;
     }
   });
+
+  const sales = data?.data || [];
 
   if (loadingDolar || loadingProducts || loadingClients || loadingSales) {
     return <div className="p-10"><CardSkeleton /></div>;
@@ -46,13 +48,13 @@ const Dashboard = () => {
   const last7Days = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toLocaleDateString();
+    return d.toISOString().split('T')[0]; // Use ISO for robust comparison
   }).reverse();
 
-  const salesChartData = last7Days.map(date => {
-    const daySales = sales?.filter((s: any) => new Date(s.fecha).toLocaleDateString() === date) || [];
+  const salesChartData = last7Days.map(dateStr => {
+    const daySales = sales.filter((s: any) => new Date(s.fecha).toISOString().split('T')[0] === dateStr);
     return {
-      name: date.split('/')[0] + '/' + date.split('/')[1],
+      name: dateStr.split('-')[2] + '/' + dateStr.split('-')[1], // DD/MM format
       total: daySales.reduce((acc: number, s: any) => acc + Number(s.total_real_ars), 0)
     };
   });

@@ -10,7 +10,7 @@ const SalesPage = () => {
   const [filterType, setFilterType] = useState('TODOS'); // TODOS, FACTURA, PRESUPUESTO
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
-  const { data: sales, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const res = await api.get('/sales');
@@ -18,7 +18,9 @@ const SalesPage = () => {
     }
   });
 
-  const filteredSales = sales?.filter((sale: any) => {
+  const sales = data?.data || [];
+
+  const filteredSales = sales.filter((sale: any) => {
     const matchesSearch = 
       sale.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(sale.id).includes(searchTerm);
