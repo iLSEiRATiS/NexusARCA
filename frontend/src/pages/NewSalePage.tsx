@@ -4,77 +4,82 @@ import { clientService } from '../services/clientService';
 import { productService } from '../services/productService';
 import { currencyService } from '../services/currencyService';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { CardSkeleton } from '../components/Skeletons';
+
+interface CartItem {
+  product_id: number;
+  nombre: string;
+  cantidad: number;
+  precio_usd: number;
+  peso_kg: number;
+  subtotal_usd: number;
+}
 
 const NewSalePage = () => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
-  // State
-  const [step, setStep] = useState(1); // 1: Client, 2: Items, 3: Review
-  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  const [cart, setCart] = useState<{ 
-    product_id: number; 
-    nombre: string; 
-    cantidad: number; 
-    peso_kg: number; 
-    precio_usd: number; 
-    subtotal_usd: number;
-    batch_id?: number;
-    batch_nro?: string;
-  }[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [tipoComprobante, setTipoComprobante] = useState('Factura B');
   const [splitOverride, setSplitOverride] = useState<number | null>(null);
 
-  // Data Queries
-  const { data: clients } = useQuery({ queryKey: ['clients'], queryFn: clientService.getAll });
-  const { data: products } = useQuery({ queryKey: ['products'], queryFn: productService.getAll });
-  const { data: dolar } = useQuery({ queryKey: ['dolar'], queryFn: currencyService.getDolarOficial });
+  const { data: clients, isLoading: isLoadingClients } = useQuery({ 
+    queryKey: ['clients'], 
+    queryFn: clientService.getAll 
+  });
+  
+  const { data: products, isLoading: isLoadingProducts } = useQuery({ 
+    queryKey: ['products'], 
+    queryFn: productService.getAll 
+  });
+
+  const { data: dolar } = useQuery({ 
+    queryKey: ['dolar'], 
+    queryFn: currencyService.getDolarOficial 
+  });
 
   const selectedClient = clients?.find((c: any) => c.id === selectedClientId);
-  const cotizacion = dolar?.cotizacion || 0;
+  const cotizacion = Number(dolar?.cotizacion || 1);
 
-  // Sync split override with client default
-  useEffect(() => {
-    if (selectedClient && splitOverride === null) {
-      setSplitOverride(Number(selectedClient.porcentaje_facturacion));
-    }
-  }, [selectedClient]);
-
-  // Calculations
+  // Totales
   const totalUsd = cart.reduce((acc, item) => acc + item.subtotal_usd, 0);
   const totalArs = totalUsd * cotizacion;
-  const montoBlanco = totalArs * ((splitOverride ?? 80) / 100);
+
+  const currentSplit = splitOverride ?? (selectedClient?.porcentaje_facturacion || 80);
+  const montoBlanco = (totalArs * currentSplit) / 100;
   const montoNegro = totalArs - montoBlanco;
 
-  const getProductStock = (productId: number) => {
-    return products?.find((p: any) => p.id === productId)?.stock_actual || 0;
-  };
+  const isCartValid = cart.length > 0 && cart.every(item => {
+    const p = products?.find((prod: any) => prod.id === item.product_id);
+    return item.cantidad > 0 && (p ? item.cantidad <= p.stock_actual : false);
+  });
 
-  const isCartValid = cart.length > 0 && cart.every(item => item.cantidad <= getProductStock(item.product_id));
+  const getProductStock = (id: number) => products?.find((p: any) => p.id === id)?.stock_actual || 0;
 
-  // Actions
   const addToCart = (product: any) => {
     if (product.stock_actual <= 0) {
-      toast.error('Sin stock disponible');
+      toast.error('Producto sin stock');
       return;
     }
     const existing = cart.find(item => item.product_id === product.id);
-    const pesoKg = Number(product.peso_kg);
-    const precioKg = Number(product.precio_usd);
-
     if (existing) {
+      if (existing.cantidad >= product.stock_actual) {
+        toast.warning('No hay más stock disponible');
+        return;
+      }
       updateQuantity(product.id, existing.cantidad + 1);
     } else {
-      setCart([...cart, { 
-        product_id: product.id, 
-        nombre: product.nombre, 
-        cantidad: 1, 
-        peso_kg: pesoKg,
-        precio_usd: precioKg, 
-        subtotal_usd: pesoKg * precioKg
+      setCart([...cart, {
+        product_id: product.id,
+        nombre: product.nombre,
+        cantidad: 1,
+        precio_usd: Number(product.precio_usd),
+        peso_kg: Number(product.peso_kg),
+        subtotal_usd: Number(product.precio_usd) * Number(product.peso_kg)
       }]);
     }
     toast.success('Agregado al carrito');
@@ -130,6 +135,14 @@ const NewSalePage = () => {
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const preventInvalidChars = (e: React.KeyboardEvent) => {
+    if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  if (isLoadingClients || isLoadingProducts) return <div className="p-10"><CardSkeleton /></div>;
+
   return (
     <div className="p-4 sm:p-6 md:p-10 animate-fade-in max-w-[1400px] mx-auto">
       {/* Header & Steps Indicator */}
@@ -147,9 +160,9 @@ const NewSalePage = () => {
               ))}
            </div>
         </div>
-        <div className="bg-white px-5 sm:px-6 py-3 rounded-2xl border border-slate-100 shadow-soft w-full sm:w-auto">
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cotización Aplicada</p>
-           <p className="text-xl font-bold text-emerald-600">${cotizacion} <span className="text-[10px] text-slate-300 font-medium ml-1">ARS/USD</span></p>
+        <div className="bg-white px-5 sm:px-6 py-3 rounded-2xl border border-slate-100 shadow-soft w-full sm:w-auto text-center md:text-left">
+           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Dólar Operativo</p>
+           <p className="text-lg font-black text-[#005F73]">${cotizacion.toFixed(2)}</p>
         </div>
       </div>
 
@@ -185,7 +198,10 @@ const NewSalePage = () => {
                   </div>
                   <div className="p-4 sm:p-5 rounded-2xl bg-rose-50 border border-rose-100">
                     <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-1">Deuda Vigente</p>
-                    <p className="text-lg sm:text-xl font-bold text-rose-800">${Number(selectedClient.saldo_deuda).toLocaleString('es-AR')}</p>
+                    <p className={`text-lg sm:text-xl font-bold ${Number(selectedClient.saldo_deuda) < 0 ? 'text-rose-800' : 'text-emerald-800'}`}>
+                      ${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}
+                      <span className="text-[10px] ml-2 uppercase opacity-60">{Number(selectedClient.saldo_deuda) < 0 ? '(Debe)' : '(Favor)'}</span>
+                    </p>
                   </div>
                 </div>
               )}
@@ -349,7 +365,11 @@ const NewSalePage = () => {
                               type="number"
                               min="1"
                               value={item.cantidad || ''}
-                              onChange={(e) => updateQuantity(item.product_id, parseInt(e.target.value) || 0)}
+                              onKeyDown={preventInvalidChars}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                                updateQuantity(item.product_id, val);
+                              }}
                               className="font-bold text-xs sm:text-sm w-10 sm:w-12 text-center bg-transparent text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                             <button 

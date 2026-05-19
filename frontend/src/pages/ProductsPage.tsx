@@ -168,6 +168,12 @@ const ProductsPage = () => {
     createMutation.mutate(formData);
   };
 
+  const preventInvalidChars = (e: React.KeyboardEvent) => {
+    if (['e', 'E', '+', '-'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
   const handleAdjustSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     adjustMutation.mutate(adjustData);
@@ -433,7 +439,14 @@ const ProductsPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Cantidad</label>
-                  <input type="number" value={editBatchData.cantidad_bultos === 0 ? '' : editBatchData.cantidad_bultos} onChange={e => setEditBatchData({...editBatchData, cantidad_bultos: e.target.value === '' ? 0 : Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth shadow-sm" placeholder="0"/>
+                  <input 
+                    type="number" 
+                    value={editBatchData.cantidad_bultos === 0 ? '' : editBatchData.cantidad_bultos} 
+                    onKeyDown={preventInvalidChars}
+                    onChange={e => setEditBatchData({...editBatchData, cantidad_bultos: e.target.value === '' ? 0 : handleNumericInput(e.target.value)})} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth shadow-sm" 
+                    placeholder="0"
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Estado</label>
@@ -484,7 +497,8 @@ const ProductsPage = () => {
                     required 
                     type="number" 
                     value={adjustData.cantidad === 0 ? '' : adjustData.cantidad} 
-                    onChange={e => setAdjustData({...adjustData, cantidad: e.target.value === '' ? 0 : Number(e.target.value)})} 
+                    onKeyDown={preventInvalidChars}
+                    onChange={e => setAdjustData({...adjustData, cantidad: e.target.value === '' ? 0 : handleNumericInput(e.target.value)})} 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"
                     placeholder="0"
                   />
@@ -533,19 +547,49 @@ const ProductsPage = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Peso Unitario (KG)</label>
-                  <input required type="number" value={formData.peso_kg} onChange={e => setFormData({...formData, peso_kg: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"/>
+                  <input 
+                    required 
+                    type="number" 
+                    value={formData.peso_kg} 
+                    onKeyDown={preventInvalidChars}
+                    onChange={e => setFormData({...formData, peso_kg: handleNumericInput(e.target.value)})} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Stock Mínimo</label>
-                  <input required type="number" value={formData.stock_minimo} onChange={e => setFormData({...formData, stock_minimo: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"/>
+                  <input 
+                    required 
+                    type="number" 
+                    value={formData.stock_minimo} 
+                    onKeyDown={preventInvalidChars}
+                    onChange={e => setFormData({...formData, stock_minimo: handleNumericInput(e.target.value)})} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1.5">Costo (USD / KG)</label>
-                  <input required type="number" step="0.01" value={formData.costo_usd} onChange={e => setFormData({...formData, costo_usd: Number(e.target.value)})} className="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-3 font-bold text-rose-700 focus:border-rose-400 outline-none transition-smooth shadow-sm"/>
+                  <input 
+                    required 
+                    type="number" 
+                    step="0.01" 
+                    value={formData.costo_usd} 
+                    onKeyDown={preventInvalidChars}
+                    onChange={e => setFormData({...formData, costo_usd: handleNumericInput(e.target.value)})} 
+                    className="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-3 font-bold text-rose-700 focus:border-rose-400 outline-none transition-smooth shadow-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1.5">Venta (USD / KG)</label>
-                  <input required type="number" step="0.01" value={formData.precio_usd} onChange={e => setFormData({...formData, precio_usd: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth shadow-sm"/>
+                  <input 
+                    required 
+                    type="number" 
+                    step="0.01" 
+                    value={formData.precio_usd} 
+                    onKeyDown={preventInvalidChars}
+                    onChange={e => setFormData({...formData, precio_usd: handleNumericInput(e.target.value)})} 
+                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth shadow-sm"
+                  />
                 </div>
               </div>
               <div className="flex flex-col gap-3 mt-8 sm:mt-10">

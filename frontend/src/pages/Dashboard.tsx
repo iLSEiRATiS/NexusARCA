@@ -95,7 +95,7 @@ const Dashboard = () => {
         <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:shadow-premium transition-smooth">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Cartera de Deuda</p>
           <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-slate-800 tracking-tighter">${totalDebtPortfolio.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+            <span className="text-3xl font-bold text-rose-600 tracking-tighter">${totalDebtPortfolio.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
             <span className={`p-2 rounded-xl text-xs font-bold ${debtorClientsCount > 0 ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}`}>
               {debtorClientsCount} Deudores
             </span>

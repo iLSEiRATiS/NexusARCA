@@ -146,6 +146,25 @@ const ClientsPage = () => {
     generateAccountStatementPDF(selectedClient, history);
   };
 
+  const handleNumericInput = (value: string, min: number = 0) => {
+    const cleanedValue = value.replace(/[^0-9.]/g, '');
+    const numValue = parseFloat(cleanedValue);
+    if (isNaN(numValue)) return 0;
+    return Math.max(min, numValue);
+  };
+
+  const preventInvalidChars = (e: React.KeyboardEvent) => {
+    if (['e', 'E', '+', '-'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const getBalanceColor = (balance: number) => {
+    if (balance < 0) return 'text-rose-600';
+    if (balance > 0) return 'text-emerald-600';
+    return 'text-slate-700';
+  };
+
   if (isLoading) return <div className="p-6 md:p-10"><TableSkeleton /></div>;
 
   return (
@@ -207,15 +226,15 @@ const ClientsPage = () => {
                       <div className="flex justify-center gap-3">
                          <div className="px-4 py-2 rounded-2xl bg-sky-50 border border-sky-100/50 text-center min-w-[120px]">
                             <p className="text-[8px] font-bold text-sky-400 uppercase tracking-widest">En blanco</p>
-                            <p className="text-sm font-bold text-sky-700">${Number(client.saldo_blanco).toLocaleString('es-AR')}</p>
+                            <p className={`text-sm font-bold ${getBalanceColor(Number(client.saldo_blanco))}`}>${Math.abs(Number(client.saldo_blanco)).toLocaleString('es-AR')}</p>
                          </div>
                          <div className="px-4 py-2 rounded-2xl bg-slate-50 border border-slate-100/50 text-center min-w-[120px]">
                             <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">EnGroncho</p>
-                            <p className="text-sm font-bold text-slate-700">${Number(client.saldo_negro).toLocaleString('es-AR')}</p>
+                            <p className={`text-sm font-bold ${getBalanceColor(Number(client.saldo_negro))}`}>${Math.abs(Number(client.saldo_negro)).toLocaleString('es-AR')}</p>
                          </div>
                          <div className={`px-4 py-2 rounded-2xl border text-center min-w-[120px] shadow-sm ${hasDebt ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}>
                             <p className="text-[8px] font-bold uppercase tracking-widest opacity-60">{hasDebt ? 'Deuda Total' : 'Saldo a Favor'}</p>
-                            <p className="text-sm font-bold">${Math.abs(totalDebt).toLocaleString('es-AR')}</p>
+                            <p className={`text-sm font-bold ${getBalanceColor(totalDebt)}`}>${Math.abs(totalDebt).toLocaleString('es-AR')}</p>
                          </div>
                       </div>
                     </td>
@@ -331,9 +350,29 @@ const ClientsPage = () => {
                 <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Condición IVA</label><select value={formData.condicion_iva} onChange={e => setFormData({...formData, condicion_iva: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none text-lg sm:text-base shadow-sm"><option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option><option value="MONOTRIBUTO">Monotributo</option><option value="EXENTO">Exento</option><option value="CONSUMIDOR_FINAL">Consumidor Final</option></select></div>
                 <div className="sm:col-span-2"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Dirección Fiscal</label><input type="text" value={formData.direccion} onChange={e => setFormData({...formData, direccion: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none text-lg sm:text-base shadow-sm"/></div>
                 <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Teléfono</label><input type="text" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-700 focus:border-emerald-500 outline-none text-lg sm:text-base shadow-sm"/></div>
-                <div><label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1.5">Split Oficial (%)</label><input required type="number" min="0" max="100" value={formData.porcentaje_facturacion} onChange={e => setFormData({...formData, porcentaje_facturacion: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-2xl px-5 py-4 font-bold text-emerald-700 focus:border-emerald-400 outline-none text-lg sm:text-base shadow-sm"/></div>
+                <div>
+                  <label className="block text-[10px] font-bold text-emerald-600 uppercase mb-1.5">Split Oficial (%)</label>
+                  <input 
+                    required 
+                    type="number" 
+                    min="0" 
+                    max="100" 
+                    value={formData.porcentaje_facturacion} 
+                    onKeyDown={preventInvalidChars}
+                    onChange={e => setFormData({...formData, porcentaje_facturacion: handleNumericInput(e.target.value)})} 
+                    className="w-full bg-emerald-50/50 border border-emerald-100 rounded-2xl px-5 py-4 font-bold text-emerald-700 focus:border-emerald-400 outline-none text-lg sm:text-base shadow-sm"
+                  />
+                </div>
               </div>
-              <div className="mt-10 space-y-3"><button type="submit" className="w-full bg-slate-800 text-white py-5 rounded-2xl font-bold text-sm uppercase shadow-xl">Confirmar Alta</button><button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-4 rounded-2xl font-bold text-sm uppercase text-slate-400">Cancelar</button></div>
+              
+              <div className="mt-10 space-y-3">
+                 <button type="submit" className="w-full bg-slate-800 text-white py-5 rounded-2xl font-bold text-sm uppercase shadow-xl">
+                   Confirmar Alta
+                 </button>
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-4 rounded-2xl font-bold text-sm uppercase text-slate-400">
+                   Cancelar
+                 </button>
+              </div>
             </form>
           </div>
         </div>
@@ -344,15 +383,43 @@ const ClientsPage = () => {
         <div className="fixed inset-0 bg-[#F2EBE1] sm:bg-slate-900/60 sm:backdrop-blur-sm z-[100] flex items-center justify-center">
           <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:rounded-[32px] sm:w-[95%] sm:max-w-lg shadow-2xl overflow-hidden flex flex-col animate-slide-up">
             <div className="bg-emerald-600 px-6 py-6 text-white flex justify-between items-start shrink-0">
-              <div><h2 className="text-xl font-bold uppercase">Registrar Cobro</h2><p className="text-emerald-100 text-[10px] font-bold uppercase mt-1 italic">{selectedClient.razon_social}</p></div>
-              <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full text-2xl font-light">&times;</button>
+              <div>
+                <h2 className="text-xl font-bold uppercase">Registrar Cobro</h2>
+                <p className="text-emerald-100 text-[10px] font-bold uppercase mt-1 italic">{selectedClient.razon_social}</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsPaymentModalOpen(false)} 
+                className="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full text-2xl font-light"
+              >
+                &times;
+              </button>
             </div>
             <form onSubmit={handlePaymentSubmit} className="p-6 sm:p-10 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center mb-4">
-                 <div><p className="text-[10px] font-bold text-slate-400 uppercase">Deuda Total</p><p className="text-xl font-bold text-slate-700">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p></div>
-                 <div className="text-right"><p className="text-[10px] font-bold text-[#0A9396] uppercase">EnGroncho</p><p className="text-sm font-bold text-[#005F73]">${Math.abs(Number(selectedClient.saldo_negro)).toLocaleString('es-AR')}</p></div>
+                 <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Deuda Total</p>
+                    <p className={`text-xl font-bold ${getBalanceColor(Number(selectedClient.saldo_deuda))}`}>${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p>
+                 </div>
+                 <div className="text-right">
+                    <p className="text-[10px] font-bold text-[#0A9396] uppercase">EnGroncho</p>
+                    <p className={`text-sm font-bold ${getBalanceColor(Number(selectedClient.saldo_negro))}`}>${Math.abs(Number(selectedClient.saldo_negro)).toLocaleString('es-AR')}</p>
+                 </div>
               </div>
-              <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Monto a Cobrar (ARS)</label><input required type="number" step="0.01" value={paymentData.monto === 0 ? '' : paymentData.monto} onChange={e => setPaymentData({...paymentData, monto: e.target.value === '' ? 0 : Number(e.target.value)})} className="w-full bg-white border-2 border-emerald-100 rounded-2xl px-5 py-4 font-bold text-xl text-emerald-700 focus:border-emerald-500 outline-none shadow-inner" placeholder="0.00"/></div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Monto a Cobrar (ARS)</label>
+                <input 
+                  required 
+                  type="number" 
+                  step="0.01" 
+                  value={paymentData.monto === 0 ? '' : paymentData.monto} 
+                  onKeyDown={preventInvalidChars}
+                  onChange={e => setPaymentData({...paymentData, monto: e.target.value === '' ? 0 : handleNumericInput(e.target.value)})} 
+                  className="w-full bg-white border-2 border-emerald-100 rounded-2xl px-5 py-4 font-bold text-xl text-emerald-700 focus:border-emerald-500 outline-none shadow-inner" 
+                  placeholder="0.00"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Método</label><select value={paymentData.metodo} onChange={e => setPaymentData({...paymentData, metodo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none"><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="CHEQUE">Cheque</option></select></div>
                 <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Imputación</label><select value={paymentData.imputacion} onChange={e => setPaymentData({...paymentData, imputacion: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none uppercase text-[10px]"><option value="MIXTO">Mixto (Auto)</option><option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0}>Solo Blanco</option><option value="NEGRO" disabled={Number(selectedClient.saldo_negro) >= 0}>Solo EnGroncho</option></select></div>
