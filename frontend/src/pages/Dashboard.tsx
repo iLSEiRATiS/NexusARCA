@@ -42,7 +42,15 @@ const Dashboard = () => {
   // Logic for charts
   const totalStock = products?.reduce((acc: number, p: any) => acc + (p.stock_actual || 0), 0) || 0;
   const lowStockCount = products?.filter((p: any) => p.stock_actual <= p.stock_minimo).length || 0;
-  const totalDebt = clients?.reduce((acc: number, c: any) => acc + Number(c.saldo_deuda), 0) || 0;
+  
+  // Total Debt Portfolio: Sum absolute values of all negative balances (what clients owe us)
+  const totalDebtPortfolio = clients?.reduce((acc: number, c: any) => {
+    const balance = Number(c.saldo_deuda);
+    return balance < 0 ? acc + Math.abs(balance) : acc;
+  }, 0) || 0;
+
+  // Debtor clients count (balance < 0)
+  const debtorClientsCount = clients?.filter((c: any) => Number(c.saldo_deuda) < 0).length || 0;
 
   // Sales evolution (last 7 days)
   const last7Days = [...Array(7)].map((_, i) => {
@@ -87,8 +95,10 @@ const Dashboard = () => {
         <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:shadow-premium transition-smooth">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Cartera de Deuda</p>
           <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-slate-800 tracking-tighter">${totalDebt?.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
-            <span className="bg-rose-50 text-rose-500 p-2 rounded-xl text-xs font-bold">-{clients?.filter((c:any)=>Number(c.saldo_deuda)>0).length} Clientes</span>
+            <span className="text-3xl font-bold text-slate-800 tracking-tighter">${totalDebtPortfolio.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
+            <span className={`p-2 rounded-xl text-xs font-bold ${debtorClientsCount > 0 ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}`}>
+              {debtorClientsCount} Deudores
+            </span>
           </div>
         </div>
 
