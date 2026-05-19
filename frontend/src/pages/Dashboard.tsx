@@ -38,9 +38,9 @@ const Dashboard = () => {
   }
 
   // Logic for charts
-  const totalStock = products?.reduce((acc: number, p: any) => acc + (p.stock_actual || 0), 0);
-  const lowStockCount = products?.filter((p: any) => p.stock_actual <= p.stock_minimo).length;
-  const totalDebt = clients?.reduce((acc: number, c: any) => acc + Number(c.saldo_deuda), 0);
+  const totalStock = products?.reduce((acc: number, p: any) => acc + (p.stock_actual || 0), 0) || 0;
+  const lowStockCount = products?.filter((p: any) => p.stock_actual <= p.stock_minimo).length || 0;
+  const totalDebt = clients?.reduce((acc: number, c: any) => acc + Number(c.saldo_deuda), 0) || 0;
 
   // Sales evolution (last 7 days)
   const last7Days = [...Array(7)].map((_, i) => {
