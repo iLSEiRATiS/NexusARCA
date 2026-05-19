@@ -174,6 +174,13 @@ const ProductsPage = () => {
     }
   };
 
+  const handleNumericInput = (value: string, min: number = 0) => {
+    const cleanedValue = value.replace(/[^0-9.]/g, '');
+    const numValue = parseFloat(cleanedValue);
+    if (isNaN(numValue)) return 0;
+    return Math.max(min, numValue);
+  };
+
   const handleAdjustSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     adjustMutation.mutate(adjustData);
