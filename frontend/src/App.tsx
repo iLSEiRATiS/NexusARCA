@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const NavLink = ({ to, children, onClick, className }: { to: string, children: React.ReactNode, onClick?: () => void, className?: string }) => {
+const NavLink = ({ to, children, onClick, className, badge }: { to: string, children: React.ReactNode, onClick?: () => void, className?: string, badge?: number }) => {
   const location = useLocation();
   const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
   
@@ -38,9 +38,14 @@ const NavLink = ({ to, children, onClick, className }: { to: string, children: R
       onClick={onClick}
       className={className || `${
         isActive ? 'text-[#005F73] bg-[#E9D8A6]/40 shadow-sm' : 'text-slate-500 hover:text-[#005F73] hover:bg-[#E9D8A6]/20'
-      } font-bold px-5 py-2.5 rounded-2xl text-[13px] tracking-tight transition-smooth flex items-center gap-2 w-full md:w-auto mb-1 md:mb-0`}
+      } font-bold px-5 py-2.5 rounded-2xl text-[13px] tracking-tight transition-smooth flex items-center gap-2 w-full md:w-auto mb-1 md:mb-0 relative`}
     >
       {children}
+      {badge ? (
+        <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 };
@@ -124,14 +129,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavLink to="/">Tablero</NavLink>
           <NavLink to="/ventas">Ventas</NavLink>
           <NavLink to="/cotizaciones">Presupuestos</NavLink>
-          <NavLink to="/productos" className="relative">
-            Stock
-            {criticalStockCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-[#EAE2D6]">
-                {criticalStockCount}
-              </span>
-            )}
-          </NavLink>
+          <NavLink to="/productos" badge={criticalStockCount > 0 ? criticalStockCount : undefined}>Stock</NavLink>
           <NavLink to="/clientes">Clientes</NavLink>
         </div>
 
@@ -194,17 +192,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <span className="text-[9px] text-slate-400 font-medium uppercase">Cotizaciones y Clientes</span>
               </div>
             </NavLink>
-            <NavLink to="/productos" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm relative">
+            <NavLink 
+              to="/productos" 
+              onClick={() => setIsMenuOpen(false)} 
+              className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm"
+              badge={criticalStockCount > 0 ? criticalStockCount : undefined}
+            >
               <span className="text-xl">📦</span>
               <div className="flex flex-col">
                 <span className="text-sm">Stock</span>
                 <span className="text-[9px] text-slate-400 font-medium uppercase">Gestión de Inventario</span>
               </div>
-              {criticalStockCount > 0 && (
-                <span className="absolute top-4 right-4 bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
-                  {criticalStockCount} Alerta
-                </span>
-              )}
             </NavLink>
             <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
               <span className="text-xl">👥</span>
