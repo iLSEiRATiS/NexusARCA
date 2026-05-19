@@ -17,23 +17,26 @@ const QuotationsPage = () => {
     quotationId: null
   });
 
-  const { data: quotations, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['quotations'],
-    queryFn: quotationService.getAll,
+    queryFn: () => quotationService.getAll(),
   });
 
+  const quotations = data?.data || [];
+
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, estado }: { id: number, estado: string }) => 
+    mutationFn: ({ id, estado }: { id: number, estado: Quotation['estado'] }) => 
       quotationService.updateStatus(id, estado),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['quotations'] }),
   });
 
   const convertToSaleMutation = useMutation({
-    mutationFn: (id: number) => quotationService.convertToSale(id),
+    mutationFn: (id: number) => quotationService.convertToSale(id, { tipo_comprobante: 'Factura B' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('PRESUPUESTO CONVERTIDO A VENTA');
     },
   });
 
@@ -42,10 +45,11 @@ const QuotationsPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       setDeleteConfirm({ isOpen: false, quotationId: null });
+      toast.success('Presupuesto eliminado');
     },
   });
 
-  const filteredQuotations = quotations?.filter((q: Quotation) => {
+  const filteredQuotations = quotations.filter((q: Quotation) => {
     const matchesSearch = 
       q.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(q.id).includes(searchTerm);

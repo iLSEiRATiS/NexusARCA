@@ -5,8 +5,7 @@ import { clientService } from '../services/clientService';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, Cell, PieChart, Pie
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { CardSkeleton } from '../components/Skeletons';
 
