@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { Toaster } from 'sonner';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +11,7 @@ import QuotationsPage from './pages/QuotationsPage';
 import NewQuotationPage from './pages/NewQuotationPage';
 import LoginPage from './pages/LoginPage';
 import logo from './assets/logo.png';
+import { productService } from './services/productService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const isLogin = location.pathname === '/login';
+
+  // Critical Stock Alert logic
+  const { data: products } = useQuery({ 
+    queryKey: ['products'], 
+    queryFn: productService.getAll,
+    enabled: !isLogin
+  });
+
+  const criticalStockCount = products?.filter((p: any) => p.stock_actual <= p.stock_minimo).length || 0;
 
   // Prevent background scroll when menu is open
   useEffect(() => {
@@ -87,22 +97,24 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </Link>
 
-        {/* Mobile Menu Button */}
-        <div className="flex items-center gap-4 md:hidden">
+        {/* Mobile Nav Actions */}
+        <div className="flex items-center gap-2 md:hidden">
+           <Link to="/productos" className="relative p-2.5 bg-white border border-[#D6CCC2] rounded-xl shadow-sm">
+              <span className="text-sm">📦</span>
+              {criticalStockCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full animate-bounce">
+                  {criticalStockCount}
+                </span>
+              )}
+           </Link>
            <button 
              onClick={() => setIsMenuOpen(!isMenuOpen)}
              className="bg-[#F2EBE1] p-2.5 rounded-xl border border-[#D6CCC2] text-[#333D29] font-bold text-[10px] uppercase shadow-sm flex items-center gap-2"
            >
              {isMenuOpen ? (
-               <>
-                 <span className="text-xs">✕</span>
-                 <span>Cerrar</span>
-               </>
+               <><span className="text-xs">✕</span><span>Cerrar</span></>
              ) : (
-               <>
-                 <span className="text-xs">☰</span>
-                 <span>Menú</span>
-               </>
+               <><span className="text-xs">☰</span><span>Menú</span></>
              )}
            </button>
         </div>
@@ -112,7 +124,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavLink to="/">Tablero</NavLink>
           <NavLink to="/ventas">Ventas</NavLink>
           <NavLink to="/cotizaciones">Presupuestos</NavLink>
-          <NavLink to="/productos">Stock</NavLink>
+          <NavLink to="/productos" className="relative">
+            Stock
+            {criticalStockCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-[#EAE2D6]">
+                {criticalStockCount}
+              </span>
+            )}
+          </NavLink>
           <NavLink to="/clientes">Clientes</NavLink>
         </div>
 
@@ -175,12 +194,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <span className="text-[9px] text-slate-400 font-medium uppercase">Cotizaciones y Clientes</span>
               </div>
             </NavLink>
-            <NavLink to="/productos" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
+            <NavLink to="/productos" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm relative">
               <span className="text-xl">📦</span>
               <div className="flex flex-col">
                 <span className="text-sm">Stock</span>
                 <span className="text-[9px] text-slate-400 font-medium uppercase">Gestión de Inventario</span>
               </div>
+              {criticalStockCount > 0 && (
+                <span className="absolute top-4 right-4 bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                  {criticalStockCount} Alerta
+                </span>
+              )}
             </NavLink>
             <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm">
               <span className="text-xl">👥</span>

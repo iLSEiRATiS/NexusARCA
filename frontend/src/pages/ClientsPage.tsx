@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientService } from '../services/clientService';
 import api from '../services/api';
 import { toast } from 'sonner';
+import { generateAccountStatementPDF } from '../services/pdfService';
+import ConfirmModal from '../components/ConfirmModal';
+import { TableSkeleton } from '../components/Skeletons';
 
 const ClientsPage = () => {
   const queryClient = useQueryClient();
@@ -12,6 +15,12 @@ const ClientsPage = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   
+  // State for stylized confirm modal
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; clientId: number | null }>({
+    isOpen: false,
+    clientId: null
+  });
+
   const [formData, setFormData] = useState({
     razon_social: '',
     cuit: '',
@@ -83,6 +92,7 @@ const ClientsPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success('Cliente eliminado');
+      setDeleteConfirm({ isOpen: false, clientId: null });
     }
   });
 
@@ -118,16 +128,31 @@ const ClientsPage = () => {
     paymentMutation.mutate(paymentData);
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('¿ELIMINAR CLIENTE? Esta acción no se puede deshacer.')) {
-      deleteMutation.mutate(id);
+  const handleDeleteClick = (id: number) => {
+    setDeleteConfirm({ isOpen: true, clientId: id });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm.clientId) {
+      deleteMutation.mutate(deleteConfirm.clientId);
     }
   };
 
+  const handleExportStatement = () => {
+    if (!selectedClient || !clientDetails) return;
+    
+    // Merge sales and payments for chronological history
+    const history = [
+      ...(clientDetails.sales || []).map((s: any) => ({ ...s, tipo: 'VENTA' })),
+      ...(clientDetails.payments || []).map((p: any) => ({ ...p, tipo: 'COBRO' }))
+    ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+    generateAccountStatementPDF(selectedClient, history);
+  };
+
   if (isLoading) return (
-    <div className="p-12 text-center space-y-4 animate-pulse">
-      <div className="h-12 bg-slate-100 rounded-2xl w-48 mx-auto"></div>
-      <div className="h-[60vh] bg-slate-50 rounded-[32px]"></div>
+    <div className="p-6 md:p-10">
+      <TableSkeleton />
     </div>
   );
 
@@ -177,10 +202,13 @@ const ClientsPage = () => {
                 return (
                   <tr key={client.id} className="group hover:bg-slate-50/30 transition-smooth">
                     <td className="px-8 py-6">
-                      <div className="font-bold text-slate-700 text-lg uppercase group-hover:text-emerald-700 transition-colors cursor-pointer" onClick={() => openDetails(client)}>
-                        {client.razon_social}
+                      <div className="flex items-center gap-3">
+                         <div className={`w-3 h-3 rounded-full ${totalDebt > 100000 ? 'bg-rose-500 animate-pulse' : totalDebt > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`}></div>
+                         <div className="font-bold text-slate-700 text-lg uppercase group-hover:text-emerald-700 transition-colors cursor-pointer" onClick={() => openDetails(client)}>
+                           {client.razon_social}
+                         </div>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 ml-6">
                         CUIT: {client.cuit} • {client.condicion_iva}
                       </div>
                     </td>
@@ -220,7 +248,7 @@ const ClientsPage = () => {
                           Cobrar
                         </button>
                         <button 
-                          onClick={() => handleDelete(client.id)}
+                          onClick={() => handleDeleteClick(client.id)}
                           className="bg-slate-50 text-slate-400 px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-rose-50 hover:text-rose-600 transition-smooth border border-slate-200"
                         >
                           &times;
@@ -243,12 +271,15 @@ const ClientsPage = () => {
             return (
               <div key={client.id} className="p-5 space-y-4">
                 <div className="flex justify-between items-start">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-bold text-slate-700 text-lg uppercase leading-tight truncate" onClick={() => openDetails(client)}>
-                      {client.razon_social}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
-                      CUIT: {client.cuit} • {client.porcentaje_facturacion}% Split
+                  <div className="min-w-0 flex-1 flex gap-3">
+                    <div className={`w-3 h-3 rounded-full shrink-0 mt-1.5 ${totalDebt > 100000 ? 'bg-rose-500 animate-pulse' : totalDebt > 0 ? 'bg-amber-400' : 'bg-emerald-400'}`}></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-slate-700 text-lg uppercase leading-tight truncate" onClick={() => openDetails(client)}>
+                        {client.razon_social}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                        CUIT: {client.cuit} • {client.porcentaje_facturacion}% Split
+                      </div>
                     </div>
                   </div>
                   <div className={`shrink-0 px-3 py-1 rounded-full border text-center ml-2 ${hasDebt ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'}`}>
@@ -281,7 +312,7 @@ const ClientsPage = () => {
                     Registrar Cobro
                   </button>
                   <button 
-                    onClick={() => handleDelete(client.id)}
+                    onClick={() => handleDeleteClick(client.id)}
                     className="w-12 bg-slate-50 text-slate-400 flex items-center justify-center rounded-xl border border-slate-200"
                   >
                     &times;
@@ -298,17 +329,34 @@ const ClientsPage = () => {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
           <div className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-slide-up border border-slate-200">
             <div className="bg-slate-50 p-6 sm:p-8 border-b border-slate-100 flex justify-between items-start">
-              <div>
+              <div className="flex-1">
                 <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 tracking-tight uppercase leading-tight">{selectedClient.razon_social}</h2>
                 <div className="flex flex-wrap gap-2 sm:gap-4 mt-2">
                    <span className="text-slate-400 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase">CUIT: {selectedClient.cuit}</span>
                    <span className="text-emerald-600 font-bold text-[9px] sm:text-[10px] tracking-widest uppercase">Split: {selectedClient.porcentaje_facturacion}%</span>
                 </div>
               </div>
-              <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-smooth text-3xl font-light leading-none">&times;</button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleExportStatement}
+                  className="hidden sm:flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-900 transition-smooth"
+                >
+                  📄 Estado de Cuenta
+                </button>
+                <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-smooth text-3xl font-light leading-none px-2">&times;</button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-white">
+              <div className="sm:hidden mb-6">
+                <button 
+                  onClick={handleExportStatement}
+                  className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-wider"
+                >
+                  📄 Descargar Estado de Cuenta
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mb-10">
                  <div className="p-5 sm:p-6 rounded-2xl bg-sky-50 border border-sky-100 shadow-sm">
                     <p className="text-[10px] font-bold text-sky-400 uppercase tracking-widest mb-2">Deuda en blanco</p>
@@ -333,22 +381,22 @@ const ClientsPage = () => {
                     <div className="text-center py-10 text-slate-300 font-bold uppercase text-xs">Cargando historial...</div>
                  ) : (
                     <div className="space-y-3">
-                       {clientDetails?.sales?.length === 0 && <p className="text-center py-10 text-slate-400 italic text-sm">Sin movimientos registrados</p>}
-                       {clientDetails?.sales?.map((sale: any) => (
-                          <div key={sale.id} className="p-4 sm:p-5 rounded-2xl border border-slate-100 hover:bg-slate-50/50 transition-smooth flex flex-col sm:flex-row justify-between items-center gap-4">
+                       {(!clientDetails?.sales?.length && !clientDetails?.payments?.length) && <p className="text-center py-10 text-slate-400 italic text-sm">Sin movimientos registrados</p>}
+                       {/* Simplified history combining sales and payments */}
+                       {[...(clientDetails?.sales || []).map((s:any)=>({...s, type:'venta'})), ...(clientDetails?.payments || []).map((p:any)=>({...p, type:'cobro'}))].sort((a,b)=>new Date(b.fecha).getTime() - new Date(a.fecha).getTime()).map((item: any, idx: number) => (
+                          <div key={idx} className="p-4 sm:p-5 rounded-2xl border border-slate-100 hover:bg-slate-50/50 transition-smooth flex flex-col sm:flex-row justify-between items-center gap-4">
                              <div className="text-center sm:text-left">
-                                <p className="font-bold text-slate-700 text-sm uppercase">Venta #{String(sale.id).padStart(4, '0')}</p>
-                                <p className="text-[10px] font-medium text-slate-400 uppercase">{new Date(sale.fecha).toLocaleDateString()} • {sale.tipo_comprobante}</p>
+                                <p className="font-bold text-slate-700 text-sm uppercase">
+                                  {item.type === 'venta' ? `Venta #${String(item.id).padStart(4, '0')}` : 'Cobro Recibido'}
+                                </p>
+                                <p className="text-[10px] font-medium text-slate-400 uppercase">
+                                  {new Date(item.fecha).toLocaleDateString()} • {item.tipo_comprobante || item.metodo_pago}
+                                </p>
                              </div>
-                             <div className="flex gap-4 sm:gap-6 text-right">
-                                <div>
-                                   <p className="text-[9px] font-bold text-sky-400 uppercase">En blanco</p>
-                                   <p className="text-xs sm:text-sm font-bold text-slate-600">-${Number(sale.monto_facturado_ars).toLocaleString('es-AR')}</p>
-                                </div>
-                                <div>
-                                   <p className="text-[9px] font-bold text-slate-300 uppercase">EnGroncho</p>
-                                   <p className="text-xs sm:text-sm font-bold text-slate-600">-${Number(sale.monto_no_facturado_ars).toLocaleString('es-AR')}</p>
-                                </div>
+                             <div className="text-right">
+                                <p className={`text-lg font-bold ${item.type === 'venta' ? 'text-rose-500' : 'text-emerald-600'}`}>
+                                  {item.type === 'venta' ? '+' : '-'}${Number(item.total_real_ars || item.monto_ars).toLocaleString('es-AR')}
+                                </p>
                              </div>
                           </div>
                        ))}
@@ -453,7 +501,7 @@ const ClientsPage = () => {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Monto a Cobrar (ARS)</label>
-                <input required type="number" step="0.01" value={paymentData.monto} onChange={e => setPaymentData({...paymentData, monto: Number(e.target.value)})} className="w-full bg-white border-2 border-emerald-100 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 font-bold text-xl sm:text-2xl text-emerald-700 focus:border-emerald-500 outline-none transition-smooth shadow-inner"/>
+                <input required type="number" step="0.01" value={paymentData.monto === 0 ? '' : paymentData.monto} onChange={e => setPaymentData({...paymentData, monto: e.target.value === '' ? 0 : Number(e.target.value)})} className="w-full bg-white border-2 border-emerald-100 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 font-bold text-xl sm:text-2xl text-emerald-700 focus:border-emerald-500 outline-none transition-smooth shadow-inner" placeholder="0.00"/>
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -490,6 +538,17 @@ const ClientsPage = () => {
           </div>
         </div>
       )}
+
+      {/* Stylized Confirm Modal */}
+      <ConfirmModal 
+        isOpen={deleteConfirm.isOpen}
+        title="¿Eliminar Cliente?"
+        message="Esta acción es irreversible y eliminará todo el historial asociado al cliente. ¿Estás seguro?"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, clientId: null })}
+        confirmText="Eliminar permanentemente"
+        variant="danger"
+      />
     </div>
   );
 };

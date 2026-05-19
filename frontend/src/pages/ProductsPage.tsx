@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productService } from '../services/productService';
 import api from '../services/api';
 import { toast } from 'sonner';
+import ConfirmModal from '../components/ConfirmModal';
+import { TableSkeleton } from '../components/Skeletons';
 
 const ProductsPage = () => {
   const queryClient = useQueryClient();
@@ -14,6 +16,12 @@ const ProductsPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
   
+  // State for stylized confirm modal
+  const [deleteBatchConfirm, setDeleteBatchConfirm] = useState<{ isOpen: boolean; batchId: number | null }>({
+    isOpen: false,
+    batchId: null
+  });
+
   const [formData, setFormData] = useState({
     nombre: '',
     presentacion: '',
@@ -116,6 +124,7 @@ const ProductsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['product', selectedProduct?.id] });
       toast.success('Lote eliminado');
+      setDeleteBatchConfirm({ isOpen: false, batchId: null });
     }
   });
 
@@ -144,9 +153,13 @@ const ProductsPage = () => {
     setIsEditBatchModalOpen(true);
   };
 
-  const handleDeleteBatch = (batchId: number) => {
-    if (window.confirm('¿ELIMINAR ESTE LOTE? El stock total se recalculará automáticamente.')) {
-      deleteBatchMutation.mutate(batchId);
+  const handleDeleteBatchClick = (batchId: number) => {
+    setDeleteBatchConfirm({ isOpen: true, batchId });
+  };
+
+  const confirmDeleteBatch = () => {
+    if (deleteBatchConfirm.batchId) {
+      deleteBatchMutation.mutate(deleteBatchConfirm.batchId);
     }
   };
 
@@ -161,9 +174,8 @@ const ProductsPage = () => {
   };
 
   if (isLoading) return (
-    <div className="p-12 text-center space-y-4 animate-pulse">
-      <div className="h-12 bg-slate-100 rounded-2xl w-48 mx-auto"></div>
-      <div className="h-[60vh] bg-slate-50 rounded-[32px]"></div>
+    <div className="p-6 md:p-10">
+      <TableSkeleton />
     </div>
   );
 
@@ -338,7 +350,7 @@ const ProductsPage = () => {
         </div>
       </div>
 
-      {/* Modals with new aesthetic */}
+      {/* Details Modal */}
       {isDetailsModalOpen && selectedProduct && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white rounded-t-[32px] sm:rounded-[32px] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-slide-up border border-slate-200">
@@ -386,7 +398,7 @@ const ProductsPage = () => {
                           <td className="px-4 sm:px-6 py-4 sm:py-5 text-right">
                              <div className="flex gap-2 sm:gap-3 justify-end items-center">
                                 <button onClick={() => openEditBatch(batch)} className="text-sky-600 font-bold text-[9px] sm:text-[10px] uppercase hover:underline">Editar</button>
-                                <button onClick={() => handleDeleteBatch(batch.id)} className="text-rose-500 font-bold text-[9px] sm:text-[10px] uppercase hover:underline">Eliminar</button>
+                                <button onClick={() => handleDeleteBatchClick(batch.id)} className="text-rose-500 font-bold text-[9px] sm:text-[10px] uppercase hover:underline">Eliminar</button>
                              </div>
                           </td>
                         </tr>
@@ -416,16 +428,16 @@ const ProductsPage = () => {
             <div className="space-y-4 sm:space-y-6">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Código de Lote</label>
-                <input type="text" value={editBatchData.nro_lote} onChange={e => setEditBatchData({...editBatchData, nro_lote: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-sky-400 outline-none transition-smooth"/>
+                <input type="text" value={editBatchData.nro_lote} onChange={e => setEditBatchData({...editBatchData, nro_lote: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-sky-400 outline-none transition-smooth shadow-sm"/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Cantidad</label>
-                  <input type="number" value={editBatchData.cantidad_bultos} onChange={e => setEditBatchData({...editBatchData, cantidad_bultos: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth"/>
+                  <input type="number" value={editBatchData.cantidad_bultos === 0 ? '' : editBatchData.cantidad_bultos} onChange={e => setEditBatchData({...editBatchData, cantidad_bultos: e.target.value === '' ? 0 : Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth shadow-sm" placeholder="0"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Estado</label>
-                  <select value={editBatchData.estado || 'ACTIVO'} onChange={e => setEditBatchData({...editBatchData, estado: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth uppercase text-[10px]">
+                  <select value={editBatchData.estado || 'ACTIVO'} onChange={e => setEditBatchData({...editBatchData, estado: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth uppercase text-[10px] shadow-sm">
                     <option value="ACTIVO">Activo</option>
                     <option value="BLOQUEADO">Bloqueado</option>
                   </select>
@@ -433,7 +445,7 @@ const ProductsPage = () => {
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Fecha Vencimiento</label>
-                <input type="date" value={editBatchData.fecha_vencimiento} onChange={e => setEditBatchData({...editBatchData, fecha_vencimiento: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth"/>
+                <input type="date" value={editBatchData.fecha_vencimiento} onChange={e => setEditBatchData({...editBatchData, fecha_vencimiento: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-sky-400 outline-none transition-smooth shadow-sm"/>
               </div>
             </div>
             <div className="mt-8 sm:mt-10 flex flex-col gap-3">
@@ -463,7 +475,7 @@ const ProductsPage = () => {
             <form onSubmit={handleAdjustSubmit} className="p-6 sm:p-10 space-y-4 sm:space-y-6 overflow-y-auto custom-scrollbar">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Identificador de Lote</label>
-                <input required type="text" value={adjustData.nro_lote} onChange={e => setAdjustData({...adjustData, nro_lote: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth"/>
+                <input required type="text" value={adjustData.nro_lote} onChange={e => setAdjustData({...adjustData, nro_lote: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth shadow-sm"/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -484,7 +496,7 @@ const ProductsPage = () => {
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Proveedor / Motivo</label>
-                <input required type="text" placeholder="Ej: Compra a Quimica Sur" value={adjustData.motivo} onChange={e => setAdjustData({...adjustData, motivo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth placeholder:text-slate-300"/>
+                <input required type="text" placeholder="Ej: Compra a Quimica Sur" value={adjustData.motivo} onChange={e => setAdjustData({...adjustData, motivo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth placeholder:text-slate-300 shadow-sm"/>
               </div>
               <div className="flex flex-col gap-3 pt-2">
                 <button type="submit" disabled={adjustMutation.isPending} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-smooth">
@@ -517,23 +529,23 @@ const ProductsPage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="sm:col-span-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nombre Comercial</label>
-                  <input required type="text" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth"/>
+                  <input required type="text" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 uppercase focus:border-emerald-500 outline-none transition-smooth shadow-sm"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Peso Unitario (KG)</label>
-                  <input required type="number" value={formData.peso_kg} onChange={e => setFormData({...formData, peso_kg: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
+                  <input required type="number" value={formData.peso_kg} onChange={e => setFormData({...formData, peso_kg: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Stock Mínimo</label>
-                  <input required type="number" value={formData.stock_minimo} onChange={e => setFormData({...formData, stock_minimo: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth"/>
+                  <input required type="number" value={formData.stock_minimo} onChange={e => setFormData({...formData, stock_minimo: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 focus:border-emerald-500 outline-none transition-smooth shadow-sm"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-rose-500 uppercase tracking-widest mb-1.5">Costo (USD / KG)</label>
-                  <input required type="number" step="0.01" value={formData.costo_usd} onChange={e => setFormData({...formData, costo_usd: Number(e.target.value)})} className="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-3 font-bold text-rose-700 focus:border-rose-400 outline-none transition-smooth"/>
+                  <input required type="number" step="0.01" value={formData.costo_usd} onChange={e => setFormData({...formData, costo_usd: Number(e.target.value)})} className="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-3 font-bold text-rose-700 focus:border-rose-400 outline-none transition-smooth shadow-sm"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1.5">Venta (USD / KG)</label>
-                  <input required type="number" step="0.01" value={formData.precio_usd} onChange={e => setFormData({...formData, precio_usd: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth"/>
+                  <input required type="number" step="0.01" value={formData.precio_usd} onChange={e => setFormData({...formData, precio_usd: Number(e.target.value)})} className="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 font-bold text-emerald-700 focus:border-emerald-400 outline-none transition-smooth shadow-sm"/>
                 </div>
               </div>
               <div className="flex flex-col gap-3 mt-8 sm:mt-10">
@@ -544,6 +556,17 @@ const ProductsPage = () => {
           </div>
         </div>
       )}
+
+      {/* Stylized Confirm Modal */}
+      <ConfirmModal 
+        isOpen={deleteBatchConfirm.isOpen}
+        title="¿Eliminar este lote?"
+        message="Esta acción reducirá el stock total del producto. No se recomienda eliminar lotes con movimientos asociados."
+        onConfirm={confirmDeleteBatch}
+        onCancel={() => setDeleteBatchConfirm({ isOpen: false, batchId: null })}
+        confirmText="Eliminar Lote"
+        variant="danger"
+      />
     </div>
   );
 };

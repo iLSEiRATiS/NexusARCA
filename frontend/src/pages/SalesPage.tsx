@@ -3,10 +3,14 @@ import api from '../services/api';
 import { generateSalePDF } from '../services/pdfService';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { TableSkeleton } from '../components/Skeletons';
 
 const SalesPage = () => {
   const [searchTerm, setSearchBar] = useState('');
-  const { data: salesData, isLoading, error } = useQuery({
+  const [filterType, setFilterType] = useState('TODOS'); // TODOS, FACTURA, PRESUPUESTO
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  const { data: sales, isLoading } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const res = await api.get('/sales');
@@ -14,20 +18,25 @@ const SalesPage = () => {
     }
   });
 
-  const sales = salesData?.data;
+  const filteredSales = sales?.filter((sale: any) => {
+    const matchesSearch = 
+      sale.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(sale.id).includes(searchTerm);
+    
+    const matchesType = 
+      filterType === 'TODOS' || 
+      (filterType === 'FACTURA' && sale.tipo_comprobante?.includes('Factura')) ||
+      (filterType === 'PRESUPUESTO' && sale.tipo_comprobante === 'Presupuesto');
 
-  const filteredSales = sales?.filter((s: any) => 
-    s.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    String(s.id).includes(searchTerm)
-  );
+    const saleDate = new Date(sale.fecha).toISOString().split('T')[0];
+    const matchesDate = 
+      (!dateRange.start || saleDate >= dateRange.start) &&
+      (!dateRange.end || saleDate <= dateRange.end);
 
-  if (isLoading) return (
-    <div className="p-12 text-center space-y-4 animate-pulse">
-      <div className="h-12 bg-slate-100 rounded-2xl w-48 mx-auto"></div>
-      <div className="h-[60vh] bg-slate-50 rounded-[32px]"></div>
-    </div>
-  );
-  if (error) return <div className="p-12 text-rose-500 font-bold text-center">Error al cargar historial</div>;
+    return matchesSearch && matchesType && matchesDate;
+  });
+
+  if (isLoading) return <div className="p-6 md:p-10"><TableSkeleton /></div>;
 
   return (
     <div className="p-6 md:p-10 animate-fade-in">
@@ -36,23 +45,58 @@ const SalesPage = () => {
           <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight mb-2">Ventas</h1>
           <p className="text-slate-400 font-medium text-[11px] uppercase tracking-widest italic">Registro Histórico de Operaciones</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <input 
-              type="text" 
-              placeholder="Buscar por cliente o ID..." 
-              value={searchTerm}
-              onChange={(e) => setSearchBar(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-emerald-400 transition-smooth shadow-sm"
-            />
-          </div>
-          <Link 
-            to="/ventas/nueva"
-            className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm tracking-tight hover:bg-emerald-700 transition-smooth shadow-lg shadow-emerald-100 flex items-center justify-center gap-2"
-          >
-            <span>+</span> Nueva Operación
-          </Link>
-        </div>
+        <Link 
+          to="/ventas/nueva" 
+          className="bg-slate-800 text-white px-8 py-3 rounded-2xl font-bold text-sm tracking-tight hover:bg-slate-900 transition-smooth shadow-xl flex items-center justify-center gap-3 group w-full md:w-auto"
+        >
+          <span>+</span> Nueva Venta <span className="group-hover:translate-x-1 transition-transform">→</span>
+        </Link>
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-soft mb-8 space-y-6">
+         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="space-y-2">
+               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Búsqueda rápida</label>
+               <input 
+                 type="text" 
+                 placeholder="Cliente o ID..." 
+                 value={searchTerm}
+                 onChange={(e) => setSearchBar(e.target.value)}
+                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-400 transition-smooth"
+               />
+            </div>
+            <div className="space-y-2">
+               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo Comprobante</label>
+               <select 
+                 value={filterType} 
+                 onChange={(e) => setFilterType(e.target.value)}
+                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-400 transition-smooth font-bold text-slate-600"
+               >
+                  <option value="TODOS">Todos los tipos</option>
+                  <option value="FACTURA">Solo Facturas (A/B)</option>
+                  <option value="PRESUPUESTO">Solo Presupuestos</option>
+               </select>
+            </div>
+            <div className="space-y-2 lg:col-span-2">
+               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rango de Fechas</label>
+               <div className="flex items-center gap-3">
+                  <input 
+                    type="date" 
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-400 transition-smooth font-bold text-slate-600"
+                  />
+                  <span className="text-slate-300">al</span>
+                  <input 
+                    type="date" 
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-400 transition-smooth font-bold text-slate-600"
+                  />
+               </div>
+            </div>
+         </div>
       </div>
 
       <div className="bg-white border border-slate-100 rounded-[24px] shadow-soft overflow-hidden">

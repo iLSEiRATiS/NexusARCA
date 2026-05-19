@@ -2,88 +2,104 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quotationService } from '../services/quotationService';
 import type { Quotation } from '../services/quotationService';
 import { generateQuotationPDF } from '../services/pdfService';
-import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { TableSkeleton } from '../components/Skeletons';
+import ConfirmModal from '../components/ConfirmModal';
 
 const QuotationsPage = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchBar] = useState('');
+  const [filterStatus, setFilterStatus] = useState('TODOS');
   
-  const { data: quotationsData, isLoading, error } = useQuery({
-    queryKey: ['quotations'],
-    queryFn: () => quotationService.getAll(),
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; quotationId: number | null }>({
+    isOpen: false,
+    quotationId: null
   });
 
-  const quotations = quotationsData?.data;
-
-  const filteredQuotations = quotations?.filter((q: Quotation) => 
-    q.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    String(q.id).includes(searchTerm)
-  );
+  const { data: quotations, isLoading } = useQuery({
+    queryKey: ['quotations'],
+    queryFn: quotationService.getAll,
+  });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, estado }: { id: number, estado: Quotation['estado'] }) => 
+    mutationFn: ({ id, estado }: { id: number, estado: string }) => 
       quotationService.updateStatus(id, estado),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      toast.success('Estado actualizado');
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['quotations'] }),
   });
 
   const convertToSaleMutation = useMutation({
-    mutationFn: (id: number) => quotationService.convertToSale(id, { tipo_comprobante: 'Factura B' }),
+    mutationFn: (id: number) => quotationService.convertToSale(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('CONVERTIDO EN VENTA EXITOSAMENTE');
     },
-    onError: (err: any) => {
-      toast.error('Error al convertir: ' + (err.response?.data?.message || err.message));
-    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => quotationService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
-      toast.success('Presupuesto eliminado');
-    }
+      setDeleteConfirm({ isOpen: false, quotationId: null });
+    },
   });
 
-  if (isLoading) return (
-    <div className="p-12 text-center space-y-4 animate-pulse">
-      <div className="h-12 bg-slate-100 rounded-2xl w-48 mx-auto"></div>
-      <div className="h-[60vh] bg-slate-50 rounded-[32px]"></div>
-    </div>
-  );
-  if (error) return <div className="p-12 text-rose-500 font-bold text-center">Error al cargar presupuestos</div>;
+  const filteredQuotations = quotations?.filter((q: Quotation) => {
+    const matchesSearch = 
+      q.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(q.id).includes(searchTerm);
+    
+    const matchesStatus = filterStatus === 'TODOS' || q.estado === filterStatus;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  if (isLoading) return <div className="p-6 md:p-10"><TableSkeleton /></div>;
 
   return (
     <div className="p-6 md:p-10 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight mb-2">Presupuestos</h1>
-          <p className="text-slate-400 font-medium text-[11px] uppercase tracking-widest italic">Gestión Comercial y Cotizaciones</p>
+          <p className="text-slate-400 font-medium text-[11px] uppercase tracking-widest italic">Cotizaciones y Propuestas Comerciales</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <input 
-              type="text" 
-              placeholder="Buscar por cliente o ID..." 
-              value={searchTerm}
-              onChange={(e) => setSearchBar(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-400 transition-smooth shadow-sm"
-            />
-          </div>
-          <Link 
-            to="/cotizaciones/nueva"
-            className="bg-sky-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm tracking-tight hover:bg-sky-700 transition-smooth shadow-lg shadow-sky-100 flex items-center justify-center gap-2"
-          >
-            <span>+</span> Nueva Cotización
-          </Link>
-        </div>
+        <Link 
+          to="/cotizaciones/nueva" 
+          className="bg-emerald-600 text-white px-8 py-3 rounded-2xl font-bold text-sm tracking-tight hover:bg-emerald-700 transition-smooth shadow-xl flex items-center justify-center gap-3 group w-full md:w-auto"
+        >
+          <span>+</span> Nueva Cotización <span className="group-hover:translate-x-1 transition-transform">→</span>
+        </Link>
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-soft mb-8">
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-2">
+               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Búsqueda rápida</label>
+               <input 
+                 type="text" 
+                 placeholder="Cliente o ID..." 
+                 value={searchTerm}
+                 onChange={(e) => setSearchBar(e.target.value)}
+                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-400 transition-smooth"
+               />
+            </div>
+            <div className="space-y-2">
+               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estado</label>
+               <div className="flex flex-wrap gap-2">
+                  {['TODOS', 'PENDIENTE', 'ACEPTADO', 'RECHAZADO', 'CONVERTIDO'].map(s => (
+                    <button 
+                      key={s} 
+                      onClick={() => setFilterStatus(s)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-smooth border ${filterStatus === s ? 'bg-slate-800 border-slate-800 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+               </div>
+            </div>
+         </div>
       </div>
 
       <div className="bg-white border border-slate-100 rounded-[24px] shadow-soft overflow-hidden">
@@ -161,7 +177,7 @@ const QuotationsPage = () => {
                         PDF
                       </button>
                       <button 
-                        onClick={() => { if(window.confirm('¿Eliminar?')) deleteMutation.mutate(q.id); }}
+                        onClick={() => setDeleteConfirm({ isOpen: true, quotationId: q.id })}
                         className="bg-slate-50 text-slate-300 px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase hover:text-rose-500 transition-smooth border border-slate-100"
                       >
                         &times;
@@ -241,7 +257,7 @@ const QuotationsPage = () => {
                   </button>
                 )}
                 <button 
-                  onClick={() => { if(window.confirm('¿Eliminar?')) deleteMutation.mutate(q.id); }}
+                  onClick={() => setDeleteConfirm({ isOpen: true, quotationId: q.id })}
                   className="w-12 bg-slate-50 text-slate-300 flex items-center justify-center rounded-xl border border-slate-100"
                 >
                   &times;
@@ -257,6 +273,15 @@ const QuotationsPage = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal 
+        isOpen={deleteConfirm.isOpen}
+        title="¿Eliminar Presupuesto?"
+        message="Se borrará la cotización permanentemente. Esta acción no se puede deshacer."
+        onConfirm={() => deleteConfirm.quotationId && deleteMutation.mutate(deleteConfirm.quotationId)}
+        onCancel={() => setDeleteConfirm({ isOpen: false, quotationId: null })}
+        confirmText="Eliminar"
+      />
     </div>
   );
 };
