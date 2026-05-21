@@ -83,16 +83,16 @@ export const generateSalePDF = (sale: any) => {
     const cotizacion = Number(sale.cotizacion_dolar_usada) || 1;
     const totalUsd = Number(sale.total_real_ars) / cotizacion;
 
-    doc.text('TOTAL USD:', 130, finalY + 15);
+    doc.text('TOTAL USD:', 110, finalY + 15);
     doc.text(`USD ${totalUsd.toFixed(2)}`, 195, finalY + 15, { align: 'right' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`COTIZACIÓN USD: $${cotizacion.toFixed(2)}`, 130, finalY + 22);
+    doc.text(`COTIZACIÓN USD: $${cotizacion.toFixed(2)}`, 110, finalY + 22);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL ARS:', 130, finalY + 32);
+    doc.text('TOTAL ARS:', 15, finalY + 32);
     doc.text(`$${Number(sale.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 195, finalY + 32, { align: 'right' });
 
     // Footer note
@@ -188,16 +188,16 @@ export const generateQuotationPDF = (quotation: any) => {
     const cotizacion = Number(quotation.cotizacion_dolar_usada) || 1;
     const totalUsd = Number(quotation.total_real_ars) / cotizacion;
 
-    doc.text('TOTAL ESTIMADO USD:', 120, finalY + 15);
+    doc.text('TOTAL ESTIMADO USD:', 110, finalY + 15);
     doc.text(`USD ${totalUsd.toFixed(2)}`, 195, finalY + 15, { align: 'right' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`COTIZACIÓN USD: $${cotizacion.toFixed(2)}`, 120, finalY + 22);
+    doc.text(`COTIZACIÓN USD: $${cotizacion.toFixed(2)}`, 110, finalY + 22);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL ESTIMADO ARS:', 120, finalY + 32);
+    doc.text('TOTAL ESTIMADO ARS:', 15, finalY + 32);
     doc.text(`$${Number(quotation.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 195, finalY + 32, { align: 'right' });
 
     // Footer note
