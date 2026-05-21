@@ -59,4 +59,39 @@ Desarrollar un sistema personalizado para la gestión de stock y ventas de quím
 - **Reiniciar Backend:** Ejecutar comandos dentro de la carpeta `/backend`.
 - **Generar Cliente Prisma:** `npx prisma generate` (dentro de `/backend`).
 - **Sincronizar DB:** `npx prisma db push` (dentro de `/backend`).
-- **Admin:** `admin` / `admin123`.
+## Logros del día (19/05/2026)
+
+### UI/UX y Responsividad
+- **Menú Mobile:** Rediseño total a barra lateral sólida (crema/verde) para eliminar transparencias y mejorar legibilidad.
+- **Modales Full-Screen:** Los formularios de alta (Clientes/Productos) ahora son pantalla completa en móvil para mejorar la carga de datos.
+- **Gráficos en Dashboard:** Implementación de Recharts para visualizar ventas (últimos 7 días) y distribución de stock.
+- **Filtros Avanzados:** Búsqueda por fechas y tipo de comprobante en Ventas y Presupuestos.
+- **Skeletons de Carga:** Transiciones suaves entre páginas mediante placeholders animados.
+
+### Lógica de Negocio y Seguridad
+- **Corrección de Deuda:** Normalización de saldos (negativo = debe, positivo = favor) y visualización por colores (Rojo/Verde).
+- **Validación de Inputs:** Bloqueo de caracteres no numéricos y números negativos en campos de montos.
+- **Estado de Cuenta:** Generación de PDF cronológico con el historial de "Debe y Haber" por cliente.
+- **Alertas de Stock:** Icono de campana con contador de productos por debajo del stock mínimo.
+
+---
+
+## Hoja de Ruta: Integración ARCA (ex AFIP)
+
+### 1. Requisitos Técnicos (Por Programar)
+- **Librería de Conexión:** Instalación y configuración de `afip.js` para manejo de protocolo SOAP.
+- **Gestión de Certificados:** Estructura de carpetas seguras (fuera de Git) para archivos `.crt` y `.key`.
+- **Servicio WSAA:** Lógica para obtención automática de Token y Sign (Acceso).
+- **Servicio WSFE:** Implementación del webservice de Facturación Electrónica para obtención de CAE.
+- **Esquema de Datos:** Ampliación de la tabla `Sale` con campos: `cae`, `cae_vencimiento`, `punto_venta`, `nro_comprobante_oficial`.
+
+### 2. Requisitos Legales (A cargo del usuario)
+1. **Acceso:** CUIT del negocio y Clave Fiscal Nivel 3.
+2. **Certificado:** Generación de archivo `.csr` y descarga del certificado final desde la web de AFIP.
+3. **Punto de Venta:** Alta de un nuevo punto de venta para "Web Services" en el portal de AFIP.
+
+### 3. Plan de Implementación
+1. **Fase 1 (Simulación):** Configuración en entorno de *Homologación* (pruebas) con certificados temporales.
+2. **Fase 2 (Backend):** Adaptación de controladores y servicios para persistir datos de ARCA.
+3. **Fase 3 (Frontend):** Botón "Emitir Factura Legal" y actualización de PDFs para incluir el CAE y código de barras.
+4. **Fase 4 (Producción):** Migración a entorno real con certificados definitivos.

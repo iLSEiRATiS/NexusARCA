@@ -104,6 +104,12 @@ const NewQuotationPage = () => {
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const preventInvalidChars = (e: React.KeyboardEvent) => {
+    if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 md:p-10 animate-fade-in max-w-[1400px] mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-10 gap-6">
@@ -231,9 +237,19 @@ const NewQuotationPage = () => {
                     <div className="flex-1 min-w-0 pr-2 sm:pr-4">
                       <p className="font-bold uppercase text-[11px] sm:text-[12px] text-slate-700 mb-2 truncate">{item.nombre}</p>
                       <div className="flex items-center gap-2 sm:gap-3">
-                         <div className="bg-white rounded-lg px-1.5 sm:px-2 py-1 flex items-center gap-2 border border-slate-200">
+                         <div className="bg-white rounded-lg px-1.5 sm:px-2 py-1 flex items-center gap-2 border border-slate-200 shadow-inner">
                             <button onClick={() => updateQuantity(item.product_id, item.cantidad - 1)} className="text-slate-400 hover:text-slate-800 font-bold px-1">−</button>
-                            <span className="font-bold text-[10px] sm:text-xs w-4 text-center">{item.cantidad}</span>
+                            <input 
+                              type="number"
+                              min="1"
+                              value={item.cantidad || ''}
+                              onKeyDown={preventInvalidChars}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                                updateQuantity(item.product_id, val);
+                              }}
+                              className="font-bold text-[10px] sm:text-xs w-8 sm:w-10 text-center bg-transparent text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
                             <button onClick={() => updateQuantity(item.product_id, item.cantidad + 1)} className="text-slate-400 hover:text-slate-800 font-bold px-1">+</button>
                          </div>
                          <span className="text-[8px] sm:text-[9px] text-slate-400 font-bold uppercase italic truncate">({item.peso_kg * item.cantidad} KG)</span>
