@@ -90,10 +90,11 @@ export const generateSalePDF = (sale: any) => {
     doc.setFontSize(9);
     doc.text(`COTIZACIÓN USD: $${cotizacion.toFixed(2)}`, 110, finalY + 22);
 
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL ARS:', 15, finalY + 32);
-    doc.text(`$${Number(sale.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 195, finalY + 32, { align: 'right' });
+    doc.text('TOTAL ARS:', 195, finalY + 32, { align: 'right' });
+    doc.setFontSize(14);
+    doc.text(`$${Number(sale.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 195, finalY + 40, { align: 'right' });
 
     // Footer note
     doc.setFontSize(8);
@@ -195,10 +196,11 @@ export const generateQuotationPDF = (quotation: any) => {
     doc.setFontSize(9);
     doc.text(`COTIZACIÓN USD: $${cotizacion.toFixed(2)}`, 110, finalY + 22);
 
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL ESTIMADO ARS:', 15, finalY + 32);
-    doc.text(`$${Number(quotation.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 195, finalY + 32, { align: 'right' });
+    doc.text('TOTAL ESTIMADO ARS:', 195, finalY + 32, { align: 'right' });
+    doc.setFontSize(14);
+    doc.text(`$${Number(quotation.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 195, finalY + 40, { align: 'right' });
 
     // Footer note
     doc.setFontSize(8);
