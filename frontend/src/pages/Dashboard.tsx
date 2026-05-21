@@ -25,6 +25,11 @@ const Dashboard = () => {
     queryFn: clientService.getAll 
   });
 
+  const { data: alerts, isLoading: loadingAlerts } = useQuery({
+    queryKey: ['product-alerts'],
+    queryFn: productService.getAlerts
+  });
+
   const { data, isLoading: loadingSales } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
@@ -35,7 +40,7 @@ const Dashboard = () => {
 
   const sales = data?.data || [];
 
-  if (loadingDolar || loadingProducts || loadingClients || loadingSales) {
+  if (loadingDolar || loadingProducts || loadingClients || loadingSales || loadingAlerts) {
     return <div className="p-10"><CardSkeleton /></div>;
   }
 
@@ -128,6 +133,72 @@ const Dashboard = () => {
           </Link>
         </div>
       </div>
+
+      {/* Alertas Críticas */}
+      {(alerts?.lowStock?.length > 0 || alerts?.expiringBatches?.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
+          {alerts.lowStock.length > 0 && (
+            <div className="bg-rose-50/50 rounded-[40px] p-8 border border-rose-100 shadow-soft">
+              <h3 className="font-bold text-rose-800 uppercase text-xs tracking-[0.2em] mb-6 flex items-center gap-3">
+                <span className="w-2 h-6 bg-rose-400 rounded-full animate-pulse"></span>
+                Stock Crítico / Reponer
+              </h3>
+              <div className="space-y-3">
+                {alerts.lowStock.slice(0, 4).map((p: any) => (
+                  <div key={p.id} className="bg-white p-4 rounded-2xl flex justify-between items-center border border-rose-100/50 shadow-sm">
+                    <div>
+                      <p className="font-bold text-slate-700 text-sm uppercase">{p.nombre}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">{p.presentacion}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-black text-rose-600 leading-none">{p.stock_actual}</p>
+                      <p className="text-[8px] font-bold text-rose-300 uppercase mt-1">Mín: {p.stock_minimo}</p>
+                    </div>
+                  </div>
+                ))}
+                {alerts.lowStock.length > 4 && (
+                  <Link to="/productos" className="block text-center text-[10px] font-bold text-rose-400 hover:text-rose-600 uppercase tracking-widest mt-4">
+                    Ver {alerts.lowStock.length - 4} alertas más de stock →
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
+          {alerts.expiringBatches.length > 0 && (
+            <div className="bg-amber-50/50 rounded-[40px] p-8 border border-amber-100 shadow-soft">
+              <h3 className="font-bold text-amber-800 uppercase text-xs tracking-[0.2em] mb-6 flex items-center gap-3">
+                <span className="w-2 h-6 bg-amber-400 rounded-full animate-pulse"></span>
+                Vencimientos Próximos
+              </h3>
+              <div className="space-y-3">
+                {alerts.expiringBatches.slice(0, 4).map((b: any) => {
+                  const days = Math.ceil((new Date(b.fecha_vencimiento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  return (
+                    <div key={b.id} className="bg-white p-4 rounded-2xl flex justify-between items-center border border-amber-100/50 shadow-sm">
+                      <div>
+                        <p className="font-bold text-slate-700 text-sm uppercase">{b.product?.nombre}</p>
+                        <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">Lote: {b.nro_lote}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs font-bold uppercase px-2 py-1 rounded-lg ${days < 0 ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-700'}`}>
+                          {days < 0 ? 'Vencido' : `Vence en ${days}d`}
+                        </p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{b.cantidad_bultos} Unidades</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {alerts.expiringBatches.length > 4 && (
+                  <Link to="/productos" className="block text-center text-[10px] font-bold text-amber-500 hover:text-amber-700 uppercase tracking-widest mt-4">
+                    Ver {alerts.expiringBatches.length - 4} vencimientos más →
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

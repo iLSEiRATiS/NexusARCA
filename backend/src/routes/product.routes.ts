@@ -6,6 +6,7 @@ import { createProductSchema, updateProductSchema, adjustStockSchema } from '../
 const router = Router();
 
 router.get('/', ProductController.getAll);
+router.get('/alerts', ProductController.getAlerts);
 router.get('/:id', ProductController.getById);
 
 // Aplicando middleware de validación a las rutas de mutación

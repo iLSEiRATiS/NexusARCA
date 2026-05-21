@@ -115,7 +115,7 @@ const NewSalePage = () => {
           cantidad: item.cantidad
         })),
         tipo_comprobante: tipoComprobante,
-        porcentaje_split_override: splitOverride
+        porcentaje_split_override: splitOverride ?? undefined
       };
       return api.post('/sales', payload);
     },

@@ -9,6 +9,11 @@ export class ProductController {
     res.json(products);
   });
 
+  static getAlerts = asyncHandler(async (req: Request, res: Response) => {
+    const alerts = await ProductService.getAlerts();
+    res.json(alerts);
+  });
+
   static getById = asyncHandler(async (req: Request, res: Response) => {
     const product = await ProductService.getById(Number(req.params.id));
     if (!product) {

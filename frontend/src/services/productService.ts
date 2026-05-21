@@ -19,4 +19,8 @@ export const productService = {
     const response = await api.post('/products', data);
     return response.data;
   },
+  getAlerts: async (): Promise<{ lowStock: any[], expiringBatches: any[] }> => {
+    const response = await api.get('/products/alerts');
+    return response.data;
+  },
 };

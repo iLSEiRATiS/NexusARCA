@@ -126,6 +126,41 @@ export class ProductService {
     });
   }
 
+  static async getAlerts() {
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const [lowStock, expiringBatches] = await Promise.all([
+      // Productos por debajo o igual al stock mínimo
+      prisma.product.findMany({
+        where: {
+          stock_actual: {
+            lte: prisma.product.fields.stock_minimo
+          }
+        }
+      }),
+      // Lotes que vencen en los próximos 30 días o ya vencieron
+      prisma.batch.findMany({
+        where: {
+          fecha_vencimiento: {
+            lte: thirtyDaysFromNow
+          },
+          cantidad_bultos: {
+            gt: 0
+          }
+        },
+        include: {
+          product: true
+        },
+        orderBy: {
+          fecha_vencimiento: 'asc'
+        }
+      })
+    ]);
+
+    return { lowStock, expiringBatches };
+  }
+
   static async updateBatch(batchId: number, data: { nro_lote?: string, cantidad_bultos?: number, fecha_vencimiento?: string, estado?: string }) {
     return await prisma.$transaction(async (tx) => {
       const oldBatch = await tx.batch.findUnique({ where: { id: batchId } });

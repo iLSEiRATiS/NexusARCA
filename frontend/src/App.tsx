@@ -55,14 +55,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const isLogin = location.pathname === '/login';
 
-  // Critical Stock Alert logic
-  const { data: products } = useQuery({ 
-    queryKey: ['products'], 
-    queryFn: productService.getAll,
+  // Critical Alerts logic (Stock + Batches)
+  const { data: alerts } = useQuery({ 
+    queryKey: ['product-alerts'], 
+    queryFn: productService.getAlerts,
     enabled: !isLogin
   });
 
-  const criticalStockCount = products?.filter((p: any) => p.stock_actual <= p.stock_minimo).length || 0;
+  const criticalAlertsCount = (alerts?.lowStock?.length || 0) + (alerts?.expiringBatches?.length || 0);
 
   // Prevent background scroll when menu is open
   useEffect(() => {
@@ -106,9 +106,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <div className="flex items-center gap-2 md:hidden">
            <Link to="/productos" className="relative p-2.5 bg-white border border-[#D6CCC2] rounded-xl shadow-sm">
               <span className="text-sm">📦</span>
-              {criticalStockCount > 0 && (
+              {criticalAlertsCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center rounded-full animate-bounce">
-                  {criticalStockCount}
+                  {criticalAlertsCount}
                 </span>
               )}
            </Link>
@@ -129,7 +129,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavLink to="/">Tablero</NavLink>
           <NavLink to="/ventas">Ventas</NavLink>
           <NavLink to="/cotizaciones">Presupuestos</NavLink>
-          <NavLink to="/productos" badge={criticalStockCount > 0 ? criticalStockCount : undefined}>Stock</NavLink>
+          <NavLink to="/productos" badge={criticalAlertsCount > 0 ? criticalAlertsCount : undefined}>Stock</NavLink>
           <NavLink to="/clientes">Clientes</NavLink>
         </div>
 
@@ -196,7 +196,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               to="/productos" 
               onClick={() => setIsMenuOpen(false)} 
               className="flex items-center gap-4 p-5 bg-white rounded-[20px] border border-[#D6CCC2] font-bold text-[#333D29] shadow-sm"
-              badge={criticalStockCount > 0 ? criticalStockCount : undefined}
+              badge={criticalAlertsCount > 0 ? criticalAlertsCount : undefined}
             >
               <span className="text-xl">📦</span>
               <div className="flex flex-col">

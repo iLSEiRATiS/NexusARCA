@@ -59,20 +59,20 @@ Desarrollar un sistema personalizado para la gestión de stock y ventas de quím
 - **Reiniciar Backend:** Ejecutar comandos dentro de la carpeta `/backend`.
 - **Generar Cliente Prisma:** `npx prisma generate` (dentro de `/backend`).
 - **Sincronizar DB:** `npx prisma db push` (dentro de `/backend`).
-## Logros del día (19/05/2026)
+## Logros del día (21/05/2026)
 
-### UI/UX y Responsividad
-- **Menú Mobile:** Rediseño total a barra lateral sólida (crema/verde) para eliminar transparencias y mejorar legibilidad.
-- **Modales Full-Screen:** Los formularios de alta (Clientes/Productos) ahora son pantalla completa en móvil para mejorar la carga de datos.
-- **Gráficos en Dashboard:** Implementación de Recharts para visualizar ventas (últimos 7 días) y distribución de stock.
-- **Filtros Avanzados:** Búsqueda por fechas y tipo de comprobante en Ventas y Presupuestos.
-- **Skeletons de Carga:** Transiciones suaves entre páginas mediante placeholders animados.
+### Mejoras en Experiencia de Usuario (UX)
+- **Entrada Manual de Cantidades:** Se habilitó el ingreso por teclado para las unidades en los módulos de **Nuevo Presupuesto** y **Nueva Venta**, eliminando la restricción de usar solo los botones +/-.
+- **Validación Robusta:** Bloqueo de caracteres inválidos (e, +, -, .) en campos numéricos para prevenir errores de carga.
 
-### Lógica de Negocio y Seguridad
-- **Corrección de Deuda:** Normalización de saldos (negativo = debe, positivo = favor) y visualización por colores (Rojo/Verde).
-- **Validación de Inputs:** Bloqueo de caracteres no numéricos y números negativos en campos de montos.
-- **Estado de Cuenta:** Generación de PDF cronológico con el historial de "Debe y Haber" por cliente.
-- **Alertas de Stock:** Icono de campana con contador de productos por debajo del stock mínimo.
+### Sistema de Alertas Críticas
+- **Alertas en Tablero:** Nueva sección en el Dashboard que destaca productos con **Stock Crítico** y lotes con **Vencimiento Próximo** (menos de 30 días).
+- **Notificaciones Globales:** El contador de la barra de navegación (badge en "Stock") ahora suma tanto faltantes de mercadería como lotes por vencer, garantizando visibilidad total desde cualquier pantalla.
+- **Endpoint de Alertas:** Implementación en el backend de un servicio dedicado para el cálculo de alertas de inventario y trazabilidad.
+
+### Correcciones Técnicas
+- **Fix "Network Error":** Resolución de error al procesar ventas con comprobantes tipo "Factura A" o "Presupuesto" mediante la flexibilización de validaciones Zod y mejora en el manejo de nulos.
+- **Logs de Diagnóstico:** Inclusión de registros detallados en el servidor para facilitar el rastreo de errores en operaciones financieras.
 
 ---
 

@@ -10,6 +10,6 @@ export const createSaleSchema = z.object({
       })
     ).min(1, 'La venta debe tener al menos un producto'),
     tipo_comprobante: z.string().default('Factura B'),
-    porcentaje_split_override: z.number().min(0).max(100).optional(), // Por si se quiere cambiar el % solo para esta venta
+    porcentaje_split_override: z.number().min(0).max(100).nullable().optional(), // Por si se quiere cambiar el % solo para esta venta
   })
 });

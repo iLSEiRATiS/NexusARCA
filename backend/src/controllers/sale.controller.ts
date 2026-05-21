@@ -20,7 +20,13 @@ export class SaleController {
   });
 
   static create = asyncHandler(async (req: Request, res: Response) => {
-    const sale = await SaleService.create(req.body);
-    res.status(201).json(sale);
+    console.log('[SaleController] Creando venta:', JSON.stringify(req.body, null, 2));
+    try {
+      const sale = await SaleService.create(req.body);
+      res.status(201).json(sale);
+    } catch (error: any) {
+      console.error('[SaleController] Error detallado:', error);
+      throw error;
+    }
   });
 }
