@@ -135,16 +135,16 @@ const Dashboard = () => {
       </div>
 
       {/* Alertas Críticas */}
-      {(alerts?.lowStock?.length > 0 || alerts?.expiringBatches?.length > 0) && (
+      {((alerts?.lowStock?.length || 0) > 0 || (alerts?.expiringBatches?.length || 0) > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
-          {alerts.lowStock.length > 0 && (
+          {(alerts?.lowStock?.length || 0) > 0 && (
             <div className="bg-rose-50/50 rounded-[40px] p-8 border border-rose-100 shadow-soft">
               <h3 className="font-bold text-rose-800 uppercase text-xs tracking-[0.2em] mb-6 flex items-center gap-3">
                 <span className="w-2 h-6 bg-rose-400 rounded-full animate-pulse"></span>
                 Stock Crítico / Reponer
               </h3>
               <div className="space-y-3">
-                {alerts.lowStock.slice(0, 4).map((p: any) => (
+                {alerts?.lowStock?.slice(0, 4).map((p: any) => (
                   <div key={p.id} className="bg-white p-4 rounded-2xl flex justify-between items-center border border-rose-100/50 shadow-sm">
                     <div>
                       <p className="font-bold text-slate-700 text-sm uppercase">{p.nombre}</p>
@@ -156,23 +156,23 @@ const Dashboard = () => {
                     </div>
                   </div>
                 ))}
-                {alerts.lowStock.length > 4 && (
+                {(alerts?.lowStock?.length || 0) > 4 && (
                   <Link to="/productos" className="block text-center text-[10px] font-bold text-rose-400 hover:text-rose-600 uppercase tracking-widest mt-4">
-                    Ver {alerts.lowStock.length - 4} alertas más de stock →
+                    Ver {(alerts?.lowStock?.length || 0) - 4} alertas más de stock →
                   </Link>
                 )}
               </div>
             </div>
           )}
 
-          {alerts.expiringBatches.length > 0 && (
+          {(alerts?.expiringBatches?.length || 0) > 0 && (
             <div className="bg-amber-50/50 rounded-[40px] p-8 border border-amber-100 shadow-soft">
               <h3 className="font-bold text-amber-800 uppercase text-xs tracking-[0.2em] mb-6 flex items-center gap-3">
                 <span className="w-2 h-6 bg-amber-400 rounded-full animate-pulse"></span>
                 Vencimientos Próximos
               </h3>
               <div className="space-y-3">
-                {alerts.expiringBatches.slice(0, 4).map((b: any) => {
+                {alerts?.expiringBatches?.slice(0, 4).map((b: any) => {
                   const days = Math.ceil((new Date(b.fecha_vencimiento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                   return (
                     <div key={b.id} className="bg-white p-4 rounded-2xl flex justify-between items-center border border-amber-100/50 shadow-sm">
@@ -189,9 +189,9 @@ const Dashboard = () => {
                     </div>
                   );
                 })}
-                {alerts.expiringBatches.length > 4 && (
+                {(alerts?.expiringBatches?.length || 0) > 4 && (
                   <Link to="/productos" className="block text-center text-[10px] font-bold text-amber-500 hover:text-amber-700 uppercase tracking-widest mt-4">
-                    Ver {alerts.expiringBatches.length - 4} vencimientos más →
+                    Ver {(alerts?.expiringBatches?.length || 0) - 4} vencimientos más →
                   </Link>
                 )}
               </div>
