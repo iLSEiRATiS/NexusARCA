@@ -76,22 +76,43 @@ Desarrollar un sistema personalizado para la gestión de stock y ventas de quím
 
 ---
 
-## Hoja de Ruta: Integración ARCA (ex AFIP)
+## Hoja de Ruta: Integración ARCA (ex AFIP) & Rediseño Arquitectónico
+
+### ADENDA N° 1 - Reestructuración Dual (Aprobada 28/05/2026)
+Debido a nuevos requerimientos de seguridad fiscal y aislamiento de datos, el proyecto se divide en dos plataformas independientes que comparten el motor de stock.
+
+**Impacto Financiero:**
+- **Presupuesto Original:** USD 1.800
+- **Adicional Adenda 1:** USD 1.000
+- **Total Proyecto:** USD 2.800
+- **Nueva Fecha Límite de Entrega:** 30 de julio de 2026 (Días de corrido).
+
+### Nueva Arquitectura de Software
+1.  **Sistema de Gestión (Web Madre - "Negro"):** 
+    - Enfoque 100% logístico y stock físico real.
+    - Interfaz simplificada sin datos fiscales visibles.
+    - Módulo de Exportación Fiscal (Generación de CSV/Excel para facturación).
+2.  **App Facturador (Independiente - "Blanco"):**
+    - Aplicación aislada para cumplimiento legal.
+    - Importación de datos desde el Sistema de Gestión.
+    - Integración con Web Services ARCA (Manual v4.2).
+    - Generación de PDFs con CAE y Código QR oficial.
 
 ### 1. Requisitos Técnicos (Por Programar)
-- **Librería de Conexión:** Instalación y configuración de `afip.js` para manejo de protocolo SOAP.
-- **Gestión de Certificados:** Estructura de carpetas seguras (fuera de Git) para archivos `.crt` y `.key`.
-- **Servicio WSAA:** Lógica para obtención automática de Token y Sign (Acceso).
-- **Servicio WSFE:** Implementación del webservice de Facturación Electrónica para obtención de CAE.
-- **Esquema de Datos:** Ampliación de la tabla `Sale` con campos: `cae`, `cae_vencimiento`, `punto_venta`, `nro_comprobante_oficial`.
+- **Librería de Conexión:** Instalación de `afip.js` en el nuevo módulo Facturador.
+- **Módulo de Exportación:** Desarrollo en el backend de Gestión para filtrar y exportar ventas oficiales.
+- **Gestión de Certificados:** Configuración segura de archivos `.crt` y `.key`.
+- **Servicio WSAA/WSFE:** Lógica para obtención de Token/Sign y CAE.
 
 ### 2. Requisitos Legales (A cargo del usuario)
 1. **Acceso:** CUIT del negocio y Clave Fiscal Nivel 3.
 2. **Certificado:** Generación de archivo `.csr` y descarga del certificado final desde la web de AFIP.
 3. **Punto de Venta:** Alta de un nuevo punto de venta para "Web Services" en el portal de AFIP.
 
-### 3. Plan de Implementación
-1. **Fase 1 (Simulación):** Configuración en entorno de *Homologación* (pruebas) con certificados temporales.
-2. **Fase 2 (Backend):** Adaptación de controladores y servicios para persistir datos de ARCA.
-3. **Fase 3 (Frontend):** Botón "Emitir Factura Legal" y actualización de PDFs para incluir el CAE y código de barras.
-4. **Fase 4 (Producción):** Migración a entorno real con certificados definitivos.
+### 3. Plan de Implementación (Actualizado)
+1. **Fase 1 (Limpieza):** Refactor del Frontend actual para ocultar módulos fiscales y simplificar la UI de Gestión.
+2. **Fase 2 (Exportación):** Implementación del generador de archivos de intercambio en el Backend.
+3. **Fase 3 (Facturador):** Desarrollo de la nueva App Facturador y su lógica de importación.
+4. **Fase 4 (Integración ARCA):** Conexión con Homologación y generación de PDFs legales con QR.
+5. **Fase 5 (Producción):** Deploy dual en VPS (Nginx Proxy) y puesta en marcha final (30/07/2026).
+
