@@ -1,118 +1,89 @@
-# EnGroncho - Sistema de Gestión de Stock y Ventas
+# Mascolo Químicos - Facturador Local (Ex NexusARCA)
 
-Este archivo sirve como memoria central para el desarrollo del proyecto **EnGroncho**, asegurando la continuidad del contexto técnico y de negocio.
+Este archivo sirve como memoria central para el desarrollo del **Facturador Local de Mascolo Químicos**, asegurando la continuidad del contexto técnico y de negocio en su rol como gestor fiscal y de clientes.
 
 ## Objetivo del Proyecto
-Desarrollar un sistema personalizado para la gestión de stock y ventas de químicos industriales, con integración directa para facturación electrónica (Fase Final).
+Desarrollar un sistema personalizado para la gestión de stock y ventas de químicos industriales, con integración directa para facturación electrónica.
+
+## Arquitectura de Separación Física
+Este proyecto reside en la carpeta `Mascolo Quimicos Facturador` y es totalmente independiente de la aplicación de stock.
+
+### Responsabilidades del Facturador (Local)
+- **Gestión de Clientes:** CUIT, domicilios, historial de compras.
+- **Cuentas Corrientes:** Seguimiento de deudas (saldos negativos) y cobros.
+- **Facturación Electrónica:** Integración con Web Services de ARCA (AFIP) mediante `afip.js`.
+- **Importación:** Carga de ventas logísticas mediante archivos CSV generados por la app de stock.
 
 ## Stack Tecnológico
-- **Backend:** Node.js con TypeScript y Express (ubicado en `/backend`).
-- **Base de Datos:** SQLite con Prisma ORM (esquema en `/backend/prisma`).
-- **Frontend:** React (Vite) con TypeScript y Tailwind CSS (ubicado en `/frontend`).
-- **Validación:** Zod.
-- **Gestión de Estado:** React Query (TanStack Query).
+- **Backend:** Node.js con TypeScript y Express.
+- **Base de Datos:** SQLite con Prisma ORM.
+- **Frontend:** React (Vite) con TypeScript y Tailwind CSS.
+- **Integración Fiscal:** `@afipsdk/afip.js`.
 
-## Estructura del Proyecto
-- `backend/`: Código del servidor, API y base de datos.
-- `frontend/`: Interfaz de usuario y servicios del cliente.
+## Estado de la Integración ARCA (AFIP) - Junio 2026
 
-## Convenciones de UI/UX (Estética Industrial Cálida)
-- **Paleta de Colores:** Arena (`#EAE2D6`), Crema (`#F2EBE1`), Azul Petróleo (`#005F73`) y Verde Mar (`#94D2BD`). Se eliminó el blanco puro para reducir la fatiga visual.
-- **Branding:** Uso del logo corporativo en Navbar y Login. Títulos en itálica y tracking ajustado para un look moderno.
-- **Formas:** Bordes ultra redondeados (`rounded-[40px]`) y sombras premium.
-- **Navegación:** Menú minimalista con estados activos en tono crema oscuro.
+### 1. Identidad Digital y Certificados
+- **CUIT Autorizado:** 20409318550 (GALLARDO FACUNDO TOMAS).
+- **Alias del Computador:** `MascoloFacturador`.
+- **Archivos en `backend/afip_res/`:**
+    - `key.key`: Clave privada RSA 2048.
+    - `cert.crt`: Certificado de Producción emitido por AFIP (Válido hasta Junio 2028).
+- **Entorno Actual:** PRODUCCIÓN (Configurado en `AfipService.ts`).
 
-## Lógica de Negocio Implementada
+### 2. Servicios Autorizados
+- Se ha dado de alta la relación en el **Administrador de Relaciones de Clave Fiscal** para el servicio **"Facturación Electrónica"** (wsfe) vinculado al alias `MascoloFacturador`.
 
-### 1. Gestión de Stock Industrial
-- **Unidades:** Stock físico en bultos/unidades (enteros). Cálculo de kilos totales basado en `peso_kg` por unidad.
-- **Trazabilidad:** Control por Números de Lote y Fecha de Vencimiento.
-- **Validación en Vivo:** El sistema impide (bloquea el botón de finalizar) y alerta en rojo si la cantidad cargada en una venta supera el stock actual disponible.
-
-### 2. Sistema de Cuentas Corrientes (Saldos Negativos)
-- **Concepto:** Las deudas se almacenan como números negativos. Una venta de $1000 genera un saldo de `-$1000`. Un cobro de $1000 suma al saldo, llevándolo a `$0`.
-- **Split "En blanco" / "EnGroncho":**
-    - **En blanco (Oficial):** Porcentaje de la venta que se factura legalmente.
-    - **EnGroncho (Informal):** Porcentaje remanente (presupuesto).
-- **Control de Cobros:** Se deshabilitan las opciones de cobro para categorías ya saldadas (saldo >= 0).
-
-### 3. Módulo de Cotizaciones (Presupuestos)
-- **Proforma:** Generación de presupuestos calculados en USD/ARS que no afectan stock.
-- **Conversión:** Transformación de presupuesto aceptado a venta real con asignación automática de deuda y descuento de stock.
-
-### 4. Inteligencia de Cobros (Imputación)
-- **MIXTO (Auto):** Prioriza saldar primero la deuda **EnGroncho** (más urgente/informal) y aplica el remanente a la deuda **En blanco**.
-- **Manual:** Permite elegir específicamente qué caja saldar.
-- **Referencia:** Campo obligatorio/opcional para notas de pago (Nro. de transferencia, cheque, etc.).
-
-## Estado Actual (18/05/2026)
-- [x] Rebranding total a **EnGroncho** (Armonía visual con Logo).
-- [x] Validación de Stock en tiempo real en Ventas.
-- [x] Lógica de saldos negativos y cobros corregida y testeada.
-- [x] CRUD de Productos y Clientes con búsqueda avanzada.
-- [x] Módulo de Presupuestos operativo con conversión a venta.
-- [x] Generación de PDF profesional para Ventas y Presupuestos.
-- [x] Separación de estructura en carpetas `/backend` y `/frontend`.
-- [ ] Integración con Web Services de ARCA (AFIP) - *Fase Final*.
-
-## Instrucciones de Mantenimiento
-- **Reiniciar Backend:** Ejecutar comandos dentro de la carpeta `/backend`.
-- **Generar Cliente Prisma:** `npx prisma generate` (dentro de `/backend`).
-- **Sincronizar DB:** `npx prisma db push` (dentro de `/backend`).
-## Logros del día (21/05/2026)
-
-### Mejoras en Experiencia de Usuario (UX)
-- **Entrada Manual de Cantidades:** Se habilitó el ingreso por teclado para las unidades en los módulos de **Nuevo Presupuesto** y **Nueva Venta**, eliminando la restricción de usar solo los botones +/-.
-- **Validación Robusta:** Bloqueo de caracteres inválidos (e, +, -, .) en campos numéricos para prevenir errores de carga.
-
-### Sistema de Alertas Críticas
-- **Alertas en Tablero:** Nueva sección en el Dashboard que destaca productos con **Stock Crítico** y lotes con **Vencimiento Próximo** (menos de 30 días).
-- **Notificaciones Globales:** El contador de la barra de navegación (badge en "Stock") ahora suma tanto faltantes de mercadería como lotes por vencer, garantizando visibilidad total desde cualquier pantalla.
-- **Endpoint de Alertas:** Implementación en el backend de un servicio dedicado para el cálculo de alertas de inventario y trazabilidad.
-
-### Correcciones Técnicas
-- **Fix "Network Error":** Resolución de error al procesar ventas con comprobantes tipo "Factura A" o "Presupuesto" mediante la flexibilización de validaciones Zod y mejora en el manejo de nulos.
-- **Logs de Diagnóstico:** Inclusión de registros detallados en el servidor para facilitar el rastreo de errores en operaciones financieras.
+### 3. Estado de Conexión y Pruebas
+- **Error Actual:** 401 (Unauthenticated) en pruebas iniciales con `test-afip.ts`.
+- **Causa Real:** El error no proviene de AFIP, sino de los servidores de `AfipSDK`. A partir de la versión 1.0.0, la librería `@afipsdk/afip.js` funciona como un SaaS y requiere un `access_token` pago/registrado, además de enviar la clave privada a sus servidores. Al pasar `access_token: 'none'`, la petición es rechazada por su API.
+- **Solución Propuesta:** Opción 1: Usar una librería Open Source (Recomendada y más segura). Como estamos hablando de certificados productivos (reales), no es para nada recomendable enviar tu clave privada a un servidor de terceros. Te sugiero que reemplacemos `@afipsdk/afip.js` por una alternativa abierta (como el fork comunitario `afip.js` original o `node-afip`) que sí haga las peticiones SOAP a AFIP directamente desde tu computadora.
+- **Punto de Venta:** Configurado por defecto en **Punto de Venta 1**. (Pendiente verificar si el usuario posee otro PV habilitado para Web Services).
 
 ---
 
-## Hoja de Ruta: Integración ARCA (ex AFIP) & Rediseño Arquitectónico
+## Lógica de Negocio Implementada
 
-### ADENDA N° 1 - Reestructuración Dual (Aprobada 28/05/2026)
-Debido a nuevos requerimientos de seguridad fiscal y aislamiento de datos, el proyecto se divide en dos plataformas independientes que comparten el motor de stock.
+### 1. Sistema de Cuentas Corrientes (Saldos Negativos)
+- **Concepto:** Las deudas se almacenan como números negativos. Una venta de $1000 genera un saldo de `-$1000`. Un cobro de $1000 suma al saldo, llevándolo a `$0`.
+- **Saldos Separados:**
+    - **Saldo Blanco (Oficial):** Deuda acumulada por facturas electrónicas.
+    - **Saldo Negro (EnGroncho):** Deuda acumulada por presupuestos o ventas informales.
+    - **Saldo Deuda:** Suma total real adeudada por el cliente.
 
-**Impacto Financiero:**
-- **Presupuesto Original:** USD 1.800
-- **Adicional Adenda 1:** USD 1.000
-- **Total Proyecto:** USD 2.800
-- **Nueva Fecha Límite de Entrega:** 30 de julio de 2026 (Días de corrido).
+### 2. Facturación Electrónica (ARCA)
+- **Servicio:** `AfipService` gestiona la obtención del CAE.
+- **Tipos de Comprobante:** Factura A, B, C, Notas de Crédito.
+- **Puntos de Venta:** Configurado por defecto para el Punto de Venta 1.
 
-### Nueva Arquitectura de Software
-1.  **Sistema de Gestión (Web Madre - "Negro"):** 
-    - Enfoque 100% logístico y stock físico real.
-    - Interfaz simplificada sin datos fiscales visibles.
-    - Módulo de Exportación Fiscal (Generación de CSV/Excel para facturación).
-2.  **App Facturador (Independiente - "Blanco"):**
-    - Aplicación aislada para cumplimiento legal.
-    - Importación de datos desde el Sistema de Gestión.
-    - Integración con Web Services ARCA (Manual v4.2).
-    - Generación de PDFs con CAE y Código QR oficial.
+## Estado de Carpetas (Junio 2026)
+- `C:\Users\facun\OneDrive\Escritorio\Proyectos\Mascolo Quimicos` -> **STOCK / LOGÍSTICA**
+- `C:\Users\facun\OneDrive\Escritorio\Proyectos\Mascolo Quimicos Facturador` -> **FISCAL / CLIENTES**
 
-### 1. Requisitos Técnicos (Por Programar)
-- **Librería de Conexión:** Instalación de `afip.js` en el nuevo módulo Facturador.
-- **Módulo de Exportación:** Desarrollo en el backend de Gestión para filtrar y exportar ventas oficiales.
-- **Gestión de Certificados:** Configuración segura de archivos `.crt` y `.key`.
-- **Servicio WSAA/WSFE:** Lógica para obtención de Token/Sign y CAE.
+## Historial de Cambios Recientes (Junio 2026)
 
-### 2. Requisitos Legales (A cargo del usuario)
-1. **Acceso:** CUIT del negocio y Clave Fiscal Nivel 3.
-2. **Certificado:** Generación de archivo `.csr` y descarga del certificado final desde la web de AFIP.
-3. **Punto de Venta:** Alta de un nuevo punto de venta para "Web Services" en el portal de AFIP.
+### 1. Rediseño Minimalista (Slate & Blue)
+- Se eliminó el sistema visual anterior (logos, texturas, colores vibrantes).
+- Implementación de tema **Slate & Blue** enfocado en máxima legibilidad y sobriedad.
+- Navegación simplificada: Se eliminó el módulo de **Stock** para centrar la app en facturación y clientes.
+- Login simplificado: Eliminación de frases informativas y logos.
 
-### 3. Plan de Implementación (Actualizado)
-1. **Fase 1 (Limpieza):** Refactor del Frontend actual para ocultar módulos fiscales y simplificar la UI de Gestión.
-2. **Fase 2 (Exportación):** Implementación del generador de archivos de intercambio en el Backend.
-3. **Fase 3 (Facturador):** Desarrollo de la nueva App Facturador y su lógica de importación.
-4. **Fase 4 (Integración ARCA):** Conexión con Homologación y generación de PDFs legales con QR.
-5. **Fase 5 (Producción):** Deploy dual en VPS (Nginx Proxy) y puesta en marcha final (30/07/2026).
+### 2. Seguridad y Autenticación
+- Reset de credenciales maestras: `admin / admin123`.
+- Implementación de **Rate Limiting** para prevenir fuerza bruta.
+- Uso de **Bcrypt** para encriptación de contraseñas.
+- Protección **anti-inyección SQL** nativa mediante Prisma ORM y validación Zod.
 
+### 3. Esfuerzos de Portabilidad y Aplicación Local
+- Integración de **Electron** para convertir la app web en un programa de escritorio (`.exe`).
+- **Arquitectura de Carpeta Portable:** Configuración para que la base de datos (`data/dev.db`) y las facturas generadas (`facturas/`) vivan junto al ejecutable, permitiendo mover la carpeta a otra PC mediante un USB sin romper rutas.
+- **Backend Integrado:** El servidor Express ahora se inicia automáticamente desde el proceso principal de Electron.
+
+## Estado Actual y Errores Conocidos (IMPORTANTE)
+Al intentar generar el ejecutable portable, se ha detectado el siguiente problema:
+
+**Error:** `Uncaught Exception: Error: Cannot find module 'electron-is-dev'`
+- **Causa:** Este error ocurre porque el archivo `electron.cjs` en la carpeta local de compilación (`C:\Users\facun\MascoloFacturador`) contiene código obsoleto que intenta requerir una librería de desarrollo no incluida en el paquete final.
+- **Solución pendiente:** Se debe sincronizar el archivo `electron.cjs` corregido (que utiliza `app.isPackaged` nativo) desde la carpeta de origen en OneDrive hacia la carpeta de compilación local antes de ejecutar `npm run dist`.
+
+---
+*Este documento reemplaza las versiones anteriores de NexusARCA para reflejar la nueva identidad de marca Mascolo Químicos.*
