@@ -1,9 +1,130 @@
 import prisma from '../config/prisma';
 import { CurrencyService } from './currency.service';
+import { AfipService } from './afip.service';
 import { AppError } from '../utils/AppError';
 import { MovementType } from '@prisma/client';
 
 export class SaleService {
+  /**
+   * Procesa la facturación oficial ante AFIP o convierte a Presupuesto (Negro).
+   * @param saleId ID de la venta local
+   * @param mode 'ARCA' para factura oficial, 'PRESUPUESTO' para informal
+   * @param impactBalance Si debe afectar la deuda del cliente
+   * @param customPrices Precios manuales por ítem { id: { price: number, currency: 'USD'|'ARS' } }
+   * @param cotizacion_usada Cotización BNA al momento de procesar
+   */
+  static async processBilling(
+    saleId: number, 
+    mode: 'ARCA' | 'PRESUPUESTO' = 'ARCA', 
+    impactBalance: boolean = true,
+    customPrices?: Record<number, { price: number, currency: 'USD' | 'ARS' }>,
+    cotizacion_usada: number = 1000
+  ) {
+    const sale = await prisma.sale.findUnique({
+      where: { id: saleId },
+      include: { client: true, items: { include: { product: true } } }
+    });
+
+    if (!sale) throw new AppError('Venta no encontrada', 404);
+    if (mode === 'ARCA' && sale.cae) throw new AppError('La venta ya posee CAE asignado', 400);
+
+    return await prisma.$transaction(async (tx) => {
+      let total_real_ars = 0;
+      let subtotal_ars = 0;
+      let iva_ars = 0;
+
+      // 1. Recalcular precios si se enviaron ajustes manuales
+      for (const item of sale.items) {
+        let precio_unitario_ars = Number(item.precio_unitario_ars);
+        let precio_unitario_usd = Number(item.precio_unitario_usd);
+
+        if (customPrices && customPrices[item.id]) {
+          const config = customPrices[item.id];
+          if (config.currency === 'USD') {
+            precio_unitario_usd = config.price;
+            // USD se multiplica por cotización y por peso_kg del producto para llegar al bulto en ARS
+            precio_unitario_ars = precio_unitario_usd * cotizacion_usada * Number(item.product.peso_kg);
+          } else {
+            precio_unitario_ars = config.price;
+            precio_unitario_usd = 0; // Se cargó directamente en pesos
+          }
+        }
+
+        const subtotal_item = precio_unitario_ars * item.cantidad;
+        const iva_item = subtotal_item * (Number(item.iva_tasa) / 100);
+
+        total_real_ars += (subtotal_item + iva_item);
+        subtotal_ars += subtotal_item;
+        iva_ars += iva_item;
+
+        // Actualizar el ítem con el precio final usado
+        await tx.saleItem.update({
+          where: { id: item.id },
+          data: {
+            precio_unitario_ars,
+            precio_unitario_usd
+          }
+        });
+      }
+
+      let updateData: any = {
+        total_real_ars,
+        subtotal_ars,
+        iva_ars,
+        cotizacion_dolar_usada: cotizacion_usada
+      };
+
+      if (mode === 'ARCA') {
+        // 2. Solicitar CAE a AFIP con los nuevos totales
+        // Mock de datos para el servicio de AFIP (necesita el objeto sale actualizado)
+        const saleForAfip = { ...sale, monto_facturado_ars: total_real_ars, subtotal_ars, iva_ars };
+        const afipResult = await AfipService.createInvoice(saleForAfip);
+        
+        updateData = {
+          ...updateData,
+          cae: afipResult.cae,
+          vto_cae: new Date(afipResult.vto_cae),
+          nro_comprobante: afipResult.nro_comprobante,
+          estado_factura: 'FACTURADO',
+          tipo_comprobante: sale.client.condicion_iva === 'RESPONSABLE_INSCRIPTO' ? 'Factura A' : 'Factura B',
+          monto_facturado_ars: total_real_ars,
+          monto_no_facturado_ars: 0,
+          porcentaje_split: 100
+        };
+      } else {
+        // 3. Modo Presupuesto (Negro)
+        updateData = {
+          ...updateData,
+          tipo_comprobante: 'Presupuesto',
+          estado_factura: 'PENDIENTE',
+          monto_facturado_ars: 0,
+          monto_no_facturado_ars: total_real_ars,
+          porcentaje_split: 0
+        };
+      }
+
+      const updatedSale = await tx.sale.update({
+        where: { id: saleId },
+        data: updateData,
+        include: { client: true }
+      });
+
+      // 4. Impactar en Cuenta Corriente si se solicitó
+      if (impactBalance) {
+        await tx.client.update({
+          where: { id: updatedSale.client_id },
+          data: {
+            saldo_blanco: mode === 'ARCA' ? { decrement: total_real_ars } : undefined,
+            saldo_negro: mode === 'PRESUPUESTO' ? { decrement: total_real_ars } : undefined,
+            saldo_deuda: { decrement: total_real_ars }
+          }
+        });
+      }
+
+      return updatedSale;
+    });
+  }
+
   static async create(data: {
     client_id: number;
     items: { product_id: number; cantidad: number; batch_id?: number }[];

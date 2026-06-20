@@ -3,11 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-// --- ENUMS (Prisma los emula como Strings con validación en SQLite) ---
+// --- ENUMS ---
 
 enum MovementType {
   INGRESO
@@ -27,9 +27,9 @@ enum CondicionIva {
 model User {
   id        Int      @id @default(autoincrement())
   username  String   @unique
-  password  String   // Hash bcrypt
+  password  String   
   nombre    String
-  role      String   @default("ADMIN") // ADMIN, VENDEDOR
+  role      String   @default("ADMIN") 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -38,10 +38,11 @@ model User {
 model Product {
   id           Int             @id @default(autoincrement())
   nombre       String
-  presentacion String?         // Ej: "Bolsa 25kg", "Tambor 210kg"
-  peso_kg      Decimal         @default(25.00) // Peso de cada unidad/bulto
-  costo_usd    Decimal         @default(0)     // Costo por KG
-  precio_usd   Decimal         // Precio por KG
+  presentacion String?         
+  peso_kg      Decimal         @default(25.00) 
+  precio_usd   Decimal         @default(0) // Precio base sugerido
+  precio_ars   Decimal         @default(0) // Precio base sugerido en pesos
+  moneda_base  String          @default("USD") // USD o ARS
   iva_tasa     Decimal         @default(21.00) 
   stock_actual Int             @default(0)
   stock_minimo Int             @default(5)
@@ -61,7 +62,7 @@ model Batch {
   cantidad_bultos   Int
   fecha_vencimiento DateTime?
   ubicacion         String?
-  estado            String        @default("ACTIVO") // ACTIVO, BLOQUEADO, VENCIDO
+  estado            String        @default("ACTIVO") 
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   saleItems         SaleItem[]
@@ -69,17 +70,17 @@ model Batch {
 
 model Client {
   id                      Int          @id @default(autoincrement())
+  external_id             Int?         @unique 
   razon_social            String
   cuit                    String       @unique
   direccion               String?
   condicion_iva           CondicionIva @default(RESPONSABLE_INSCRIPTO)
-  nro_iibb                String?      // Ingresos Brutos
+  nro_iibb                String?      
   telefono                String?
   
-  // Saldos Separados para mayor claridad
-  saldo_blanco            Decimal      @default(0) // Deuda que figura en facturas ARCA
-  saldo_negro             Decimal      @default(0) // Deuda que figura en presupuestos (informal)
-  saldo_deuda             Decimal      @default(0) // Suma total real
+  saldo_blanco            Decimal      @default(0) 
+  saldo_negro             Decimal      @default(0) 
+  saldo_deuda             Decimal      @default(0) 
   
   porcentaje_facturacion  Decimal      @default(100.00) 
   sales                   Sale[]
@@ -95,7 +96,7 @@ model Quotation {
   client_id              Int
   fecha                  DateTime        @default(now())
   validez_dias           Int             @default(15)
-  estado                 String          @default("PENDIENTE") // PENDIENTE, ACEPTADO, RECHAZADO, CONVERTIDO
+  estado                 String          @default("PENDIENTE") 
   
   total_real_ars         Decimal
   cotizacion_dolar_usada Decimal
@@ -118,25 +119,23 @@ model QuotationItem {
 
 model Sale {
   id                     Int           @id @default(autoincrement())
+  external_id            Int?          @unique 
   client                 Client        @relation(fields: [client_id], references: [id], onDelete: Restrict)
   client_id              Int
   fecha                  DateTime      @default(now())
   
-  // Financiero Total (Lo que el cliente debe)
   total_real_ars         Decimal        
   cotizacion_dolar_usada Decimal       
   
-  // Split Blanco / Negro
-  monto_facturado_ars    Decimal        // Parte declarada a ARCA (Blanco)
-  monto_no_facturado_ars Decimal        // Parte presupuesto (Negro)
-  porcentaje_split       Decimal         // Porcentaje usado para el split (ej: 80.00)
+  monto_facturado_ars    Decimal        
+  monto_no_facturado_ars Decimal        
+  porcentaje_split       Decimal         
 
-  // Datos Fiscales (Sobre el monto_facturado_ars)
   subtotal_ars           Decimal       
   iva_ars                Decimal       
   estado_factura         String        @default("PENDIENTE")
-  tipo_comprobante       String        // "Factura A", "Factura B", etc.
-  nro_comprobante        String?       // "0001-0000045"
+  tipo_comprobante       String        
+  nro_comprobante        String?       @unique
   cae                    String?
   vto_cae                DateTime?
   
@@ -153,10 +152,10 @@ model SaleItem {
   product_id          Int
   batch               Batch?  @relation(fields: [batch_id], references: [id], onDelete: SetNull)
   batch_id            Int?
-  cantidad            Int     // Cantidad de bultos/unidades
-  precio_unitario_ars Decimal // Precio por KG en ARS
-  iva_tasa            Decimal   // Tasa de IVA al momento de la venta
-  precio_unitario_usd Decimal  // Precio por KG en USD
+  cantidad            Int     
+  precio_unitario_ars Decimal 
+  iva_tasa            Decimal   
+  precio_unitario_usd Decimal  
 }
 
 model Payment {
@@ -164,9 +163,9 @@ model Payment {
   client      Client     @relation(fields: [client_id], references: [id], onDelete: Restrict)
   client_id   Int
   monto_ars   Decimal    
-  tipo        String     @default("MIXTO") // "BLANCO", "NEGRO", "MIXTO"
+  tipo        String     @default("MIXTO") 
   metodo_pago String     @default("TRANSFERENCIA")
-  referencia  String?    // Nota o número de comprobante
+  referencia  String?    
   fecha       DateTime   @default(now())
   createdAt   DateTime   @default(now())
 }
@@ -175,9 +174,9 @@ model StockMovement {
   id         Int          @id @default(autoincrement())
   product    Product      @relation(fields: [product_id], references: [id], onDelete: Cascade)
   product_id Int
-  cantidad   Int          // Cantidad de bultos
+  cantidad   Int          
   tipo       MovementType
-  motivo     String?      // Ej: "Venta #10", "Ajuste de inventario", "Compra lote 45"
+  motivo     String?      
   fecha      DateTime     @default(now())
 }
 

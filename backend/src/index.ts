@@ -11,6 +11,7 @@ import currencyRoutes from './routes/currency.routes';
 import clientRoutes from './routes/client.routes';
 import saleRoutes from './routes/sale.routes';
 import quotationRoutes from './routes/quotation.routes';
+import importRoutes from './routes/import.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { protect } from './middlewares/auth.middleware';
 import { UserService } from './services/user.service';
@@ -45,13 +46,14 @@ app.use('/api/currency', protect, currencyRoutes);
 app.use('/api/clients', protect, clientRoutes);
 app.use('/api/sales', protect, saleRoutes);
 app.use('/api/quotations', protect, quotationRoutes);
+app.use('/api/import', protect, importRoutes);
 
 // Manejo global de errores
 app.use(errorHandler);
 
 // Servidor e inicialización de seguridad
 app.listen(PORT, async () => {
-  console.log(`🚀 EnGroncho Backend ejecutándose en puerto ${PORT}`);
+  console.log(`🚀 Mascolo Facturador Backend ejecutándose en puerto ${PORT}`);
   // Crear admin inicial si no existe
   await UserService.createInitialAdmin();
 });

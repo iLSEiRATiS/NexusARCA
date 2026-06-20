@@ -4,6 +4,20 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
 
 export class SaleController {
+  static billSale = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { mode, impactBalance, customPrices, cotizacion_usada } = req.body; 
+    
+    const sale = await SaleService.processBilling(
+      Number(id), 
+      mode, 
+      impactBalance, 
+      customPrices, 
+      Number(cotizacion_usada)
+    );
+    res.json(sale);
+  });
+
   static getAll = asyncHandler(async (req: Request, res: Response) => {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 50;

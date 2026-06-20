@@ -4,3 +4,7 @@ dist/
 *.log
 *.db
 .DS_Store
+frontend/dist-electron/
+frontend/backend-dist/
+backend/afip_res/
+.tmp/

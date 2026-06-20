@@ -12,7 +12,15 @@ export class ClientService {
     return await prisma.client.findUnique({
       where: { id },
       include: {
-        sales: { take: 20, orderBy: { fecha: 'desc' } },
+        sales: { 
+          take: 20, 
+          orderBy: { fecha: 'desc' },
+          include: { 
+            items: { 
+              include: { product: true } 
+            } 
+          }
+        },
         payments: { take: 20, orderBy: { fecha: 'desc' } }
       }
     });

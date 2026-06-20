@@ -2,119 +2,68 @@
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
+  line-height: 1.6;
   font-weight: 400;
-  
-  /* Paleta EnGroncho basada en tonos industriales suaves y el logo */
-  --eg-bg: #EAE2D6;       /* Fondo Arena Cálido (Base) */
-  --eg-card: #F2EBE1;     /* Tarjeta Crema Suave */
-  --eg-accent: #005F73;   /* Azul Petróleo (Logo) */
-  --eg-secondary: #94D2BD; /* Verde Mar Suave */
-  --eg-text: #333D29;     /* Gris Musgo Oscuro (Texto) */
-  --eg-border: #D6CCC2;   /* Borde Arena Oscuro */
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  color: var(--eg-text);
-  background-color: var(--eg-bg);
-  /* Textura de malla muy sutil */
-  background-image: 
-    linear-gradient(var(--eg-border) 0.5px, transparent 0.5px),
-    linear-gradient(90deg, var(--eg-border) 0.5px, transparent 0.5px);
-  background-size: 50px 50px;
-  background-position: center;
+  color: #1e293b; /* Slate-800 */
+  background-color: #f8fafc; /* Slate-50 */
 }
 
 #root {
   width: 100%;
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-slide-up {
-  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
 }
 
-/* Glassmorphism Orgánico */
-.glass {
-  background: rgba(242, 235, 225, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(214, 204, 194, 0.4);
-}
-
-.shadow-soft {
-  box-shadow: 0 8px 30px rgba(51, 61, 41, 0.04);
-}
-
-.shadow-premium {
-  box-shadow: 0 20px 60px rgba(51, 61, 41, 0.08);
-}
-
-.transition-smooth {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Scrollbar EnGroncho */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--eg-bg);
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--eg-border);
-  border-radius: 20px;
-  border: 3px solid var(--eg-bg);
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #B7AD99;
+  background: #94a3b8;
 }
 
-/* Componentes de UI Globales */
-.eg-card {
-  background-color: var(--eg-card);
-  border: 1px solid var(--eg-border);
-  border-radius: 2.5rem; /* 40px */
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
-.eg-button-primary {
-  background-color: var(--eg-accent);
-  color: #FFFFFF;
-  padding: 0.75rem 1.5rem;
-  border-radius: 1.25rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  transition: all 0.2s ease;
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
 }
 
-.eg-button-primary:hover {
-  background-color: #001219;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(0, 95, 115, 0.2);
+/* Select and Input common styles */
+input, select {
+  font-size: 14px !important;
 }
 
-.eg-input {
-  background-color: #FFFFFF;
-  border: 1px solid var(--eg-border);
-  border-radius: 1rem;
-  padding: 0.75rem 1rem;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.eg-input:focus {
-  border-color: var(--eg-accent);
+@media (min-width: 768px) {
+  input, select {
+    font-size: 15px !important;
+  }
 }

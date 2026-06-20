@@ -1,33 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
-import { currencyService } from '../services/currencyService';
-import { productService } from '../services/productService';
 import { clientService } from '../services/clientService';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { CardSkeleton } from '../components/Skeletons';
+import ImportCSVModal from '../components/ImportCSVModal';
+import { useState } from 'react';
 
 const Dashboard = () => {
-  const { data: dolar, isLoading: loadingDolar } = useQuery({ 
-    queryKey: ['dolar'], 
-    queryFn: currencyService.getDolarOficial 
-  });
-
-  const { data: products, isLoading: loadingProducts } = useQuery({ 
-    queryKey: ['products'], 
-    queryFn: productService.getAll 
-  });
-
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  
   const { data: clients, isLoading: loadingClients } = useQuery({ 
     queryKey: ['clients'], 
     queryFn: clientService.getAll 
-  });
-
-  const { data: alerts, isLoading: loadingAlerts } = useQuery({
-    queryKey: ['product-alerts'],
-    queryFn: productService.getAlerts
   });
 
   const { data, isLoading: loadingSales } = useQuery({
@@ -40,243 +26,98 @@ const Dashboard = () => {
 
   const sales = data?.data || [];
 
-  if (loadingDolar || loadingProducts || loadingClients || loadingSales || loadingAlerts) {
-    return <div className="p-10"><CardSkeleton /></div>;
+  if (loadingClients || loadingSales) {
+    return <div className="p-10 font-bold uppercase tracking-widest text-xs text-slate-400">Cargando tablero...</div>;
   }
 
-  // Logic for charts
-  const totalStock = products?.reduce((acc: number, p: any) => acc + (p.stock_actual || 0), 0) || 0;
-  const lowStockCount = products?.filter((p: any) => p.stock_actual <= p.stock_minimo).length || 0;
-  
-  // Total Debt Portfolio: Sum absolute values of all negative balances (what clients owe us)
+  // Totales
   const totalDebtPortfolio = clients?.reduce((acc: number, c: any) => {
     const balance = Number(c.saldo_deuda);
     return balance < 0 ? acc + Math.abs(balance) : acc;
   }, 0) || 0;
-
-  // Debtor clients count (balance < 0)
   const debtorClientsCount = clients?.filter((c: any) => Number(c.saldo_deuda) < 0).length || 0;
 
-  // Sales evolution (last 7 days)
   const last7Days = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toISOString().split('T')[0]; // Use ISO for robust comparison
+    return d.toISOString().split('T')[0];
   }).reverse();
 
   const salesChartData = last7Days.map(dateStr => {
     const daySales = sales.filter((s: any) => new Date(s.fecha).toISOString().split('T')[0] === dateStr);
     return {
-      name: dateStr.split('-')[2] + '/' + dateStr.split('-')[1], // DD/MM format
+      name: dateStr.split('-')[2] + '/' + dateStr.split('-')[1],
       total: daySales.reduce((acc: number, s: any) => acc + Number(s.total_real_ars), 0)
     };
   });
 
-  // Top products by stock
-  const topProducts = products?.sort((a: any, b: any) => b.stock_actual - a.stock_actual).slice(0, 5) || [];
-
   return (
-    <div className="p-6 md:p-10 animate-fade-in space-y-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-800 tracking-tight mb-2">Tablero</h1>
-          <p className="text-slate-400 font-medium text-[11px] uppercase tracking-widest italic">Estado General del Negocio</p>
-        </div>
-        <div className="bg-white px-6 py-4 rounded-[24px] border border-slate-100 shadow-premium flex items-center gap-6">
-           <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Dólar Oficial (Venta)</span>
-              <span className="text-2xl font-black text-[#005F73]">${dolar?.cotizacion || '0.00'}</span>
-           </div>
-           <div className="w-px h-10 bg-slate-100"></div>
-           <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Actualización</span>
-              <span className="text-xs font-bold text-slate-500 uppercase">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} HS</span>
-           </div>
-        </div>
+    <div className="space-y-16 py-4 animate-fade-in">
+      <div className="flex justify-between items-end border-b-2 border-slate-900 pb-4">
+        <h1 className="text-4xl font-black uppercase tracking-tighter text-slate-900">Inicio</h1>
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Panel de Gestión Fiscal</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:shadow-premium transition-smooth">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Cartera de Deuda</p>
-          <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-rose-600 tracking-tighter">${totalDebtPortfolio.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</span>
-            <span className={`p-2 rounded-xl text-xs font-bold ${debtorClientsCount > 0 ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}`}>
-              {debtorClientsCount} Deudores
-            </span>
-          </div>
+      {/* KPI GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="border-l-4 border-blue-600 bg-slate-50 pl-6 py-6 transition-all hover:bg-slate-100">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Deuda Cartera</p>
+          <p className="text-3xl font-black text-slate-900">${totalDebtPortfolio.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</p>
+          <p className="text-[10px] font-bold uppercase text-red-500 mt-2">{debtorClientsCount} Clientes con Saldo Pendiente</p>
         </div>
 
-        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:shadow-premium transition-smooth">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Items en Stock</p>
-          <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-slate-800 tracking-tighter">{totalStock} <span className="text-sm text-slate-300">Un</span></span>
-            <span className={`p-2 rounded-xl text-xs font-bold ${lowStockCount > 0 ? 'bg-amber-50 text-amber-600 animate-pulse' : 'bg-emerald-50 text-emerald-600'}`}>
-              {lowStockCount} Críticos
-            </span>
-          </div>
+        <div className="border-l-4 border-slate-900 bg-slate-50 pl-6 py-6 transition-all hover:bg-slate-100">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Operaciones del Mes</p>
+          <p className="text-3xl font-black text-slate-900">{sales?.length || 0}</p>
+          <p className="text-[10px] font-bold uppercase text-slate-400 mt-2">Registros Procesados</p>
         </div>
 
-        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-soft group hover:shadow-premium transition-smooth">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Ventas del Mes</p>
-          <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-slate-800 tracking-tighter">{sales?.length || 0}</span>
-            <span className="bg-sky-50 text-sky-600 p-2 rounded-xl text-xs font-bold">Operaciones</span>
-          </div>
-        </div>
-
-        <div className="bg-emerald-600 p-8 rounded-[32px] shadow-emerald-100 shadow-xl group hover:scale-[1.02] transition-smooth cursor-pointer">
-          <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest mb-4 italic">Acceso Rápido</p>
-          <Link to="/ventas/nueva" className="flex items-center justify-between text-white">
-            <span className="text-xl font-bold">Nueva Venta</span>
-            <span className="text-2xl">→</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Alertas Críticas */}
-      {((alerts?.lowStock?.length || 0) > 0 || (alerts?.expiringBatches?.length || 0) > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up">
-          {(alerts?.lowStock?.length || 0) > 0 && (
-            <div className="bg-rose-50/50 rounded-[40px] p-8 border border-rose-100 shadow-soft">
-              <h3 className="font-bold text-rose-800 uppercase text-xs tracking-[0.2em] mb-6 flex items-center gap-3">
-                <span className="w-2 h-6 bg-rose-400 rounded-full animate-pulse"></span>
-                Stock Crítico / Reponer
-              </h3>
-              <div className="space-y-3">
-                {alerts?.lowStock?.slice(0, 4).map((p: any) => (
-                  <div key={p.id} className="bg-white p-4 rounded-2xl flex justify-between items-center border border-rose-100/50 shadow-sm">
-                    <div>
-                      <p className="font-bold text-slate-700 text-sm uppercase">{p.nombre}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">{p.presentacion}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-black text-rose-600 leading-none">{p.stock_actual}</p>
-                      <p className="text-[8px] font-bold text-rose-300 uppercase mt-1">Mín: {p.stock_minimo}</p>
-                    </div>
-                  </div>
-                ))}
-                {(alerts?.lowStock?.length || 0) > 4 && (
-                  <Link to="/productos" className="block text-center text-[10px] font-bold text-rose-400 hover:text-rose-600 uppercase tracking-widest mt-4">
-                    Ver {(alerts?.lowStock?.length || 0) - 4} alertas más de stock →
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
-
-          {(alerts?.expiringBatches?.length || 0) > 0 && (
-            <div className="bg-amber-50/50 rounded-[40px] p-8 border border-amber-100 shadow-soft">
-              <h3 className="font-bold text-amber-800 uppercase text-xs tracking-[0.2em] mb-6 flex items-center gap-3">
-                <span className="w-2 h-6 bg-amber-400 rounded-full animate-pulse"></span>
-                Vencimientos Próximos
-              </h3>
-              <div className="space-y-3">
-                {alerts?.expiringBatches?.slice(0, 4).map((b: any) => {
-                  const days = Math.ceil((new Date(b.fecha_vencimiento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                  return (
-                    <div key={b.id} className="bg-white p-4 rounded-2xl flex justify-between items-center border border-amber-100/50 shadow-sm">
-                      <div>
-                        <p className="font-bold text-slate-700 text-sm uppercase">{b.product?.nombre}</p>
-                        <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tight">Lote: {b.nro_lote}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-xs font-bold uppercase px-2 py-1 rounded-lg ${days < 0 ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-700'}`}>
-                          {days < 0 ? 'Vencido' : `Vence en ${days}d`}
-                        </p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{b.cantidad_bultos} Unidades</p>
-                      </div>
-                    </div>
-                  );
-                })}
-                {(alerts?.expiringBatches?.length || 0) > 4 && (
-                  <Link to="/productos" className="block text-center text-[10px] font-bold text-amber-500 hover:text-amber-700 uppercase tracking-widest mt-4">
-                    Ver {(alerts?.expiringBatches?.length || 0) - 4} vencimientos más →
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-         <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-soft">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="font-bold text-slate-800 uppercase text-xs tracking-widest flex items-center gap-3">
-                <span className="w-2 h-6 bg-emerald-400 rounded-full"></span>
-                Evolución de Ventas (7D)
-              </h3>
-              <span className="text-[10px] font-bold text-slate-400">MONTO EN ARS</span>
-            </div>
-            <div className="h-[300px] w-full">
-               <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={salesChartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} dy={10} />
-                    <YAxis hide />
-                    <Tooltip 
-                      cursor={{fill: '#f8fafc'}} 
-                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                    />
-                    <Bar dataKey="total" fill="#005F73" radius={[8, 8, 0, 0]} barSize={35} />
-                  </BarChart>
-               </ResponsiveContainer>
-            </div>
-         </div>
-
-         <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-soft">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="font-bold text-slate-800 uppercase text-xs tracking-widest flex items-center gap-3">
-                <span className="w-2 h-6 bg-[#E9D8A6] rounded-full"></span>
-                Stock por Producto
-              </h3>
-              <Link to="/productos" className="text-[10px] font-bold text-sky-600 hover:underline">VER TODO</Link>
-            </div>
-            <div className="h-[300px] w-full">
-               <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topProducts} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="nombre" type="category" axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 9, fontWeight: 'bold'}} width={100} />
-                    <Tooltip 
-                      cursor={{fill: '#f8fafc'}}
-                      contentStyle={{borderRadius: '16px', border: 'none'}}
-                    />
-                    <Bar dataKey="stock_actual" fill="#94D2BD" radius={[0, 8, 8, 0]} barSize={20} />
-                  </BarChart>
-               </ResponsiveContainer>
-            </div>
-         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-        <Link to="/productos" className="group">
-           <div className="bg-[#EAE2D6]/40 p-8 rounded-[32px] border border-[#D6CCC2]/50 hover:bg-white transition-smooth flex items-center justify-between">
-             <div className="flex items-center gap-5">
-               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">📦</div>
-               <div>
-                 <span className="text-lg font-bold text-[#333D29] block">Gestión de Stock</span>
-                 <span className="text-xs text-slate-500 font-medium">Controlar inventario y lotes</span>
-               </div>
-             </div>
-             <span className="text-[#333D29]/20 group-hover:translate-x-2 transition-transform">→</span>
-           </div>
-        </Link>
-        <Link to="/clientes" className="group">
-           <div className="bg-[#EAE2D6]/40 p-8 rounded-[32px] border border-[#D6CCC2]/50 hover:bg-white transition-smooth flex items-center justify-between">
-             <div className="flex items-center gap-5">
-               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">👥</div>
-               <div>
-                 <span className="text-lg font-bold text-[#333D29] block">Directorio de Clientes</span>
-                 <span className="text-xs text-slate-500 font-medium">Cuentas corrientes y saldos</span>
-               </div>
-             </div>
-             <span className="text-[#333D29]/20 group-hover:translate-x-2 transition-transform">→</span>
-           </div>
+        <Link to="/facturacion/nueva" className="bg-blue-600 text-white p-8 flex flex-col justify-between hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-80">Acceso Directo</p>
+          <span className="text-xl font-black uppercase">Facturar →</span>
         </Link>
       </div>
+
+      <div className="grid grid-cols-1 gap-16">
+        {/* CHART VENTAS */}
+        <section>
+          <div className="flex justify-between items-end mb-8">
+            <h3 className="text-xs font-black uppercase tracking-[0.4em] text-slate-900">Evolución Semanal de Facturación</h3>
+            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">VALORES EN PESOS ARGENTINOS</span>
+          </div>
+          <div className="h-[350px] w-full border-t border-slate-100 pt-10">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={salesChartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 'bold'}} dy={10} />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{fill: '#f8fafc'}} 
+                  contentStyle={{border: '1px solid #1e293b', borderRadius: '0px', padding: '12px', fontWeight: 'bold'}}
+                />
+                <Bar dataKey="total" fill="#1e293b" radius={[4, 4, 0, 0]} barSize={50} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      </div>
+
+      {/* ACCIONES RAPIDAS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-12 border-t border-slate-100">
+         <Link to="/clientes" className="bg-white border border-slate-200 p-8 hover:border-blue-600 transition-all group">
+           <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block mb-4 group-hover:text-blue-600 transition-colors">Cartera Comercial</span>
+           <span className="text-2xl font-black uppercase block mb-2 text-slate-900">Clientes & Cuentas</span>
+           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Gestión de saldos blancos y negros</span>
+         </Link>
+
+         <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 p-8 hover:border-blue-600 transition-all text-left group">
+           <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block mb-4 group-hover:text-blue-600 transition-colors">Integración Externa</span>
+           <span className="text-2xl font-black uppercase block mb-2 text-slate-900">Importar Movimientos</span>
+           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Sincronizar CSV desde Aplicación de Stock</span>
+         </button>
+      </div>
+
+      <ImportCSVModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
     </div>
   );
 };

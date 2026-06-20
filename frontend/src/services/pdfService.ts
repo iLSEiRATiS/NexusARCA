@@ -5,8 +5,8 @@ import { toast } from 'sonner';
 export const generateSalePDF = (sale: any) => {
   try {
     if (!sale || !sale.client || !sale.items) {
-      console.error('Datos de venta incompletos para generar PDF', sale);
-      toast.error('Error: Datos de venta incompletos.');
+      console.error('Datos de facturación incompletos para generar PDF', sale);
+      toast.error('Error: Datos de facturación incompletos.');
       return;
     }
 
@@ -15,19 +15,19 @@ export const generateSalePDF = (sale: any) => {
     // Header
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(5, 150, 105); // Emerald 600
-    doc.text('EnGroncho', 15, 20);
+    doc.setTextColor(44, 85, 17); // #2C5511 (Verde Mascolo)
+    doc.text('Mascolo Químicos', 15, 20);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    doc.text('SISTEMAS DE GESTIÓN INDUSTRIAL', 15, 26);
+    doc.text('FACTURADOR FISCAL Y GESTIÓN DE CLIENTES', 15, 26);
 
     // Sale info
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0);
-    doc.text('COMPROBANTE DE VENTA', 130, 20);
+    doc.text('COMPROBANTE DE GESTIÓN', 130, 20);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -106,7 +106,7 @@ export const generateSalePDF = (sale: any) => {
     doc.setTextColor(150);
     doc.text('Este documento es un comprobante de gestión interna y no posee validez como factura fiscal ante ARCA/AFIP.', 15, 280);
 
-    doc.save(`Venta_${String(sale.id).padStart(6, '0')}.pdf`);
+    doc.save(`Facturacion_${String(sale.id).padStart(6, '0')}.pdf`);
   } catch (error) {
     console.error('Error generando PDF:', error);
     toast.error('Error al generar el PDF. Revise la consola para más detalles.');
@@ -125,13 +125,13 @@ export const generateQuotationPDF = (quotation: any) => {
     // Header
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(5, 150, 105); // Emerald 600
-    doc.text('EnGroncho', 15, 20);
+    doc.setTextColor(44, 85, 17); // #2C5511 (Verde Mascolo)
+    doc.text('Mascolo Químicos', 15, 20);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    doc.text('SISTEMAS DE GESTIÓN INDUSTRIAL', 15, 26);
+    doc.text('FACTURADOR FISCAL Y GESTIÓN DE CLIENTES', 15, 26);
 
     // Quotation info
     doc.setFontSize(14);
@@ -238,7 +238,7 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('NexusARCA - Gestión Industrial', 15, 32);
+  doc.text('Mascolo Químicos - Facturador Fiscal', 15, 32);
 
   // Client Info
   doc.setTextColor(51, 61, 41);
@@ -262,7 +262,7 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
   doc.text('Saldo en Blanco:', pageWidth - 85, 65);
   doc.text(`$${Number(client.saldo_blanco).toLocaleString('es-AR')}`, pageWidth - 15, 65, { align: 'right' });
   
-  doc.text('Saldo EnGroncho:', pageWidth - 85, 71);
+  doc.text('Saldo Gestión:', pageWidth - 85, 71);
   doc.text(`$${Number(client.saldo_negro).toLocaleString('es-AR')}`, pageWidth - 15, 71, { align: 'right' });
   
   doc.setFontSize(12);
@@ -273,9 +273,9 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
   // Table
   const tableData = transactions.map(t => [
     new Date(t.fecha).toLocaleDateString(),
-    t.tipo === 'VENTA' ? `VENTA #${String(t.id).padStart(5, '0')}` : 'COBRO REGISTRADO',
+    t.tipo === 'FACTURACIÓN' ? `FACTURACIÓN #${String(t.id).padStart(5, '0')}` : 'COBRO REGISTRADO',
     t.tipo_comprobante || (t.tipo === 'COBRO' ? t.metodo_pago : '—'),
-    t.tipo === 'VENTA' ? `$${Number(t.total_real_ars).toLocaleString('es-AR')}` : '—',
+    t.tipo === 'FACTURACIÓN' ? `$${Number(t.total_real_ars).toLocaleString('es-AR')}` : '—',
     t.tipo === 'COBRO' ? `$${Number(t.monto_ars).toLocaleString('es-AR')}` : '—'
   ]);
 

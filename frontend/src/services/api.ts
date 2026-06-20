@@ -6,7 +6,7 @@ const api = axios.create({
 
 // Interceptor para inyectar Token
 api.interceptors.request.use((config) => {
-  const auth = localStorage.getItem('engroncho_auth');
+  const auth = localStorage.getItem('mascolo_facturador_auth');
   if (auth) {
     const { token } = JSON.parse(auth);
     config.headers.Authorization = `Bearer ${token}`;
@@ -19,7 +19,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('engroncho_auth');
+      localStorage.removeItem('mascolo_facturador_auth');
       window.location.href = '/login';
     }
     return Promise.reject(error);

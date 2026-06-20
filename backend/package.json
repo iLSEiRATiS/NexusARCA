@@ -1,5 +1,5 @@
 {
-  "name": "nexus-arca",
+  "name": "mascolo-quimicos-facturador-backend",
   "version": "1.0.0",
   "description": "Sistema de gestión de stock y ventas para químicos industriales con integración ARCA",
   "scripts": {
@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@afipsdk/afip.js": "^1.2.3",
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
