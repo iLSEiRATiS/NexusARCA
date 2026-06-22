@@ -55,6 +55,20 @@ const SalesPage = () => {
     }
   });
 
+  const creditNoteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await api.post(`/sales/${id}/credit-note`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      toast.success('NOTA DE CRÉDITO A EMITIDA EXITOSAMENTE');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Error al emitir nota de crédito');
+    }
+  });
+
   const sales = data?.data || [];
 
   const openProcessModal = (sale: any) => {
@@ -144,7 +158,11 @@ const SalesPage = () => {
                         <span className={`px-2 py-0.5 border text-[9px] font-black uppercase tracking-widest ${sale.cae ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                           {sale.tipo_comprobante || 'Comprobante'}
                         </span>
-                        {sale.cae ? (
+                        {sale.estado_factura === 'ANULADA' ? (
+                          <div className="flex items-center gap-1 text-[8px] font-black text-red-600 uppercase tracking-tighter">
+                            ANULADA
+                          </div>
+                        ) : sale.cae ? (
                           <div className="flex items-center gap-1 text-[8px] font-black text-blue-600 uppercase tracking-tighter">
                             <CheckCircle2 size={8} /> AUTORIZADA
                           </div>
@@ -161,12 +179,21 @@ const SalesPage = () => {
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex justify-end gap-2">
-                        {!sale.cae && (
+                        {!sale.cae && sale.estado_factura !== 'ANULADA' && (
                           <button 
                             onClick={() => openProcessModal(sale)}
                             className="bg-slate-900 text-white px-4 py-1.5 font-black text-[9px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
                           >
                             <FileText size={12} /> PROCESAR
+                          </button>
+                        )}
+                        {sale.cae && sale.tipo_comprobante === 'Factura A' && sale.estado_factura !== 'ANULADA' && (
+                          <button 
+                            onClick={() => { if(window.confirm('¿SEGURO DESEA ANULAR CON NOTA DE CRÉDITO?')) creditNoteMutation.mutate(sale.id); }}
+                            disabled={creditNoteMutation.isPending}
+                            className="bg-red-600 text-white px-4 py-1.5 font-black text-[9px] uppercase tracking-widest hover:bg-red-700 transition-all flex items-center gap-2"
+                          >
+                            ANULAR
                           </button>
                         )}
                         <button 
@@ -198,12 +225,21 @@ const SalesPage = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                {!sale.cae && (
+                {!sale.cae && sale.estado_factura !== 'ANULADA' && (
                   <button 
                     onClick={() => openProcessModal(sale)}
                     className="flex-1 bg-slate-900 text-white py-3 font-black text-[10px] uppercase tracking-widest"
                   >
                     PROCESAR
+                  </button>
+                )}
+                {sale.cae && sale.tipo_comprobante === 'Factura A' && sale.estado_factura !== 'ANULADA' && (
+                  <button 
+                    onClick={() => { if(window.confirm('¿SEGURO DESEA ANULAR CON NOTA DE CRÉDITO?')) creditNoteMutation.mutate(sale.id); }}
+                    disabled={creditNoteMutation.isPending}
+                    className="flex-1 bg-red-600 text-white py-3 font-black text-[10px] uppercase tracking-widest disabled:opacity-50"
+                  >
+                    ANULAR
                   </button>
                 )}
                 <button 

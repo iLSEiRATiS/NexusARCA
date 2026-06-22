@@ -9,5 +9,6 @@ router.get('/', SaleController.getAll);
 router.get('/:id', SaleController.getById);
 router.post('/', validate(createSaleSchema), SaleController.create);
 router.post('/:id/bill', SaleController.billSale);
+router.post('/:id/credit-note', SaleController.creditNote);
 
 export default router;

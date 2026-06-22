@@ -6,6 +6,7 @@ import { currencyService } from '../services/currencyService';
 import api from '../services/api';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { Upload, FileText } from 'lucide-react';
 
 interface CartItem {
   product_id: number;
@@ -19,11 +20,11 @@ interface CartItem {
 const NewSalePage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  
+  const [clientCuit, setClientCuit] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [tipoComprobante, setTipoComprobante] = useState('Factura B');
-  const [splitOverride, setSplitOverride] = useState<number | null>(null);
+  const [tipoComprobante, setTipoComprobante] = useState('Factura A');
 
   const { data: clients, isLoading: isLoadingClients } = useQuery({ 
     queryKey: ['clients'], 
@@ -40,15 +41,12 @@ const NewSalePage = () => {
     queryFn: currencyService.getDolarOficial 
   });
 
-  const selectedClient = clients?.find((c: any) => c.id === selectedClientId);
+  // Detectar cliente si el CUIT coincide
+  const selectedClient = clients?.find((c: any) => c.cuit === clientCuit);
   const cotizacion = Number(dolar?.cotizacion || 1);
 
   const totalUsd = cart.reduce((acc, item) => acc + item.subtotal_usd, 0);
   const totalArs = totalUsd * cotizacion;
-
-  const currentSplit = splitOverride ?? (selectedClient?.porcentaje_facturacion || 80);
-  const montoBlanco = (totalArs * currentSplit) / 100;
-  const montoNegro = totalArs - montoBlanco;
 
   const addToCart = (product: any) => {
     if (product.stock_actual <= 0) {
@@ -91,16 +89,72 @@ const NewSalePage = () => {
     }));
   };
 
+  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) return toast.error('El CSV está vacío o no tiene formato correcto');
+
+      const rows = lines.slice(1);
+      const newCart: CartItem[] = [];
+      let foundDestino = '';
+
+      rows.forEach(row => {
+        const columns = row.split(';');
+        if (columns.length < 6) return;
+
+        const [, , destino, product_id, , cantidad] = columns;
+        if (!foundDestino && destino) foundDestino = destino;
+
+        const p = products?.find((prod: any) => prod.id === parseInt(product_id));
+        if (p) {
+          const existing = newCart.find(item => item.product_id === p.id);
+          const cantInt = parseInt(cantidad);
+          if (existing) {
+            existing.cantidad += cantInt;
+            existing.subtotal_usd = existing.cantidad * existing.peso_kg * existing.precio_usd;
+          } else {
+            newCart.push({
+              product_id: p.id,
+              nombre: p.nombre,
+              cantidad: cantInt,
+              precio_usd: Number(p.precio_usd),
+              peso_kg: Number(p.peso_kg),
+              subtotal_usd: Number(p.precio_usd) * Number(p.peso_kg) * cantInt
+            });
+          }
+        }
+      });
+
+      setCart(newCart);
+      toast.success('MOVIMIENTO CARGADO DESDE CSV');
+      
+      if (foundDestino) {
+        const matched = clients?.find((c: any) => c.razon_social.toLowerCase().includes(foundDestino.toLowerCase()));
+        if (matched) {
+           setClientCuit(matched.cuit);
+           toast.info(`Cliente autodetectado: ${matched.razon_social}`);
+        }
+      }
+    };
+    reader.readAsText(file);
+    // Limpiar input
+    e.target.value = '';
+  };
+
   const createSaleMutation = useMutation({
     mutationFn: async () => {
       const payload = {
-        client_id: selectedClientId!,
+        cuit: clientCuit,
         items: cart.map(item => ({ 
           product_id: item.product_id, 
           cantidad: item.cantidad
         })),
-        tipo_comprobante: tipoComprobante,
-        porcentaje_split_override: splitOverride ?? undefined
+        tipo_comprobante: tipoComprobante
       };
       return api.post('/sales', payload);
     },
@@ -122,45 +176,55 @@ const NewSalePage = () => {
   if (isLoadingClients || isLoadingProducts) return <div className="p-10 font-bold uppercase tracking-widest text-xs text-slate-400">Cargando...</div>;
 
   return (
-    <div className="space-y-12 animate-fade-in">
-      <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6">
+    <div className="space-y-12 animate-fade-in relative">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-slate-900 pb-6 gap-4">
         <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-slate-900">Facturación Manual</h1>
-        <div className="text-right">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dólar Operativo</p>
-          <p className="text-2xl font-black text-blue-600">${cotizacion.toFixed(2)}</p>
+        <div className="flex items-end gap-6 w-full md:w-auto">
+          <label className="bg-slate-900 text-white px-6 py-3 cursor-pointer hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 shrink-0">
+            <Upload size={16} /> CARGAR MOVIMIENTO (CSV)
+            <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
+          </label>
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dólar Operativo</p>
+            <p className="text-2xl font-black text-blue-600">${cotizacion.toFixed(2)}</p>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
         <div className="lg:col-span-2 space-y-12">
           {/* CLIENTE */}
-          <section className="bg-white border border-slate-200 p-8 shadow-sm">
+          <section className="bg-white border border-slate-200 p-8 shadow-sm relative overflow-hidden group hover:border-blue-600 transition-all">
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-all pointer-events-none">
+              <FileText size={100} />
+            </div>
             <h2 className="text-[11px] font-black uppercase tracking-[0.3em] mb-8 text-slate-900 flex items-center gap-2">
               <span className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px]">01</span>
-              Seleccionar Cliente
+              Cliente (CUIT)
             </h2>
-            <select 
-              className="w-full bg-slate-50 border border-slate-200 px-4 py-4 font-bold text-slate-900 outline-none focus:border-blue-600 transition-all appearance-none uppercase text-sm"
-              value={selectedClientId || ''}
-              onChange={(e) => setSelectedClientId(Number(e.target.value))}
-            >
-              <option value="">-- SELECCIONAR CLIENTE --</option>
-              {clients?.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.razon_social} ({c.cuit})</option>
-              ))}
-            </select>
+            <input 
+              type="text"
+              placeholder="INGRESE EL CUIT DEL CLIENTE..."
+              className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-4 font-black text-slate-900 text-xl outline-none focus:border-blue-600 transition-all uppercase tracking-widest placeholder:text-slate-300 placeholder:text-sm placeholder:font-bold"
+              value={clientCuit}
+              onChange={(e) => setClientCuit(e.target.value)}
+            />
             
-            {selectedClient && (
-              <div className="mt-6 flex gap-8 text-[10px] font-bold uppercase tracking-widest border-t border-slate-100 pt-4">
-                <span className="text-slate-400">Split Predef.: <span className="text-slate-900">{selectedClient.porcentaje_facturacion}%</span></span>
-                <span className="text-slate-400">Saldo Cartera: <span className={Number(selectedClient.saldo_deuda) < 0 ? 'text-red-600' : 'text-slate-900'}>${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</span></span>
+            {selectedClient ? (
+              <div className="mt-6 flex flex-col sm:flex-row gap-4 sm:gap-8 text-[10px] font-bold uppercase tracking-widest border-t border-slate-100 pt-4">
+                <span className="text-blue-600 font-black text-sm">{selectedClient.razon_social}</span>
+                <span className="text-slate-400 self-end">Saldo Cartera: <span className={Number(selectedClient.saldo_deuda) < 0 ? 'text-red-600' : 'text-slate-900'}>${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</span></span>
               </div>
-            )}
+            ) : clientCuit ? (
+              <div className="mt-6 text-[10px] font-bold uppercase tracking-widest border-t border-slate-100 pt-4 text-amber-600">
+                CLIENTE NUEVO - SE REGISTRARÁ AUTOMÁTICAMENTE
+              </div>
+            ) : null}
           </section>
 
           {/* PRODUCTOS */}
           <section className="bg-white border border-slate-200 p-8 shadow-sm">
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
               <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 flex items-center gap-2">
                 <span className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px]">02</span>
                 Catálogo de Artículos
@@ -168,7 +232,7 @@ const NewSalePage = () => {
               <input 
                 type="text" 
                 placeholder="BUSCAR ARTÍCULO..." 
-                className="bg-slate-50 border border-slate-200 px-4 py-2 text-[10px] font-bold outline-none focus:border-blue-600 transition-all w-64 uppercase tracking-widest text-slate-900"
+                className="bg-slate-50 border border-slate-200 px-4 py-2 text-[10px] font-bold outline-none focus:border-blue-600 transition-all w-full sm:w-64 uppercase tracking-widest text-slate-900"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -198,51 +262,35 @@ const NewSalePage = () => {
           <section className="bg-white border border-slate-200 p-8 shadow-sm">
             <h2 className="text-[11px] font-black uppercase tracking-[0.3em] mb-10 text-slate-900 flex items-center gap-2">
               <span className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px]">03</span>
-              Comprobante & Split Fiscal
+              Comprobante
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
               <div className="space-y-8">
                  <div>
-                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Tipo de Comprobante</label>
+                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Tipo de Operación</label>
                     <div className="flex gap-2">
-                       {['Factura B', 'Factura A', 'Presupuesto'].map(t => (
+                       {['Factura A', 'Presupuesto'].map(t => (
                          <button 
                            key={t} 
                            onClick={() => setTipoComprobante(t)} 
-                           className={`flex-1 py-4 text-[9px] font-black uppercase tracking-widest border transition-all ${tipoComprobante === t ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-200 text-slate-400 hover:border-slate-900 hover:text-slate-900'}`}
+                           className={`flex-1 py-4 text-[9px] font-black uppercase tracking-widest border transition-all ${tipoComprobante === t ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'border-slate-200 text-slate-400 hover:border-slate-900 hover:text-slate-900'}`}
                          >
                             {t}
                          </button>
                        ))}
                     </div>
                  </div>
-                 <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Override de Split (%)</label>
-                      <span className="text-[11px] font-black text-blue-600 uppercase tracking-widest">{splitOverride ?? (selectedClient?.porcentaje_facturacion || 80)}%</span>
-                    </div>
-                    <input 
-                      type="range" min="0" max="100" 
-                      value={splitOverride ?? (selectedClient?.porcentaje_facturacion || 80)} 
-                      onChange={(e) => setSplitOverride(Number(e.target.value))}
-                      className="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                 </div>
               </div>
 
-              <div className="bg-slate-50 border border-slate-100 p-8 space-y-5">
+              <div className="bg-slate-50 border border-slate-100 p-8 flex flex-col justify-center">
                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
-                    <span className="text-slate-400">Impacto Blanco</span>
-                    <span className="text-slate-900">${montoBlanco.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    <span className="text-slate-400">Cotización</span>
+                    <span className="text-slate-900">${cotizacion.toFixed(2)}</span>
                  </div>
-                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
-                    <span className="text-slate-400">Impacto Negro</span>
-                    <span className="text-slate-900">${montoNegro.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
-                 </div>
-                 <div className="pt-5 border-t border-slate-200 flex justify-between items-center">
+                 <div className="pt-5 mt-5 border-t border-slate-200 flex justify-between items-center">
                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Total en ARS</span>
-                    <span className="text-2xl font-black text-slate-900">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    <span className="text-3xl font-black text-blue-600 tracking-tighter">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
                  </div>
               </div>
             </div>
@@ -251,7 +299,7 @@ const NewSalePage = () => {
 
         {/* CARRITO */}
         <div className="lg:pl-8">
-          <section className="sticky top-32 space-y-8 bg-white border border-slate-900 p-8 shadow-xl">
+          <section className="sticky top-32 space-y-8 bg-white border border-slate-900 p-8 shadow-2xl">
             <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 border-b border-slate-100 pb-4">Resumen de Operación</h2>
             
             <div className="space-y-6 max-h-[45vh] overflow-y-auto pr-4 custom-scrollbar">
@@ -293,7 +341,7 @@ const NewSalePage = () => {
                 onClick={() => {
                   if(window.confirm('¿CONFIRMAR REGISTRO DE OPERACIÓN?')) createSaleMutation.mutate();
                 }}
-                disabled={createSaleMutation.isPending || cart.length === 0 || !selectedClientId}
+                disabled={createSaleMutation.isPending || cart.length === 0 || !clientCuit}
                 className="w-full bg-blue-600 text-white py-6 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-blue-700 transition-all disabled:bg-slate-100 disabled:text-slate-300 shadow-lg shadow-blue-100"
               >
                 {createSaleMutation.isPending ? 'PROCESANDO...' : 'CONFIRMAR OPERACIÓN'}

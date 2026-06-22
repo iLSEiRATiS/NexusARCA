@@ -14,7 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@afipsdk/afip.js": "^1.2.3",
+    "@cafecafe/afip.ts": "^3.2.3",
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

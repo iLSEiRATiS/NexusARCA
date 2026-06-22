@@ -34,9 +34,9 @@ Este proyecto reside en la carpeta `Mascolo Quimicos Facturador` y es totalmente
 - Se ha dado de alta la relación en el **Administrador de Relaciones de Clave Fiscal** para el servicio **"Facturación Electrónica"** (wsfe) vinculado al alias `MascoloFacturador`.
 
 ### 3. Estado de Conexión y Pruebas
-- **Error Actual:** 401 (Unauthenticated) en pruebas iniciales con `test-afip.ts`.
-- **Causa Real:** El error no proviene de AFIP, sino de los servidores de `AfipSDK`. A partir de la versión 1.0.0, la librería `@afipsdk/afip.js` funciona como un SaaS y requiere un `access_token` pago/registrado, además de enviar la clave privada a sus servidores. Al pasar `access_token: 'none'`, la petición es rechazada por su API.
-- **Solución Propuesta:** Opción 1: Usar una librería Open Source (Recomendada y más segura). Como estamos hablando de certificados productivos (reales), no es para nada recomendable enviar tu clave privada a un servidor de terceros. Te sugiero que reemplacemos `@afipsdk/afip.js` por una alternativa abierta (como el fork comunitario `afip.js` original o `node-afip`) que sí haga las peticiones SOAP a AFIP directamente desde tu computadora.
+- **Solución Aplicada (Junio 2026):** Se reemplazó la librería paga por **`@cafecafe/afip.ts`**, resolviendo el error 401. Además, se inyectó una configuración global de TLS (`tls.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=0'`) para evitar el error `dh key too small` común en Node 18+ al conectarse con los servidores legacy de AFIP.
+- **Entorno Actual:** HOMOLOGACIÓN (Testing). La variable `production` en `afip.service.ts` está configurada en `false` para poder emitir facturas de prueba sin generar obligaciones fiscales.
+- **Certificados:** Se configuró el sistema para buscar `cert_test.crt` y `key_test.key` en el entorno de pruebas.
 - **Punto de Venta:** Configurado por defecto en **Punto de Venta 1**. (Pendiente verificar si el usuario posee otro PV habilitado para Web Services).
 
 ---

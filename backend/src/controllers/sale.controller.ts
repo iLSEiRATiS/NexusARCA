@@ -18,6 +18,12 @@ export class SaleController {
     res.json(sale);
   });
 
+  static creditNote = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const sale = await SaleService.processCreditNote(Number(id));
+    res.json(sale);
+  });
+
   static getAll = asyncHandler(async (req: Request, res: Response) => {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 50;

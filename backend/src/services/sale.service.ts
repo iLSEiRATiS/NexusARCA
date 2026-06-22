@@ -126,19 +126,38 @@ export class SaleService {
   }
 
   static async create(data: {
-    client_id: number;
+    client_id?: number;
+    cuit?: string;
     items: { product_id: number; cantidad: number; batch_id?: number }[];
     tipo_comprobante: string;
-    porcentaje_split_override?: number;
   }) {
-    const { client_id, items, tipo_comprobante, porcentaje_split_override } = data;
+    const { items, tipo_comprobante } = data;
 
     // 1. Obtener cotización del dólar y datos del cliente
     const cotizacion = await CurrencyService.getDolarOficial();
-    const client = await prisma.client.findUnique({ where: { id: client_id } });
-    if (!client) throw new AppError('Cliente no encontrado', 404);
+    
+    let client;
+    if (data.client_id) {
+      client = await prisma.client.findUnique({ where: { id: data.client_id } });
+    } else if (data.cuit) {
+      client = await prisma.client.findUnique({ where: { cuit: data.cuit } });
+      if (!client) {
+        // Crear cliente nuevo si no existe
+        client = await prisma.client.create({
+          data: {
+            cuit: data.cuit,
+            razon_social: 'CONSUMIDOR (CREADO AUT.)',
+            condicion_iva: 'RESPONSABLE_INSCRIPTO'
+          }
+        });
+      }
+    }
+    
+    if (!client) throw new AppError('Cliente no encontrado ni creado', 404);
 
-    const porcentaje_split = porcentaje_split_override ?? Number(client.porcentaje_facturacion);
+    const client_id = client.id;
+    // Eliminamos la lógica del split. Factura A = 100% blanco. Presupuesto = 100% negro.
+    const porcentaje_split = tipo_comprobante === 'Factura A' ? 100 : 0;
 
     return await prisma.$transaction(async (tx) => {
       let total_real_ars = 0;
@@ -252,6 +271,58 @@ export class SaleService {
       }
 
       return sale;
+    });
+  }
+
+  static async processCreditNote(saleId: number) {
+    const sale = await prisma.sale.findUnique({
+      where: { id: saleId },
+      include: { client: true }
+    });
+
+    if (!sale) throw new AppError('Venta no encontrada', 404);
+    if (!sale.cae || sale.tipo_comprobante !== 'Factura A') {
+      throw new AppError('Solo se pueden anular Facturas A autorizadas por AFIP', 400);
+    }
+    if (sale.estado_factura === 'ANULADA') {
+      throw new AppError('La factura ya se encuentra anulada', 400);
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      // 1. Crear el payload para Nota de Crédito A (CbteTipo 3)
+      const creditNotePayload = {
+        ...sale,
+        tipo_comprobante: 'Nota de Crédito A',
+        comprobante_asociado: sale.nro_comprobante // Campo que lee afip.service.ts
+      };
+
+      // 2. Solicitar CAE para la Nota de Crédito
+      const afipResult = await AfipService.createInvoice(creditNotePayload);
+
+      // 3. Revertir saldo en la cuenta corriente del cliente (se aumenta el saldo porque se cancela la deuda)
+      const currentClient = await tx.client.findUnique({ where: { id: sale.client_id } });
+      if (currentClient) {
+        await tx.client.update({
+          where: { id: sale.client_id },
+          data: {
+            saldo_blanco: { increment: sale.monto_facturado_ars },
+            saldo_deuda: { increment: sale.monto_facturado_ars }
+          }
+        });
+      }
+
+      // 4. Marcar la factura original como anulada y guardar el CAE de la nota de crédito
+      const updatedSale = await tx.sale.update({
+        where: { id: saleId },
+        data: {
+          estado_factura: 'ANULADA',
+          // Guardamos el CAE de la nota de crédito como referencia (opcionalmente podríamos crear un modelo CreditNote)
+          cae: `NC:${afipResult.cae}`, 
+        },
+        include: { client: true }
+      });
+
+      return updatedSale;
     });
   }
 

@@ -376,21 +376,21 @@ const ClientsPage = () => {
 
       {/* New Client Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-4">
-          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:rounded-none sm:w-[95%] sm:max-w-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col animate-fade-in">
-            <div className="bg-slate-900 px-6 py-6 text-white flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-h-[100vh] sm:max-h-[92vh] max-w-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col animate-fade-in">
+            <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
               <div><h2 className="text-xl font-black uppercase tracking-widest">Nuevo Cliente</h2><p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-0.5">Alta en Cartera</p></div>
               <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center text-white text-3xl font-light">&times;</button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 sm:p-10 overflow-y-auto flex-1 bg-slate-50">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="sm:col-span-2"><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Razón Social</label><input required type="text" value={formData.razon_social} onChange={e => setFormData({...formData, razon_social: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-base transition-all"/></div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">CUIT</label><input required type="text" value={formData.cuit} onChange={e => setFormData({...formData, cuit: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all"/></div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Condición IVA</label><select value={formData.condicion_iva} onChange={e => setFormData({...formData, condicion_iva: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all uppercase"><option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option><option value="MONOTRIBUTO">Monotributo</option><option value="EXENTO">Exento</option><option value="CONSUMIDOR_FINAL">Consumidor Final</option></select></div>
-                <div className="sm:col-span-2"><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Dirección Fiscal</label><input type="text" value={formData.direccion} onChange={e => setFormData({...formData, direccion: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all"/></div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Teléfono</label><input type="text" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all"/></div>
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 bg-slate-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2"><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Razón Social</label><input required type="text" value={formData.razon_social} onChange={e => setFormData({...formData, razon_social: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-sm transition-all"/></div>
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">CUIT</label><input required type="text" value={formData.cuit} onChange={e => setFormData({...formData, cuit: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all"/></div>
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Condición IVA</label><select value={formData.condicion_iva} onChange={e => setFormData({...formData, condicion_iva: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all uppercase"><option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option><option value="MONOTRIBUTO">Monotributo</option><option value="EXENTO">Exento</option><option value="CONSUMIDOR_FINAL">Consumidor Final</option></select></div>
+                <div className="sm:col-span-2"><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Dirección Fiscal</label><input type="text" value={formData.direccion} onChange={e => setFormData({...formData, direccion: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all"/></div>
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Teléfono</label><input type="text" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all"/></div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Split Oficial (%)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Split Oficial (%)</label>
                   <input 
                     required 
                     type="number" 
@@ -399,16 +399,16 @@ const ClientsPage = () => {
                     value={formData.porcentaje_facturacion} 
                     onKeyDown={preventInvalidChars}
                     onChange={e => setFormData({...formData, porcentaje_facturacion: handleNumericInput(e.target.value)})} 
-                    className="w-full bg-white border border-slate-200 rounded-none px-4 py-3 font-black text-slate-900 focus:border-blue-600 outline-none text-base transition-all"
+                    className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 font-black text-slate-900 focus:border-blue-600 outline-none text-sm transition-all"
                   />
                 </div>
               </div>
               
-              <div className="mt-10 flex flex-col gap-2">
-                 <button type="submit" className="w-full bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all">
+              <div className="mt-8 flex flex-col gap-2">
+                 <button type="submit" className="w-full bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
                    Confirmar Alta
                  </button>
-                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-4 font-bold text-[10px] uppercase text-slate-400 tracking-widest hover:text-slate-600 transition-colors">
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 font-bold text-[10px] uppercase text-slate-400 tracking-widest hover:text-slate-600 transition-colors">
                    Cancelar
                  </button>
               </div>

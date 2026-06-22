@@ -1,6 +1,11 @@
-import Afip from '@afipsdk/afip.js';
+import { Afip } from '@cafecafe/afip.ts';
 import path from 'path';
+import fs from 'fs';
+import tls from 'tls';
 import { AppError } from '../utils/AppError';
+
+// Ajuste para la conexión con servidores de AFIP antiguos en Node 18+
+tls.DEFAULT_CIPHERS = 'DEFAULT@SECLEVEL=0';
 
 /**
  * Servicio para interactuar con los Web Services de ARCA (AFIP)
@@ -15,20 +20,25 @@ export class AfipService {
     if (this.afip) return;
 
     const CUIT = process.env.AFIP_CUIT || '20409318550';
-    // Volvemos a producción para usar el certificado que ya tenemos
-    const isProduction = true; 
+    // Usamos el entorno de Homologación (Testing)
+    const isProduction = false; 
     
     const baseDir = process.env.PORTABLE_EXECUTABLE_DIR || process.cwd();
-    const certPath = path.join(baseDir, 'afip_res', 'cert.crt');
-    const keyPath = path.join(baseDir, 'afip_res', 'key.key');
+    // En homologación usamos los certificados de prueba (cert_test.crt / key_test.key)
+    const certPath = path.join(baseDir, 'afip_res', isProduction ? 'cert.crt' : 'cert_test.crt');
+    const keyPath = path.join(baseDir, 'afip_res', isProduction ? 'key.key' : 'key_test.key');
 
-    this.afip = new Afip({
-      CUIT: parseInt(CUIT),
-      production: isProduction,
-      cert: certPath, 
-      key: keyPath,
-      access_token: 'none'
-    } as any);
+    try {
+      this.afip = new Afip({
+        cuit: parseInt(CUIT),
+        production: isProduction,
+        cert: fs.readFileSync(certPath, 'utf8'), 
+        key: fs.readFileSync(keyPath, 'utf8')
+      });
+    } catch (err: any) {
+      console.error(`Error cargando certificados AFIP (Producción: ${isProduction}):`, err.message);
+      throw new AppError(`No se encontraron los certificados de AFIP en homologación. Por favor, genera cert_test.crt y key_test.key.`, 500);
+    }
   }
 
   /**
@@ -38,8 +48,8 @@ export class AfipService {
     this.init();
 
     try {
-      const lastVoucher = await this.afip.ElectronicBilling.getLastVoucher(1, sale.tipo_comprobante === 'Factura A' ? 1 : 6); 
-      const nextVoucher = lastVoucher + 1;
+      const lastVoucherData = await this.afip.electronicBillingService.getLastVoucher(1, sale.tipo_comprobante === 'Factura A' ? 1 : 6); 
+      const nextVoucher = (lastVoucherData.CbteNro || 0) + 1;
 
       const date = parseInt(new Date().toISOString().replace(/-/g, '').slice(0, 8));
 
@@ -61,7 +71,7 @@ export class AfipService {
         docNro = 0;
       }
 
-      const data = {
+      const data: any = {
         'CantReg': 1,
         'PtoVta': 1,
         'CbteTipo': cbteTipo,
@@ -88,11 +98,21 @@ export class AfipService {
         ]
       };
 
-      const result = await this.afip.ElectronicBilling.createVoucher(data);
+      if (sale.tipo_comprobante === 'Nota de Crédito A' && sale.comprobante_asociado) {
+        data['CbtesAsoc'] = [
+          {
+            'Tipo': 1, 
+            'PtoVta': 1,
+            'Nro': parseInt(sale.comprobante_asociado)
+          }
+        ];
+      }
+
+      const result = await this.afip.electronicBillingService.createVoucher(data);
 
       return {
-        cae: result.CAE,
-        vto_cae: result.CAEFchVto,
+        cae: result.cae,
+        vto_cae: result.caeFchVto,
         nro_comprobante: String(nextVoucher).padStart(8, '0')
       };
     } catch (error: any) {
@@ -103,11 +123,13 @@ export class AfipService {
 
   static async getVoucherTypes() {
     this.init();
-    return await this.afip.ElectronicBilling.getVoucherTypes();
+    const res = await this.afip.electronicBillingService.getVoucherTypes();
+    return res.ResultGet.CbteTipo || [];
   }
 
   static async getDocumentTypes() {
     this.init();
-    return await this.afip.ElectronicBilling.getDocumentTypes();
+    const res = await this.afip.electronicBillingService.getDocumentTypes();
+    return res.ResultGet.DocTipo || [];
   }
 }
