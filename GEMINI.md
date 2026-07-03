@@ -78,6 +78,13 @@ Este proyecto reside en la carpeta `Mascolo Quimicos Facturador` y es totalmente
 - **Arquitectura de Carpeta Portable:** Configuración para que la base de datos (`data/dev.db`) y las facturas generadas (`facturas/`) vivan junto al ejecutable, permitiendo mover la carpeta a otra PC mediante un USB sin romper rutas.
 - **Backend Integrado:** El servidor Express ahora se inicia automáticamente desde el proceso principal de Electron.
 
+### 4. Corrección Fiscal y Panel de Configuración Dinámica
+- **Fix IVA Crítico:** Se corrigió el cálculo de IVA en `sale.service.ts` que usaba una tasa fija (1.21). Ahora calcula `subtotal` e `iva` exacto por cada ítem según su `iva_tasa` individual, evitando rechazos de AFIP por montos descuadrados.
+- **Base de Datos:** Se extendió el modelo `Settings` en Prisma para almacenar datos del Emisor (Razón Social, CUIT, Domicilio, Condición IVA, Inicio Actividades, Punto de Venta y Modo Producción).
+- **Backend:** Nuevas rutas `/api/config` para leer/escribir la configuración. El servicio `AfipService` ahora lee el modo de producción y punto de venta directamente desde la base de datos de manera dinámica.
+- **Frontend:** Nueva pantalla `/configuracion` (⚙ Config) que permite cargar todos los datos fiscales para la facturación. Incluye botón explícito para cambiar entre Homologación y Producción con advertencia.
+- **PDF Dinámico:** `pdfService.ts` fue actualizado para obtener asíncronamente los datos del Emisor desde la API e inyectarlos tanto en el diseño visual de la factura como en el código QR oficial de AFIP.
+
 ## Estado Actual y Errores Conocidos (IMPORTANTE)
 Al intentar generar el ejecutable portable, se ha detectado el siguiente problema:
 
@@ -87,3 +94,16 @@ Al intentar generar el ejecutable portable, se ha detectado el siguiente problem
 
 ---
 *Este documento reemplaza las versiones anteriores de NexusARCA para reflejar la nueva identidad de marca Mascolo Químicos.*
+
+---
+
+## Historial de Trabajos Anexos: CotiStore (Junio 2026)
+
+Se realizó trabajo de mantenimiento y nuevas características en el repositorio **CotiStore** (`CotiDjangoFinal` y `DjangoFrontCoti`):
+1. **Despliegue Local:** Se montaron exitosamente los servidores locales de Backend (Django) y Frontend (React+Vite) configurando el entorno virtual y superando errores de dependencias en Node.
+2. **Ordenamiento Inteligente en Facturas (PDF):** Se modificó la lógica de generación del PDF del presupuesto (`api_pdf.py`). Los ítems ahora aplican "Ordenamiento Natural": se agrupan primero aquellos con SKU, luego por Categoría y finalmente por Nombre, ordenando correctamente los SKU numéricos (ej. 2 antes que 10).
+3. **Autofacturación (Pedido de Stock):** 
+   - Se creó una nueva funcionalidad para generar un PDF de pedido de stock dirigido al mayorista.
+   - El nuevo documento omite precios y totales, y reemplaza los datos del comprador final por los datos del local ("CotiStore", "Gregorio de Laferrere", etc.).
+   - Se agregó un botón específico en el panel de administrador de Django (columna Acciones) para permitir la descarga rápida de este documento.
+   - Se ajustó el CSS/HTML en el panel de Django Admin (`orders/admin.py`) implementando Flexbox para que los botones de acciones no se amontonen y mantengan un diseño adaptable.

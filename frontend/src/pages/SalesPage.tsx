@@ -41,7 +41,7 @@ const SalesPage = () => {
     mutationFn: async (id: number) => {
       const res = await api.post(`/sales/${id}/bill`, {
         ...billingParams,
-        cotizacion_usada: dolarRate
+        cotizacion_usada: Number(dolarRate) || 1000
       });
       return res.data;
     },
@@ -200,7 +200,7 @@ const SalesPage = () => {
                           onClick={() => generateSalePDF(sale)}
                           className="bg-white border border-slate-200 text-slate-600 px-4 py-1.5 font-black text-[9px] uppercase tracking-widest hover:bg-slate-50 transition-all"
                         >
-                          PDF
+                          {sale.cae ? '📄 FACTURA' : '🗒 PDF'}
                         </button>
                       </div>
                     </td>
@@ -246,7 +246,7 @@ const SalesPage = () => {
                   onClick={() => generateSalePDF(sale)}
                   className="flex-1 border border-slate-200 text-slate-600 py-3 font-black text-[10px] uppercase tracking-widest"
                 >
-                  PDF
+                  {sale.cae ? 'FACTURA PDF' : 'PDF'}
                 </button>
               </div>
             </div>

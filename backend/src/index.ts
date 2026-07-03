@@ -12,6 +12,7 @@ import clientRoutes from './routes/client.routes';
 import saleRoutes from './routes/sale.routes';
 import quotationRoutes from './routes/quotation.routes';
 import importRoutes from './routes/import.routes';
+import configRoutes from './routes/config.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { protect } from './middlewares/auth.middleware';
 import { UserService } from './services/user.service';
@@ -47,6 +48,7 @@ app.use('/api/clients', protect, clientRoutes);
 app.use('/api/sales', protect, saleRoutes);
 app.use('/api/quotations', protect, quotationRoutes);
 app.use('/api/import', protect, importRoutes);
+app.use('/api/config', protect, configRoutes);
 
 // Manejo global de errores
 app.use(errorHandler);

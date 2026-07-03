@@ -161,6 +161,8 @@ export class SaleService {
 
     return await prisma.$transaction(async (tx) => {
       let total_real_ars = 0;
+      let total_subtotal_ars = 0;
+      let total_iva_ars = 0;
       const saleItemsData = [];
 
       // 2. Procesar ítems y calcular totales reales
@@ -192,8 +194,11 @@ export class SaleService {
         const precioUsdPorKg = Number(product.precio_usd);
         const precioUnitarioBultoArs = (precioUsdPorKg * cotizacion) * pesoKgPorUnidad;
         
-        const subtotal_item = precioUnitarioBultoArs * item.cantidad;
-        total_real_ars += subtotal_item;
+        const neto_item = precioUnitarioBultoArs * item.cantidad;
+        const iva_item = neto_item * (Number(product.iva_tasa) / 100);
+        total_real_ars += (neto_item + iva_item);
+        total_subtotal_ars += neto_item;
+        total_iva_ars += iva_item;
 
         saleItemsData.push({
           product_id: product.id,
@@ -225,9 +230,10 @@ export class SaleService {
       const monto_facturado_ars = total_real_ars * (porcentaje_split / 100);
       const monto_no_facturado_ars = total_real_ars - monto_facturado_ars;
 
-      const tasa_iva_promedio = 1.21; 
-      const subtotal_ars = monto_facturado_ars / tasa_iva_promedio;
-      const iva_ars = monto_facturado_ars - subtotal_ars;
+      // IVA calculado correctamente por ítem (no tasa fija promedio)
+      const ratio_facturado = porcentaje_split / 100;
+      const subtotal_ars = total_subtotal_ars * ratio_facturado;
+      const iva_ars = total_iva_ars * ratio_facturado;
 
       // 4. Crear la venta
       const sale = await tx.sale.create({

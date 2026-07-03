@@ -182,6 +182,16 @@ model StockMovement {
 
 model Settings {
   id                      Int      @id @default(1)
-  cotizacion_dolar_actual Decimal  
+  cotizacion_dolar_actual Decimal  @default(1000)
+
+  // Datos del Emisor (Mascolo Químicos)
+  razon_social            String   @default("EMISOR SIN CONFIGURAR")
+  cuit_emisor             String   @default("00-00000000-0")
+  domicilio_fiscal        String   @default("")
+  condicion_iva_emisor    String   @default("Responsable Inscripto")
+  inicio_actividades      String   @default("")
+  punto_venta             Int      @default(1)
+  modo_produccion         Boolean  @default(false)
+
   updatedAt               DateTime @updatedAt
 }

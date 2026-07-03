@@ -9,6 +9,7 @@ import SalesPage from './pages/SalesPage';
 import QuotationsPage from './pages/QuotationsPage';
 import NewQuotationPage from './pages/NewQuotationPage';
 import LoginPage from './pages/LoginPage';
+import SettingsPage from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,6 +76,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavLink to="/facturacion">Facturación</NavLink>
           <NavLink to="/cotizaciones">Presupuestos</NavLink>
           <NavLink to="/clientes">Clientes</NavLink>
+          <NavLink to="/configuracion">⚙ Config</NavLink>
         </div>
 
         <div className="hidden md:flex items-center gap-6">
@@ -103,6 +105,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavLink to="/facturacion" onClick={() => setIsMenuOpen(false)}>Facturación</NavLink>
           <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)}>Presupuestos</NavLink>
           <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)}>Clientes</NavLink>
+          <NavLink to="/configuracion" onClick={() => setIsMenuOpen(false)}>⚙ Configuración</NavLink>
           <button 
             onClick={handleLogout}
             className="text-left font-bold text-slate-400 px-2 py-2 text-sm uppercase tracking-widest"
@@ -139,6 +142,7 @@ function App() {
             <Route path="/facturacion/nueva" element={<ProtectedRoute><NewSalePage /></ProtectedRoute>} />
             <Route path="/cotizaciones" element={<ProtectedRoute><QuotationsPage /></ProtectedRoute>} />
             <Route path="/cotizaciones/nueva" element={<ProtectedRoute><NewQuotationPage /></ProtectedRoute>} />
+            <Route path="/configuracion" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           </Routes>
         </Layout>
       </BrowserRouter>
