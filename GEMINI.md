@@ -85,6 +85,23 @@ Este proyecto reside en la carpeta `Mascolo Quimicos Facturador` y es totalmente
 - **Frontend:** Nueva pantalla `/configuracion` (⚙ Config) que permite cargar todos los datos fiscales para la facturación. Incluye botón explícito para cambiar entre Homologación y Producción con advertencia.
 - **PDF Dinámico:** `pdfService.ts` fue actualizado para obtener asíncronamente los datos del Emisor desde la API e inyectarlos tanto en el diseño visual de la factura como en el código QR oficial de AFIP.
 
+## Historial de Cambios Recientes (Julio 2026)
+
+### 1. Auditoría ARCA v4.2 y Resolución General 5866/2026
+- **Auditoría Completa:** Se revisaron las 197 páginas del manual técnico de ARCA (ex AFIP) garantizando que el sistema sea 100% compliant.
+- **Límite Consumidor Final (RG 5866):** Se implementó una validación estricta que bloquea facturas a Consumidores Finales por $10.000.000 o más sin identificación (DNI/CUIT), previniendo rechazos del webservice.
+- **CondicionIVAReceptorId:** Se agregó el mapeo y envío de este nuevo campo obligatorio (RG 5616).
+- **Precisión Matemática:** Se ajustó el algoritmo de `ImpTotal` asegurando coincidencia centesimal exacta de los impuestos (`ImpNeto + ImpIVA + ImpTrib`) para evitar el Error 10048.
+- **Restricción DocTipo:** Obligatoriedad de CUIT (DocTipo 80) validado antes de emitir Facturas A.
+
+### 2. Refactorización de Notas de Crédito
+- **Contexto Completo:** La generación de Notas de Crédito ahora arrastra los ítems de venta, permitiendo calcular múltiples tasas de IVA exactas en vez de aplicar un fallback genérico del 21%.
+- **Soporte Ampliado:** Ahora el sistema puede emitir correctamente Notas de Crédito B (CbteTipo 8) y asocia obligatoriamente la fecha del comprobante original en `CbtesAsoc`.
+- **Preservación del CAE:** Se modificó el esquema de Prisma para almacenar el CAE de la nota de crédito en campos separados (`cae_nota_credito` y `nro_comprobante_nc`), preservando intacto el CAE de la factura original anulada.
+
+### 3. Percepciones en Frontend
+- El modal de facturación (`SalesPage.tsx`) ahora permite cargar montos dinámicos para **Percepción IVA** y **Percepción IIBB**, las cuales impactan correctamente en el cálculo de AFIP.
+
 ## Estado Actual y Errores Conocidos (IMPORTANTE)
 Al intentar generar el ejecutable portable, se ha detectado el siguiente problema:
 

@@ -21,7 +21,9 @@ const SalesPage = () => {
   const [billingParams, setBillingParams] = useState({ 
     mode: 'ARCA', 
     impactBalance: true,
-    customPrices: {} as Record<number, { price: number, currency: 'USD' | 'ARS' }> 
+    customPrices: {} as Record<number, { price: number, currency: 'USD' | 'ARS' }>,
+    percepciones_iibb_ars: 0,
+    percepciones_iva_ars: 0
   });
 
   const { data: dolarRate } = useQuery({ 
@@ -80,7 +82,12 @@ const SalesPage = () => {
       };
     });
 
-    setBillingParams(prev => ({ ...prev, customPrices: initialPrices }));
+    setBillingParams(prev => ({ 
+      ...prev, 
+      customPrices: initialPrices,
+      percepciones_iibb_ars: Number(sale.percepciones_iibb_ars) || 0,
+      percepciones_iva_ars: Number(sale.percepciones_iva_ars) || 0
+    }));
     setBillingConfig({ id: sale.id, isOpen: true, sale });
   };
 
@@ -97,7 +104,7 @@ const SalesPage = () => {
       
       const itemTotal = priceInArs * item.cantidad * (1 + Number(item.iva_tasa || 21) / 100);
       return acc + itemTotal;
-    }, 0);
+    }, 0) + (billingParams.percepciones_iibb_ars || 0) + (billingParams.percepciones_iva_ars || 0);
   }, [billingConfig.sale, billingParams.customPrices, dolarRate]);
 
   return (
@@ -317,6 +324,38 @@ const SalesPage = () => {
                              </div>
                           </div>
                        ))}
+                    </div>
+                 </div>
+
+                 <div className="space-y-6">
+                    <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em] border-b border-slate-200 pb-2 flex items-center gap-2">
+                       <Calculator size={14} className="text-blue-600" /> Percepciones (ARS)
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                       <div className="bg-white border border-slate-200 p-5 flex justify-between items-center hover:border-blue-600 transition-all shadow-sm">
+                          <div>
+                             <p className="font-black text-slate-900 text-sm uppercase">Percepción IIBB</p>
+                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Impuesto Brutos</p>
+                          </div>
+                          <input 
+                            type="number"
+                            value={billingParams.percepciones_iibb_ars}
+                            onChange={(e) => setBillingParams({...billingParams, percepciones_iibb_ars: parseFloat(e.target.value) || 0})}
+                            className="w-32 bg-transparent border-b-2 border-slate-900 rounded-none px-2 py-3 font-black text-slate-900 text-xl text-right outline-none focus:border-blue-600 transition-all"
+                          />
+                       </div>
+                       <div className="bg-white border border-slate-200 p-5 flex justify-between items-center hover:border-blue-600 transition-all shadow-sm">
+                          <div>
+                             <p className="font-black text-slate-900 text-sm uppercase">Percepción IVA</p>
+                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Impuesto Valor Agregado</p>
+                          </div>
+                          <input 
+                            type="number"
+                            value={billingParams.percepciones_iva_ars}
+                            onChange={(e) => setBillingParams({...billingParams, percepciones_iva_ars: parseFloat(e.target.value) || 0})}
+                            className="w-32 bg-transparent border-b-2 border-slate-900 rounded-none px-2 py-3 font-black text-slate-900 text-xl text-right outline-none focus:border-blue-600 transition-all"
+                          />
+                       </div>
                     </div>
                  </div>
 

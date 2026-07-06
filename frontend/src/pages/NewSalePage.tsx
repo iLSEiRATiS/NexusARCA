@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientService } from '../services/clientService';
 import { productService } from '../services/productService';
@@ -25,6 +25,8 @@ const NewSalePage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoComprobante, setTipoComprobante] = useState('Factura A');
+  const [percepcionIIBB, setPercepcionIIBB] = useState<number>(0);
+  const [percepcionIVA, setPercepcionIVA] = useState<number>(0);
 
   const { data: clients, isLoading: isLoadingClients } = useQuery({ 
     queryKey: ['clients'], 
@@ -45,8 +47,19 @@ const NewSalePage = () => {
   const selectedClient = clients?.find((c: any) => c.cuit === clientCuit);
   const cotizacion = Number(dolar?.cotizacion || 1);
 
+  useEffect(() => {
+    if (selectedClient) {
+      if (['RESPONSABLE_INSCRIPTO', 'MONOTRIBUTO'].includes(selectedClient.condicion_iva)) {
+        setTipoComprobante('Factura A');
+      } else {
+        setTipoComprobante('Factura B');
+      }
+    }
+  }, [selectedClient]);
+
   const totalUsd = cart.reduce((acc, item) => acc + item.subtotal_usd, 0);
   const totalArs = totalUsd * cotizacion;
+  const totalFactura = totalArs + percepcionIIBB + percepcionIVA;
 
   const addToCart = (product: any) => {
     if (product.stock_actual <= 0) {
@@ -154,7 +167,9 @@ const NewSalePage = () => {
           product_id: item.product_id, 
           cantidad: item.cantidad
         })),
-        tipo_comprobante: tipoComprobante
+        tipo_comprobante: tipoComprobante,
+        percepciones_iibb_ars: percepcionIIBB,
+        percepciones_iva_ars: percepcionIVA
       };
       return api.post('/sales', payload);
     },
@@ -270,7 +285,7 @@ const NewSalePage = () => {
                  <div>
                     <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Tipo de Operación</label>
                     <div className="flex gap-2">
-                       {['Factura A', 'Presupuesto'].map(t => (
+                       {['Factura A', 'Factura B', 'Presupuesto'].map(t => (
                          <button 
                            key={t} 
                            onClick={() => setTipoComprobante(t)} 
@@ -281,6 +296,31 @@ const NewSalePage = () => {
                        ))}
                     </div>
                  </div>
+
+                 {tipoComprobante.includes('Factura') && (
+                 <div className="mt-8 flex gap-4">
+                    <div className="flex-1">
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Perc. IIBB (ARS)</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition-all"
+                        value={percepcionIIBB || ''}
+                        onChange={(e) => setPercepcionIIBB(Number(e.target.value))}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Perc. IVA (ARS)</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition-all"
+                        value={percepcionIVA || ''}
+                        onChange={(e) => setPercepcionIVA(Number(e.target.value))}
+                        placeholder="0.00"
+                      />
+                    </div>
+                 </div>
+                 )}
               </div>
 
               <div className="bg-slate-50 border border-slate-100 p-8 flex flex-col justify-center">
@@ -288,9 +328,17 @@ const NewSalePage = () => {
                     <span className="text-slate-400">Cotización</span>
                     <span className="text-slate-900">${cotizacion.toFixed(2)}</span>
                  </div>
+                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mt-2">
+                    <span className="text-slate-400">Subtotal Productos</span>
+                    <span className="text-slate-900">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                 </div>
+                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mt-2">
+                    <span className="text-slate-400">Tributos / Percepciones</span>
+                    <span className="text-slate-900">${(percepcionIIBB + percepcionIVA).toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                 </div>
                  <div className="pt-5 mt-5 border-t border-slate-200 flex justify-between items-center">
                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Total en ARS</span>
-                    <span className="text-3xl font-black text-blue-600 tracking-tighter">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    <span className="text-3xl font-black text-blue-600 tracking-tighter">${totalFactura.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
                  </div>
               </div>
             </div>

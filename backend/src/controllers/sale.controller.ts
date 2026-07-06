@@ -6,14 +6,16 @@ import { AppError } from '../utils/AppError';
 export class SaleController {
   static billSale = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { mode, impactBalance, customPrices, cotizacion_usada } = req.body; 
+    const { mode, impactBalance, customPrices, cotizacion_usada, percepciones_iibb_ars, percepciones_iva_ars } = req.body; 
     
     const sale = await SaleService.processBilling(
       Number(id), 
       mode, 
       impactBalance, 
       customPrices, 
-      Number(cotizacion_usada)
+      Number(cotizacion_usada),
+      Number(percepciones_iibb_ars || 0),
+      Number(percepciones_iva_ars || 0)
     );
     res.json(sale);
   });

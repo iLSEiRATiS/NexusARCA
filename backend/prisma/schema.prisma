@@ -133,11 +133,15 @@ model Sale {
 
   subtotal_ars           Decimal       
   iva_ars                Decimal       
+  percepciones_iibb_ars  Decimal       @default(0)
+  percepciones_iva_ars   Decimal       @default(0)
   estado_factura         String        @default("PENDIENTE")
   tipo_comprobante       String        
   nro_comprobante        String?       @unique
   cae                    String?
   vto_cae                DateTime?
+  cae_nota_credito       String?
+  nro_comprobante_nc     String?
   
   items                  SaleItem[]
   createdAt              DateTime      @default(now())
@@ -155,6 +159,7 @@ model SaleItem {
   cantidad            Int     
   precio_unitario_ars Decimal 
   iva_tasa            Decimal   
+  iva_importe_ars     Decimal @default(0)
   precio_unitario_usd Decimal  
 }
 

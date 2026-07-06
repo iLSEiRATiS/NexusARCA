@@ -18,7 +18,9 @@ export class SaleService {
     mode: 'ARCA' | 'PRESUPUESTO' = 'ARCA', 
     impactBalance: boolean = true,
     customPrices?: Record<number, { price: number, currency: 'USD' | 'ARS' }>,
-    cotizacion_usada: number = 1000
+    cotizacion_usada: number = 1000,
+    percepciones_iibb_ars: number = 0,
+    percepciones_iva_ars: number = 0
   ) {
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
@@ -57,27 +59,42 @@ export class SaleService {
         subtotal_ars += subtotal_item;
         iva_ars += iva_item;
 
+        // Save iva_importe_ars back to the item for the DB and AFIP
+        (item as any).iva_importe_ars = iva_item;
+
         // Actualizar el ítem con el precio final usado
         await tx.saleItem.update({
           where: { id: item.id },
-          data: {
-            precio_unitario_ars,
-            precio_unitario_usd
+          data: { 
+            precio_unitario_ars, 
+            precio_unitario_usd,
+            iva_importe_ars: iva_item
           }
         });
       }
+
+      total_real_ars += percepciones_iibb_ars + percepciones_iva_ars;
 
       let updateData: any = {
         total_real_ars,
         subtotal_ars,
         iva_ars,
+        percepciones_iibb_ars,
+        percepciones_iva_ars,
         cotizacion_dolar_usada: cotizacion_usada
       };
 
       if (mode === 'ARCA') {
         // 2. Solicitar CAE a AFIP con los nuevos totales
         // Mock de datos para el servicio de AFIP (necesita el objeto sale actualizado)
-        const saleForAfip = { ...sale, monto_facturado_ars: total_real_ars, subtotal_ars, iva_ars };
+        const saleForAfip = { 
+          ...sale, 
+          monto_facturado_ars: total_real_ars, 
+          subtotal_ars, 
+          iva_ars,
+          percepciones_iibb_ars,
+          percepciones_iva_ars
+        };
         const afipResult = await AfipService.createInvoice(saleForAfip);
         
         updateData = {
@@ -86,7 +103,7 @@ export class SaleService {
           vto_cae: new Date(afipResult.vto_cae),
           nro_comprobante: afipResult.nro_comprobante,
           estado_factura: 'FACTURADO',
-          tipo_comprobante: sale.client.condicion_iva === 'RESPONSABLE_INSCRIPTO' ? 'Factura A' : 'Factura B',
+          tipo_comprobante: ['RESPONSABLE_INSCRIPTO', 'MONOTRIBUTO'].includes(sale.client.condicion_iva) ? 'Factura A' : 'Factura B',
           monto_facturado_ars: total_real_ars,
           monto_no_facturado_ars: 0,
           porcentaje_split: 100
@@ -283,23 +300,25 @@ export class SaleService {
   static async processCreditNote(saleId: number) {
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
-      include: { client: true }
+      include: { client: true, items: { include: { product: true } } } // HC-3: Include items
     });
 
     if (!sale) throw new AppError('Venta no encontrada', 404);
-    if (!sale.cae || sale.tipo_comprobante !== 'Factura A') {
-      throw new AppError('Solo se pueden anular Facturas A autorizadas por AFIP', 400);
+    if (!sale.cae || !['Factura A', 'Factura B'].includes(sale.tipo_comprobante)) {
+      throw new AppError('Solo se pueden anular Facturas A o B autorizadas por AFIP', 400); // HC-4: Support B
     }
     if (sale.estado_factura === 'ANULADA') {
       throw new AppError('La factura ya se encuentra anulada', 400);
     }
 
     return await prisma.$transaction(async (tx) => {
-      // 1. Crear el payload para Nota de Crédito A (CbteTipo 3)
+      // 1. Crear el payload para Nota de Crédito (CbteTipo 3 u 8)
+      const creditNoteTipo = sale.tipo_comprobante === 'Factura A' ? 'Nota de Crédito A' : 'Nota de Crédito B';
       const creditNotePayload = {
         ...sale,
-        tipo_comprobante: 'Nota de Crédito A',
-        comprobante_asociado: sale.nro_comprobante // Campo que lee afip.service.ts
+        tipo_comprobante: creditNoteTipo,
+        comprobante_asociado: sale.nro_comprobante, // Campo que lee afip.service.ts
+        fecha_comprobante_asociado: sale.fecha
       };
 
       // 2. Solicitar CAE para la Nota de Crédito
@@ -317,13 +336,13 @@ export class SaleService {
         });
       }
 
-      // 4. Marcar la factura original como anulada y guardar el CAE de la nota de crédito
+      // 4. Marcar la factura original como anulada y guardar el CAE de la nota de crédito (HM-4)
       const updatedSale = await tx.sale.update({
         where: { id: saleId },
         data: {
           estado_factura: 'ANULADA',
-          // Guardamos el CAE de la nota de crédito como referencia (opcionalmente podríamos crear un modelo CreditNote)
-          cae: `NC:${afipResult.cae}`, 
+          cae_nota_credito: afipResult.cae,
+          nro_comprobante_nc: afipResult.nro_comprobante,
         },
         include: { client: true }
       });

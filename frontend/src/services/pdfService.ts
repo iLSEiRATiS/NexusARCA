@@ -239,6 +239,7 @@ export const generateSalePDF = async (sale: any) => {
     // ── TOTALES ───────────────────────────────────────────────────────────
     const subtotal = Number(sale.subtotal_ars || 0);
     const iva = Number(sale.iva_ars || 0);
+    const percepciones = Number(sale.percepciones_iibb_ars || 0) + Number(sale.percepciones_iva_ars || 0);
     const total = Number(sale.monto_facturado_ars || sale.total_real_ars || 0);
     const cotizacion = Number(sale.cotizacion_dolar_usada || 1);
 
@@ -247,7 +248,7 @@ export const generateSalePDF = async (sale: any) => {
 
     doc.setDrawColor(200);
     doc.setLineWidth(0.2);
-    doc.rect(pW - 80, totalsStartY - 4, 70, 34);
+    doc.rect(pW - 80, totalsStartY - 4, 70, 42);
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
@@ -257,21 +258,34 @@ export const generateSalePDF = async (sale: any) => {
 
     doc.text('IVA:', totalsX - 68, totalsStartY + 9);
     doc.text(`$${iva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, totalsX, totalsStartY + 9, { align: 'right' });
+    
+    if (percepciones > 0) {
+      doc.text('TRIBUTOS/PERC:', totalsX - 68, totalsStartY + 16);
+      doc.text(`$${percepciones.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, totalsX, totalsStartY + 16, { align: 'right' });
+    }
 
     doc.setDrawColor(180);
-    doc.line(pW - 80, totalsStartY + 13, pW - 10, totalsStartY + 13);
+    doc.line(pW - 80, totalsStartY + 20, pW - 10, totalsStartY + 20);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(20, 20, 20);
-    doc.text('TOTAL:', totalsX - 68, totalsStartY + 21);
-    doc.text(`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, totalsX, totalsStartY + 21, { align: 'right' });
+    doc.text('TOTAL:', totalsX - 68, totalsStartY + 28);
+    doc.text(`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, totalsX, totalsStartY + 28, { align: 'right' });
 
-    // Cotización referencial
+    // Leyenda Monotributista y Cotización
     doc.setFontSize(7);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(130);
     doc.text(`Cotización USD de referencia: $${cotizacion.toFixed(2)}`, 10, totalsStartY + 6);
+    
+    if (sale.tipo_comprobante === 'Factura A' && sale.client?.condicion_iva === 'MONOTRIBUTO') {
+      doc.setFontSize(6.5);
+      doc.setTextColor(100);
+      doc.text('El crédito fiscal discriminado en el presente comprobante, sólo podrá ser', 10, totalsStartY + 12);
+      doc.text('computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para', 10, totalsStartY + 15);
+      doc.text('Pequeños Contribuyentes de la Ley Nº 27.618', 10, totalsStartY + 18);
+    }
 
     // ── SECCIÓN FISCAL INFERIOR: QR + CAE ─────────────────────────────────
     const footerY = pH - 42;
