@@ -59,7 +59,7 @@ const ImportCSVModal = ({ isOpen, onClose }: ImportCSVModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/80 z-[200] flex items-center justify-center p-4">
       <div className="bg-white rounded-none w-full max-w-xl shadow-2xl overflow-hidden animate-fade-in border border-slate-200">
         <div className="bg-slate-900 p-8 text-white flex justify-between items-center border-b border-slate-800">
           <div>

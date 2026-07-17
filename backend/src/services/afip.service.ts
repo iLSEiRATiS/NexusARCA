@@ -47,7 +47,8 @@ export class AfipService {
     // Reinicializar si cambió el modo de producción
     if (this.afip && this.currentMode === isProduction) return;
 
-    const CUIT = process.env.AFIP_CUIT || '20409318550';
+    // En Producción se usa el CUIT real. En homologación SE DEBE usar el CUIT de prueba (20409318550) asociado a los certificados test.
+    const CUIT = isProduction ? (process.env.AFIP_CUIT || '20106102741') : '20409318550';
     const baseDir = process.env.PORTABLE_EXECUTABLE_DIR || process.cwd();
 
     const certPath = path.join(baseDir, 'afip_res', isProduction ? 'cert.crt' : 'cert_test.crt');
@@ -61,7 +62,7 @@ export class AfipService {
         key:  fs.readFileSync(keyPath,  'utf8')
       });
       this.currentMode = isProduction;
-      console.log(`[AfipService] Inicializado en modo ${isProduction ? 'PRODUCCIÓN' : 'HOMOLOGACIÓN'}`);
+      console.log(`[AfipService] Inicializado en modo ${isProduction ? 'PRODUCCIÓN' : 'HOMOLOGACIÓN'} con CUIT: ${CUIT}`);
     } catch (err: any) {
       console.error(`Error cargando certificados AFIP (Producción: ${isProduction}):`, err.message);
       throw new AppError(
@@ -264,10 +265,21 @@ export class AfipService {
       }
 
       const result = await this.afip.electronicBillingService.createVoucher(data);
+      console.log('RAW AFIP RESULT:', JSON.stringify(result, null, 2));
+
+      // Si AFIP devuelve observaciones (rechazo lógico), extraer el mensaje
+      if (!result.cae && (result.observaciones || (result.response && result.response.Errors))) {
+         const errorMsgs = result.observaciones || result.response.Errors;
+         throw new AppError(`Rechazado por AFIP: ${JSON.stringify(errorMsgs)}`, 400);
+      }
+
+      // Format YYYYMMDD to YYYY-MM-DD
+      const vto = result.caeFchVto;
+      const formattedVto = vto ? `${vto.substring(0,4)}-${vto.substring(4,6)}-${vto.substring(6,8)}` : '';
 
       return {
         cae: result.cae,
-        vto_cae: result.caeFchVto,
+        vto_cae: formattedVto,
         nro_comprobante: String(nextVoucher).padStart(8, '0'),
       };
     } catch (error: any) {

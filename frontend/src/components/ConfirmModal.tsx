@@ -33,9 +33,17 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm animate-fade-in" onClick={onCancel}></div>
-      <div className="bg-white rounded-none w-full max-w-md shadow-2xl relative z-10 animate-fade-in border border-slate-200 overflow-hidden">
-        <div className="p-10 text-center border-b border-slate-100 bg-slate-50">
+      <div className="fixed inset-0 bg-slate-900/80 animate-fade-in" onClick={onCancel}></div>
+      <div className="bg-white rounded-none w-full max-w-md shadow-2xl relative z-10 animate-fade-in border border-slate-200 overflow-hidden mt-8 sm:mt-0">
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-slate-400 text-2xl font-light hover:text-red-600 hover:bg-red-50 transition-colors z-50 rounded-full"
+          title="Cerrar"
+        >
+          &times;
+        </button>
+        <div className="p-10 text-center border-b border-slate-100 bg-slate-50 pt-12">
           <h3 className="text-xl font-black text-slate-900 mb-6 uppercase tracking-tight">{title}</h3>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest leading-relaxed">{message}</p>
         </div>

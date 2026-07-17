@@ -16,9 +16,7 @@ export class ClientService {
           take: 20, 
           orderBy: { fecha: 'desc' },
           include: { 
-            items: { 
-              include: { product: true } 
-            } 
+            items: true
           }
         },
         payments: { take: 20, orderBy: { fecha: 'desc' } }

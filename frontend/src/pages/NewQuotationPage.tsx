@@ -1,91 +1,84 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientService } from '../services/clientService';
-import { productService } from '../services/productService';
 import { currencyService } from '../services/currencyService';
 import { quotationService } from '../services/quotationService';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
+
+interface QuotationCartItem {
+  id: string;
+  descripcion: string;
+  cantidad: number;
+  precio: number;
+  moneda: 'USD' | 'ARS';
+  iva_tasa: number;
+  subtotal_usd: number;
+}
 
 const NewQuotationPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  // State
   const [step, setStep] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  const [cart, setCart] = useState<{ 
-    product_id: number; 
-    nombre: string; 
-    cantidad: number; 
-    peso_kg: number; 
-    precio_usd: number; 
-    subtotal_usd: number;
-  }[]>([]);
+  const [cart, setCart] = useState<QuotationCartItem[]>([]);
   const [validezDias, setValidezDias] = useState<number>(15);
 
-  // Data Queries
   const { data: clients } = useQuery({ queryKey: ['clients'], queryFn: clientService.getAll });
-  const { data: products } = useQuery({ queryKey: ['products'], queryFn: productService.getAll });
   const { data: dolar } = useQuery({ queryKey: ['dolar'], queryFn: currencyService.getDolarOficial });
 
-  const cotizacion = dolar?.cotizacion || 0;
+  const cotizacion = Number(dolar || 1);
 
-  // Calculations
   const totalUsd = cart.reduce((acc, item) => acc + item.subtotal_usd, 0);
   const totalArs = totalUsd * cotizacion;
+  const totalIvaArs = cart.reduce((acc, item) => acc + (item.subtotal_usd * cotizacion * (item.iva_tasa / 100)), 0);
+  const totalFactura = totalArs + totalIvaArs;
 
-  // Actions
-  const addToCart = (product: any) => {
-    const existing = cart.find(item => item.product_id === product.id);
-    const pesoKg = Number(product.peso_kg);
-    const precioKg = Number(product.precio_usd);
-
-    if (existing) {
-      updateQuantity(product.id, existing.cantidad + 1);
-    } else {
-      setCart([...cart, { 
-        product_id: product.id, 
-        nombre: product.nombre, 
-        cantidad: 1, 
-        peso_kg: pesoKg,
-        precio_usd: precioKg, 
-        subtotal_usd: pesoKg * precioKg
-      }]);
-    }
-    toast.success(`${product.nombre} AGREGADO`);
-  };
-
-  const updateQuantity = (productId: number, newCant: number) => {
-    if (newCant <= 0) {
-      removeFromCart(productId);
-      return;
-    }
+  const updateItem = (id: string, field: keyof QuotationCartItem, value: any) => {
     setCart(prev => prev.map(item => {
-      if (item.product_id === productId) {
-        return { 
-          ...item, 
-          cantidad: newCant, 
-          subtotal_usd: newCant * item.peso_kg * item.precio_usd 
-        };
+      if (item.id === id) {
+        const updated = { ...item, [field]: value };
+        if (field === 'cantidad' || field === 'precio' || field === 'moneda') {
+          const priceInUsd = updated.moneda === 'USD' ? Number(updated.precio) : Number(updated.precio) / cotizacion;
+          updated.subtotal_usd = Number(updated.cantidad) * priceInUsd;
+        }
+        return updated;
       }
       return item;
     }));
   };
 
-  const removeFromCart = (productId: number) => {
-    setCart(cart.filter(item => item.product_id !== productId));
+  const removeItem = (id: string) => {
+    setCart(prev => prev.filter(item => item.id !== id));
+  };
+
+  const addManualItem = () => {
+    setCart(prev => [...prev, {
+      id: Math.random().toString(36).substr(2, 9),
+      descripcion: 'Ítem Manual',
+      cantidad: 1,
+      precio: 0,
+      moneda: 'USD',
+      iva_tasa: 21,
+      subtotal_usd: 0
+    }]);
   };
 
   const createQuotationMutation = useMutation({
     mutationFn: async () => {
       const payload = {
         client_id: selectedClientId!,
-        items: cart.map(item => ({ 
-          product_id: item.product_id, 
-          cantidad: item.cantidad
-        })),
+        items: cart.map(item => {
+          const precio_usd = item.moneda === 'USD' ? Number(item.precio) : Number(item.precio) / cotizacion;
+          return { 
+            descripcion: item.descripcion,
+            cantidad: Number(item.cantidad),
+            precio_unitario_usd: precio_usd,
+            iva_tasa: Number(item.iva_tasa)
+          };
+        }),
         validez_dias: validezDias
       };
       return quotationService.create(payload);
@@ -99,16 +92,6 @@ const NewQuotationPage = () => {
       toast.error('Error al generar presupuesto: ' + (err.response?.data?.message || err.message));
     }
   });
-
-  const filteredProducts = products?.filter((p: any) => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const preventInvalidChars = (e: React.KeyboardEvent) => {
-    if (['e', 'E', '+', '-', '.'].includes(e.key)) {
-      e.preventDefault();
-    }
-  };
 
   return (
     <div className="animate-fade-in max-w-[1400px] mx-auto space-y-10">
@@ -165,28 +148,87 @@ const NewQuotationPage = () => {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
                     <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.3em] flex items-center gap-2">
                       <span className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px]">02</span>
-                      Selección de Artículos
+                      Definición de Artículos
                     </h2>
-                    <input 
-                      type="text" placeholder="BUSCAR ARTÍCULO..." 
-                      className="bg-slate-50 border border-slate-200 px-6 py-3 text-[10px] font-black uppercase outline-none focus:border-blue-600 transition-all tracking-widest w-full sm:w-80 text-slate-900"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                    <button onClick={addManualItem} className="bg-slate-900 text-white px-6 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all">
+                      <Plus size={14}/> Agregar Ítem
+                    </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[550px] overflow-y-auto pr-3 custom-scrollbar">
-                    {filteredProducts?.map((p: any) => (
-                      <button key={p.id} onClick={() => addToCart(p)} className="flex justify-between items-center p-6 border border-slate-100 hover:border-blue-600 hover:bg-slate-50 transition-all text-left group bg-white shadow-sm">
-                        <div className="min-w-0">
-                          <p className="font-black text-slate-900 uppercase text-xs truncate mb-1 group-hover:text-blue-600 transition-colors">{p.nombre}</p>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{p.presentacion}</p>
-                        </div>
-                        <div className="text-right shrink-0 ml-4">
-                          <p className="font-black text-slate-900 text-sm">USD {Number(p.precio_usd).toFixed(2)}</p>
-                          <p className="text-[8px] font-bold text-slate-300 uppercase mt-1 tracking-widest">DISP: {p.stock_actual}</p>
-                        </div>
-                      </button>
-                    ))}
+                  
+                  <div className="space-y-4">
+                     {cart.length === 0 ? (
+                       <div className="text-center py-10 text-[10px] font-bold uppercase text-slate-400 tracking-widest border border-dashed border-slate-200">
+                          Agregue ítems para cotizar
+                       </div>
+                     ) : (
+                       <div className="overflow-x-auto">
+                         <table className="w-full text-left text-[10px] font-bold uppercase tracking-widest text-slate-900">
+                           <thead className="text-slate-400 border-b border-slate-100">
+                             <tr>
+                               <th className="pb-3 px-2">Descripción</th>
+                               <th className="pb-3 px-2 w-20">Cant. (KG)</th>
+                               <th className="pb-3 px-2 w-20">Moneda</th>
+                               <th className="pb-3 px-2 w-28">P. Unit</th>
+                               <th className="pb-3 px-2 w-20">% IVA</th>
+                               <th className="pb-3 px-2 w-10"></th>
+                             </tr>
+                           </thead>
+                           <tbody>
+                             {cart.map((item) => (
+                               <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                 <td className="py-2 px-2">
+                                   <input 
+                                     type="text" 
+                                     value={item.descripcion}
+                                     onChange={e => updateItem(item.id, 'descripcion', e.target.value)}
+                                     className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none"
+                                   />
+                                 </td>
+                                 <td className="py-2 px-2">
+                                   <input 
+                                     type="number" 
+                                     value={item.cantidad || ''}
+                                     onChange={e => updateItem(item.id, 'cantidad', e.target.value)}
+                                     className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-center"
+                                   />
+                                 </td>
+                                 <td className="py-2 px-2">
+                                   <select
+                                     value={item.moneda}
+                                     onChange={e => updateItem(item.id, 'moneda', e.target.value)}
+                                     className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none cursor-pointer"
+                                   >
+                                     <option value="USD">U$D</option>
+                                     <option value="ARS">ARS</option>
+                                   </select>
+                                 </td>
+                                 <td className="py-2 px-2">
+                                   <input 
+                                     type="number" 
+                                     value={item.precio || ''}
+                                     onChange={e => updateItem(item.id, 'precio', e.target.value)}
+                                     className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-right"
+                                   />
+                                 </td>
+                                 <td className="py-2 px-2">
+                                   <input 
+                                     type="number" 
+                                     value={item.iva_tasa || ''}
+                                     onChange={e => updateItem(item.id, 'iva_tasa', e.target.value)}
+                                     className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-center"
+                                   />
+                                 </td>
+                                 <td className="py-2 px-2 text-right">
+                                   <button onClick={() => removeItem(item.id)} className="text-slate-300 hover:text-red-600">
+                                     ✕
+                                   </button>
+                                 </td>
+                               </tr>
+                             ))}
+                           </tbody>
+                         </table>
+                       </div>
+                     )}
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -233,31 +275,13 @@ const NewQuotationPage = () => {
               <h2 className="font-black text-[10px] tracking-[0.3em] uppercase text-slate-400 mb-10 border-b border-slate-50 pb-4">Detalle de Cotización</h2>
               <div className="space-y-8 mb-12 max-h-[45vh] overflow-y-auto pr-3 custom-scrollbar">
                 {cart.map(item => (
-                  <div key={item.product_id} className="flex justify-between items-start border-b border-slate-50 pb-6 last:border-0">
+                  <div key={item.id} className="flex justify-between items-start border-b border-slate-50 pb-6 last:border-0">
                     <div className="flex-1 min-w-0 pr-6">
-                      <p className="font-black uppercase text-[11px] text-slate-900 mb-4 truncate tracking-tight">{item.nombre}</p>
-                      <div className="flex items-center gap-4">
-                         <div className="border border-slate-200 flex items-center bg-slate-50">
-                            <button onClick={() => updateQuantity(item.product_id, item.cantidad - 1)} className="text-slate-400 hover:text-slate-900 font-black px-3 py-1.5 transition-all">−</button>
-                            <input 
-                              type="number"
-                              min="1"
-                              value={item.cantidad || ''}
-                              onKeyDown={preventInvalidChars}
-                              onChange={(e) => {
-                                const val = e.target.value === '' ? 0 : parseInt(e.target.value);
-                                updateQuantity(item.product_id, val);
-                              }}
-                              className="font-black text-xs w-12 text-center bg-transparent text-slate-900 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <button onClick={() => updateQuantity(item.product_id, item.cantidad + 1)} className="text-slate-400 hover:text-slate-900 font-black px-3 py-1.5 transition-all">+</button>
-                         </div>
-                         <span className="text-[9px] text-slate-300 font-black uppercase tracking-tighter">({item.peso_kg * item.cantidad} KG)</span>
-                      </div>
+                      <p className="font-black uppercase text-[11px] text-slate-900 mb-2 truncate tracking-tight">{item.descripcion}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{item.cantidad} KG x {item.moneda === 'USD' ? 'U$D' : 'ARS'} {Number(item.precio || 0).toFixed(2)}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-black text-slate-900 text-xs uppercase">USD {item.subtotal_usd.toFixed(2)}</p>
-                      <button onClick={() => removeFromCart(item.product_id)} className="text-[8px] font-black text-slate-200 hover:text-red-600 uppercase tracking-widest mt-3 transition-all">Remover</button>
                     </div>
                   </div>
                 ))}
@@ -269,8 +293,8 @@ const NewQuotationPage = () => {
                   <span className="text-lg font-black text-slate-900">USD {totalUsd.toFixed(2)}</span>
                 </div>
                 <div className="bg-slate-900 p-8 text-white text-center shadow-lg">
-                  <span className="text-slate-500 font-black text-[9px] uppercase tracking-widest block mb-2">VALOR TOTAL ESTIMADO ARS</span>
-                  <p className="text-4xl font-black tracking-tighter italic">${totalArs.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</p>
+                  <span className="text-slate-500 font-black text-[9px] uppercase tracking-widest block mb-2">VALOR TOTAL ESTIMADO ARS (C/IVA)</span>
+                  <p className="text-4xl font-black tracking-tighter italic">${totalFactura.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</p>
                 </div>
               </div>
            </section>

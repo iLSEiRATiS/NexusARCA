@@ -6,12 +6,11 @@ import { SaleService } from './sale.service';
 export class QuotationService {
   static async create(data: {
     client_id: number;
-    items: { product_id: number; cantidad: number }[];
+    items: { descripcion: string; cantidad: number; precio_unitario_usd: number; iva_tasa: number }[];
     validez_dias?: number;
   }) {
     const { client_id, items, validez_dias } = data;
 
-    // 1. Obtener cotización del dólar y datos del cliente
     const cotizacion = await CurrencyService.getDolarOficial();
     const client = await prisma.client.findUnique({ where: { id: client_id } });
     if (!client) throw new AppError('Cliente no encontrado', 404);
@@ -20,29 +19,22 @@ export class QuotationService {
       let total_real_ars = 0;
       const quotationItemsData = [];
 
-      // 2. Procesar ítems y calcular totales reales
       for (const item of items) {
-        const product = await tx.product.findUnique({ 
-          where: { id: item.product_id }
-        });
-        if (!product) throw new AppError(`Producto ID ${item.product_id} no encontrado`, 404);
-
-        const pesoKgPorUnidad = Number(product.peso_kg);
-        const precioUsdPorKg = Number(product.precio_usd);
-        const precioUnitarioBultoArs = (precioUsdPorKg * cotizacion) * pesoKgPorUnidad;
+        const precioUnitarioArs = item.precio_unitario_usd * cotizacion;
+        const subtotal_item = precioUnitarioArs * item.cantidad;
+        const iva_item = subtotal_item * (item.iva_tasa / 100);
         
-        const subtotal_item = precioUnitarioBultoArs * item.cantidad;
-        total_real_ars += subtotal_item;
+        total_real_ars += (subtotal_item + iva_item);
 
         quotationItemsData.push({
-          product_id: product.id,
+          descripcion: item.descripcion,
           cantidad: item.cantidad,
-          precio_unitario_ars: (precioUsdPorKg * cotizacion), 
-          precio_unitario_usd: product.precio_usd
+          precio_unitario_ars: precioUnitarioArs, 
+          precio_unitario_usd: item.precio_unitario_usd,
+          iva_tasa: item.iva_tasa
         });
       }
 
-      // 3. Crear la cotización
       const quotation = await tx.quotation.create({
         data: {
           client_id,
@@ -55,9 +47,7 @@ export class QuotationService {
         },
         include: {
           client: true,
-          items: {
-            include: { product: true }
-          }
+          items: true
         }
       });
 
@@ -75,9 +65,7 @@ export class QuotationService {
         take: limit,
         include: { 
           client: true,
-          items: {
-            include: { product: true }
-          }
+          items: true
         },
         orderBy: { fecha: 'desc' }
       })
@@ -97,7 +85,7 @@ export class QuotationService {
   static async getById(id: number) {
     const quotation = await prisma.quotation.findUnique({
       where: { id },
-      include: { client: true, items: { include: { product: true } } }
+      include: { client: true, items: true }
     });
     if (!quotation) throw new AppError('Cotización no encontrada', 404);
     return quotation;
@@ -131,13 +119,14 @@ export class QuotationService {
     const sale = await SaleService.create({
       client_id: quotation.client_id,
       items: quotation.items.map(item => ({
-        product_id: item.product_id,
-        cantidad: item.cantidad
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        precio_unitario_usd: Number(item.precio_unitario_usd),
+        iva_tasa: Number(item.iva_tasa)
       })),
       tipo_comprobante: data.tipo_comprobante
     });
 
-    // Marcar cotización como convertida
     await prisma.quotation.update({
       where: { id },
       data: { estado: 'CONVERTIDO' }

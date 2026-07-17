@@ -9,11 +9,7 @@ datasource db {
 
 // --- ENUMS ---
 
-enum MovementType {
-  INGRESO
-  EGRESO
-  AJUSTE
-}
+
 
 enum CondicionIva {
   RESPONSABLE_INSCRIPTO
@@ -35,38 +31,7 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-model Product {
-  id           Int             @id @default(autoincrement())
-  nombre       String
-  presentacion String?         
-  peso_kg      Decimal         @default(25.00) 
-  precio_usd   Decimal         @default(0) // Precio base sugerido
-  precio_ars   Decimal         @default(0) // Precio base sugerido en pesos
-  moneda_base  String          @default("USD") // USD o ARS
-  iva_tasa     Decimal         @default(21.00) 
-  stock_actual Int             @default(0)
-  stock_minimo Int             @default(5)
-  batches      Batch[]
-  saleItems    SaleItem[]
-  quotationItems QuotationItem[]
-  movements    StockMovement[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-}
 
-model Batch {
-  id                Int           @id @default(autoincrement())
-  product           Product       @relation(fields: [product_id], references: [id], onDelete: Cascade)
-  product_id        Int
-  nro_lote          String
-  cantidad_bultos   Int
-  fecha_vencimiento DateTime?
-  ubicacion         String?
-  estado            String        @default("ACTIVO") 
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  saleItems         SaleItem[]
-}
 
 model Client {
   id                      Int          @id @default(autoincrement())
@@ -110,17 +75,17 @@ model QuotationItem {
   id                  Int       @id @default(autoincrement())
   quotation           Quotation @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
   quotation_id        Int
-  product             Product   @relation(fields: [product_id], references: [id], onDelete: Restrict)
-  product_id          Int
+  descripcion         String
   cantidad            Int
   precio_unitario_ars Decimal
   precio_unitario_usd Decimal
+  iva_tasa            Decimal   @default(21.00)
 }
 
 model Sale {
   id                     Int           @id @default(autoincrement())
   external_id            Int?          @unique 
-  client                 Client        @relation(fields: [client_id], references: [id], onDelete: Restrict)
+  client                 Client        @relation(fields: [client_id], references: [id], onDelete: Cascade)
   client_id              Int
   fecha                  DateTime      @default(now())
   
@@ -140,6 +105,7 @@ model Sale {
   nro_comprobante        String?       @unique
   cae                    String?
   vto_cae                DateTime?
+  fecha_vto_pago         DateTime?
   cae_nota_credito       String?
   nro_comprobante_nc     String?
   
@@ -152,10 +118,7 @@ model SaleItem {
   id                  Int     @id @default(autoincrement())
   sale                Sale    @relation(fields: [sale_id], references: [id], onDelete: Cascade)
   sale_id             Int
-  product             Product @relation(fields: [product_id], references: [id], onDelete: Restrict)
-  product_id          Int
-  batch               Batch?  @relation(fields: [batch_id], references: [id], onDelete: SetNull)
-  batch_id            Int?
+  descripcion         String
   cantidad            Int     
   precio_unitario_ars Decimal 
   iva_tasa            Decimal   
@@ -165,7 +128,7 @@ model SaleItem {
 
 model Payment {
   id          Int        @id @default(autoincrement())
-  client      Client     @relation(fields: [client_id], references: [id], onDelete: Restrict)
+  client      Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
   client_id   Int
   monto_ars   Decimal    
   tipo        String     @default("MIXTO") 
@@ -175,15 +138,7 @@ model Payment {
   createdAt   DateTime   @default(now())
 }
 
-model StockMovement {
-  id         Int          @id @default(autoincrement())
-  product    Product      @relation(fields: [product_id], references: [id], onDelete: Cascade)
-  product_id Int
-  cantidad   Int          
-  tipo       MovementType
-  motivo     String?      
-  fecha      DateTime     @default(now())
-}
+
 
 model Settings {
   id                      Int      @id @default(1)

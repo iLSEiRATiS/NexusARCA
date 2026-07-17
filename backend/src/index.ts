@@ -6,16 +6,15 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import healthRoutes from './routes/health.routes';
 import userRoutes from './routes/user.routes';
-import productRoutes from './routes/product.routes';
 import currencyRoutes from './routes/currency.routes';
 import clientRoutes from './routes/client.routes';
 import saleRoutes from './routes/sale.routes';
 import quotationRoutes from './routes/quotation.routes';
-import importRoutes from './routes/import.routes';
 import configRoutes from './routes/config.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { protect } from './middlewares/auth.middleware';
 import { UserService } from './services/user.service';
+import { CurrencyService } from './services/currency.service';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -42,12 +41,10 @@ app.use('/api', healthRoutes);
 app.use('/api/auth', userRoutes);
 
 // Rutas Protegidas (Requieren Login)
-app.use('/api/products', protect, productRoutes);
 app.use('/api/currency', protect, currencyRoutes);
 app.use('/api/clients', protect, clientRoutes);
 app.use('/api/sales', protect, saleRoutes);
 app.use('/api/quotations', protect, quotationRoutes);
-app.use('/api/import', protect, importRoutes);
 app.use('/api/config', protect, configRoutes);
 
 // Manejo global de errores
@@ -58,4 +55,12 @@ app.listen(PORT, async () => {
   console.log(`🚀 Mascolo Facturador Backend ejecutándose en puerto ${PORT}`);
   // Crear admin inicial si no existe
   await UserService.createInitialAdmin();
+  
+  // Sincronizar dolar BNA al iniciar
+  try {
+    const dolar = await CurrencyService.getDolarOficial();
+    console.log(`💵 Dólar BNA sincronizado al inicio: $${dolar}`);
+  } catch (error) {
+    console.error('❌ Error al sincronizar dólar BNA al inicio:', error);
+  }
 });
