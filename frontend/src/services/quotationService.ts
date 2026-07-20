@@ -27,7 +27,7 @@ export interface Quotation {
 
 export interface CreateQuotationDTO {
   client_id: number;
-  items: { product_id: number; cantidad: number }[];
+  items: any[];
   validez_dias?: number;
 }
 

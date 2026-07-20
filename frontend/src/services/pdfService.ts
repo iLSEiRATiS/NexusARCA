@@ -78,7 +78,7 @@ async function generateAfipQR(sale: any, emisor: EmisorConfig): Promise<string> 
 }
 
 // ─── PDF DE PROFORMA (VENTAS NO FISCALES) ───────────────────────────────────
-const generateProformaPDF = (sale: any, EMISOR: EmisorConfig) => {
+const generateProformaPDF = (sale: any, _EMISOR: EmisorConfig) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pW = doc.internal.pageSize.width;
   const pH = doc.internal.pageSize.height;

@@ -400,7 +400,7 @@ const SalesPage = () => {
                                            ...billingParams.customPrices, 
                                            [item.id]: { 
                                              ...billingParams.customPrices[item.id], 
-                                             price: val === '' ? '' : Number(val) 
+                                             price: (val === '' ? '' : Number(val)) as any
                                            } 
                                          }
                                        });

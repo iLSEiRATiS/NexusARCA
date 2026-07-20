@@ -21,7 +21,7 @@ const NewSalePage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   
-  const [submitting, setSubmitting] = useState(false);
+
   const [fechaVtoPago, setFechaVtoPago] = useState('');
   const [clientCuit, setClientCuit] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -57,19 +57,19 @@ const NewSalePage = () => {
   const isFacturaADisabled = selectedClient && !['RESPONSABLE_INSCRIPTO', 'MONOTRIBUTO'].includes(selectedClient.condicion_iva);
   const isFacturaBDisabled = selectedClient && ['RESPONSABLE_INSCRIPTO', 'MONOTRIBUTO'].includes(selectedClient.condicion_iva);
 
-  // Warning de tope para Consumidor Final sin identificar
-  const isConsumidorFinalSinCuit = selectedClient?.condicion_iva === 'CONSUMIDOR_FINAL' && (!selectedClient.cuit || selectedClient.cuit === '0');
-  const superaTopeCF = isConsumidorFinalSinCuit && totalFactura >= 10000000;
-
-  // CUIT ingresado pero no encontrado en la DB
-  const cuitNoRegistrado = clientCuit.length >= 5 && !selectedClient;
-
   const totalUsd = cart.reduce((acc, item) => acc + item.subtotal_usd, 0);
   const totalArs = totalUsd * cotizacion;
   
   const totalIvaArs = cart.reduce((acc, item) => acc + (item.subtotal_usd * cotizacion * (item.iva_tasa / 100)), 0);
   
   const totalFactura = totalArs + totalIvaArs + percepcionIIBB + percepcionIVA;
+
+  // Warning de tope para Consumidor Final sin identificar
+  const isConsumidorFinalSinCuit = selectedClient?.condicion_iva === 'CONSUMIDOR_FINAL' && (!selectedClient.cuit || selectedClient.cuit === '0');
+  const superaTopeCF = isConsumidorFinalSinCuit && totalFactura >= 10000000;
+
+  // CUIT ingresado pero no encontrado en la DB
+  const cuitNoRegistrado = clientCuit.length >= 5 && !selectedClient;
 
   const updateItem = (id: string, field: keyof CartItem, value: any) => {
     setCart(prev => prev.map(item => {
