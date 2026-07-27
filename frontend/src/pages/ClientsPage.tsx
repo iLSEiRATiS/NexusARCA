@@ -357,8 +357,8 @@ const ClientsPage = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
                               {item.items.map((si: any, sIdx: number) => (
                                 <div key={sIdx} className="flex justify-between items-center py-1">
-                                  <span className="text-[10px] font-bold text-slate-600 uppercase truncate pr-4">{si.product?.nombre}</span>
-                                  <span className="text-[10px] font-black text-slate-900 shrink-0">{si.cantidad} UN</span>
+                                  <span className="text-[10px] font-bold text-slate-600 uppercase truncate pr-4">{si.descripcion || si.product?.nombre}</span>
+                                  <span className="text-[10px] font-black text-slate-900 shrink-0">{si.cantidad} KG</span>
                                 </div>
                               ))}
                             </div>
