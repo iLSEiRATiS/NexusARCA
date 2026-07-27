@@ -633,7 +633,7 @@ export const generateCreditNotePDF = async (sale: any) => {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60, 60, 60);
     doc.text(`N°: ${nroNC}`, rightX, 29);
-    doc.text(`Fecha: ${new Date(sale.fecha || sale.createdAt).toLocaleDateString('es-AR')}`, rightX, 36);
+    doc.text(`Fecha: ${new Date(sale.fecha_nota_credito || new Date()).toLocaleDateString('es-AR')}`, rightX, 36);
     doc.text(`Punto de Venta: ${String(EMISOR.punto_venta).padStart(4, '0')}`, rightX, 43);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);

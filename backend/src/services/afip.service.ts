@@ -47,8 +47,9 @@ export class AfipService {
     // Reinicializar si cambió el modo de producción
     if (this.afip && this.currentMode === isProduction) return;
 
-    // En Producción se usa el CUIT real. En homologación SE DEBE usar el CUIT de prueba (20409318550) asociado a los certificados test.
-    const CUIT = isProduction ? (process.env.AFIP_CUIT || '20106102741') : '20409318550';
+    // En Producción se usa el CUIT configurado. En homologación SE DEBE usar el CUIT de prueba (20409318550).
+    const cuitDB = settings?.cuit_emisor?.replace(/-/g, '');
+    const CUIT = isProduction ? (cuitDB || process.env.AFIP_CUIT || '20106102741') : '20409318550';
     const baseDir = process.env.PORTABLE_EXECUTABLE_DIR || process.cwd();
 
     const certPath = path.join(baseDir, 'afip_res', isProduction ? 'cert.crt' : 'cert_test.crt');

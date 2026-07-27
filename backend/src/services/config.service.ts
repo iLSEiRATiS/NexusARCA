@@ -58,4 +58,27 @@ export class ConfigService {
       },
     });
   }
+
+  /**
+   * Guarda los certificados de producción recibidos desde el frontend.
+   */
+  static async saveCertificates(certText: string, keyText: string) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const baseDir = process.env.PORTABLE_EXECUTABLE_DIR || process.cwd();
+    const afipResDir = path.join(baseDir, 'afip_res');
+    
+    if (!fs.existsSync(afipResDir)) {
+      fs.mkdirSync(afipResDir, { recursive: true });
+    }
+
+    const certPath = path.join(afipResDir, 'cert.crt');
+    const keyPath = path.join(afipResDir, 'key.key');
+
+    fs.writeFileSync(certPath, certText.trim(), 'utf8');
+    fs.writeFileSync(keyPath, keyText.trim(), 'utf8');
+
+    return { success: true, message: 'Certificados guardados correctamente' };
+  }
 }

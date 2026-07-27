@@ -5,5 +5,6 @@ const router = Router();
 
 router.get('/', ConfigController.get);
 router.put('/', ConfigController.update);
+router.post('/certificates', ConfigController.uploadCertificates);
 
 export default router;

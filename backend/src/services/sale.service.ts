@@ -373,6 +373,7 @@ export class SaleService {
           estado_factura: 'ANULADA',
           cae_nota_credito: afipResult.cae,
           nro_comprobante_nc: afipResult.nro_comprobante,
+          fecha_nota_credito: new Date(), // Fecha real de emisión de la NC
         },
         include: { client: true, items: true }
       });

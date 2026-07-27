@@ -53,9 +53,22 @@ const SettingsPage = () => {
       const res = await api.put('/config', payload);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['config'] });
-      toast.success('Configuración guardada correctamente.');
+      
+      if ((form as any).cert_file && (form as any).key_file) {
+        try {
+          await api.post('/config/certificates', {
+            cert: (form as any).cert_file,
+            key: (form as any).key_file
+          });
+          toast.success('Configuración y certificados guardados correctamente.');
+        } catch (err: any) {
+          toast.error('Configuración guardada, pero hubo un error al subir los certificados: ' + (err.response?.data?.message || err.message));
+        }
+      } else {
+        toast.success('Configuración guardada correctamente.');
+      }
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || 'Error al guardar la configuración.');
@@ -279,6 +292,58 @@ const SettingsPage = () => {
                   </div>
                 </button>
               </div>
+            </div>
+
+            {/* ── CARGA DE CERTIFICADOS ── */}
+            <div className="pt-6 border-t border-slate-200">
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
+                Certificados de Producción ARCA
+              </label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 border border-slate-200 p-4">
+                  <p className="text-[10px] font-black uppercase text-slate-900 mb-2">Certificado (.crt)</p>
+                  <input 
+                    type="file" 
+                    accept=".crt"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => set('cert_file', evt.target?.result);
+                        reader.readAsText(file);
+                      }
+                    }}
+                    className="text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
+                  />
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-4">
+                  <p className="text-[10px] font-black uppercase text-slate-900 mb-2">Llave Privada (.key)</p>
+                  <input 
+                    type="file" 
+                    accept=".key"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => set('key_file', evt.target?.result);
+                        reader.readAsText(file);
+                      }
+                    }}
+                    className="text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
+                  />
+                </div>
+              </div>
+              
+              {form.cert_file && form.key_file && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-blue-600" />
+                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-800">
+                    Archivos listos para subir al guardar configuración
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Última actualización */}

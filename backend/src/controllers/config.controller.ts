@@ -31,4 +31,16 @@ export class ConfigController {
 
     res.json(updated);
   });
+
+  static uploadCertificates = asyncHandler(async (req: Request, res: Response) => {
+    const { cert, key } = req.body;
+    
+    if (!cert || !key) {
+      res.status(400).json({ message: 'Faltan los archivos de certificado y/o llave.' });
+      return;
+    }
+
+    const result = await ConfigService.saveCertificates(cert, key);
+    res.json(result);
+  });
 }
