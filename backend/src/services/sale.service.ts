@@ -37,7 +37,8 @@ export class SaleService {
 
       for (const item of sale.items) {
         const precio_original_ars = Number(item.precio_unitario_ars);
-        const subtotal_original = precio_original_ars * item.cantidad;
+        const cantidad_num = Number(item.cantidad);
+        const subtotal_original = precio_original_ars * cantidad_num;
         const iva_original = subtotal_original * (Number(item.iva_tasa) / 100);
         total_original_ars += (subtotal_original + iva_original);
 
@@ -55,7 +56,7 @@ export class SaleService {
           }
         }
 
-        const subtotal_item = precio_unitario_ars * item.cantidad;
+        const subtotal_item = precio_unitario_ars * cantidad_num;
         const iva_item = subtotal_item * (Number(item.iva_tasa) / 100);
 
         total_real_ars += (subtotal_item + iva_item);

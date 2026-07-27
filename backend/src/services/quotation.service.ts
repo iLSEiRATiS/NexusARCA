@@ -120,7 +120,7 @@ export class QuotationService {
       client_id: quotation.client_id,
       items: quotation.items.map(item => ({
         descripcion: item.descripcion,
-        cantidad: item.cantidad,
+        cantidad: Number(item.cantidad),
         precio_unitario_usd: Number(item.precio_unitario_usd),
         iva_tasa: Number(item.iva_tasa)
       })),
