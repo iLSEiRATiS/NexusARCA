@@ -325,20 +325,9 @@ export class SaleService {
         }
       });
 
-      const currentClient = await tx.client.findUnique({ where: { id: client_id } });
-      if (currentClient) {
-        const newSaldoBlanco = Number(currentClient.saldo_blanco) - monto_facturado_ars;
-        const newSaldoNegro = Number(currentClient.saldo_negro) - monto_no_facturado_ars;
-        
-        await tx.client.update({
-          where: { id: client_id },
-          data: { 
-            saldo_blanco: newSaldoBlanco,
-            saldo_negro: newSaldoNegro,
-            saldo_deuda: newSaldoBlanco + newSaldoNegro
-          }
-        });
-      }
+      // NOTA: El saldo del cliente NO se impacta al crear la venta en estado PENDIENTE.
+      // El descuento se realiza únicamente en processBilling() cuando la venta
+      // pasa a FACTURADO o REMITO. Así se evita el doble descuento.
 
       return sale;
     });
