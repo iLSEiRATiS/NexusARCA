@@ -254,7 +254,11 @@ const SettingsPage = () => {
               </label>
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => set('modo_produccion', false)}
+                  onClick={() => {
+                    set('modo_produccion', false);
+                    set('cert_file', null);
+                    set('key_file', null);
+                  }}
                   className={`p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
                     !form.modo_produccion
                       ? 'border-amber-500 bg-amber-50'
@@ -276,6 +280,8 @@ const SettingsPage = () => {
                   onClick={() => {
                     if (window.confirm('⚠️ ¿Confirmar cambio a PRODUCCIÓN?\n\nA partir de este momento todas las facturas emitidas tendrán validez fiscal real ante AFIP/ARCA.\n\nAsegúrese de que los datos del emisor sean los correctos.')) {
                       set('modo_produccion', true);
+                      set('cert_file', null);
+                      set('key_file', null);
                     }
                   }}
                   className={`p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
@@ -303,7 +309,7 @@ const SettingsPage = () => {
                 {form.modo_produccion ? 'Certificados de Producción ARCA' : 'Certificados de Homologación (Pruebas)'}
               </label>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div key={form.modo_produccion ? 'prod' : 'test'} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-slate-50 border border-slate-200 p-4">
                   <p className="text-[10px] font-black uppercase text-slate-900 mb-2">Certificado (.crt)</p>
                   <input 
