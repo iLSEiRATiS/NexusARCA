@@ -86,10 +86,13 @@ const SalesPage = () => {
   const openProcessModal = (sale: any) => {
     // FIX: usar item.precio_unitario_usd directamente (no item.product?.precio_usd)
     const initialPrices: Record<number, { price: number, currency: 'USD' | 'ARS' }> = {};
+    const splitRatio = sale.porcentaje_split !== undefined ? Number(sale.porcentaje_split) / 100 : 1;
+
     sale.items.forEach((item: any) => {
       const precioUsd = Number(item.precio_unitario_usd) || 0;
+      const basePrice = precioUsd > 0 ? precioUsd : Number(item.precio_unitario_ars) || 0;
       initialPrices[item.id] = { 
-        price: precioUsd > 0 ? precioUsd : Number(item.precio_unitario_ars) || 0, 
+        price: basePrice * splitRatio, 
         currency: precioUsd > 0 ? 'USD' : 'ARS'
       };
     });

@@ -182,7 +182,8 @@ export class SaleService {
             await tx.client.update({
               where: { id: sale.client_id },
               data: {
-                saldo_negro: { decrement: diferencial }
+                saldo_negro: { decrement: diferencial },
+                saldo_deuda: { decrement: diferencial }
               }
             });
           }
@@ -288,6 +289,7 @@ export class SaleService {
         porcentaje_split = 0;
       } else if (monto_negro !== undefined && monto_negro >= 0) {
         // El operador ingresó un monto negro explícito
+        console.log(`[SaleService] Utilizando monto_negro explícito: ${monto_negro}`);
         monto_no_facturado_ars = Math.min(monto_negro, total_real_ars); // No puede ser mayor al total
         monto_facturado_ars = total_real_ars - monto_no_facturado_ars;
         porcentaje_split = total_real_ars > 0 ? (monto_facturado_ars / total_real_ars) * 100 : 100;
@@ -297,6 +299,7 @@ export class SaleService {
         monto_facturado_ars = total_real_ars * (porcentaje_split / 100);
         monto_no_facturado_ars = total_real_ars - monto_facturado_ars;
       }
+      console.log(`[SaleService] monto_negro=${monto_negro}, total_real_ars=${total_real_ars}, monto_facturado=${monto_facturado_ars}, monto_no_facturado=${monto_no_facturado_ars}, split=${porcentaje_split}`);
 
       const ratio_facturado = total_real_ars > 0 ? monto_facturado_ars / total_real_ars : 1;
       const subtotal_ars = total_subtotal_ars * ratio_facturado;
