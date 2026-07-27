@@ -153,24 +153,7 @@ const NewSalePage = () => {
   };
 
   const createSaleMutation = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        cuit: clientCuit,
-        items: cart.map(item => {
-          const precio_usd = item.moneda === 'USD' ? Number(item.precio) : Number(item.precio) / cotizacion;
-          return { 
-            descripcion: item.descripcion,
-            cantidad: Number(item.cantidad),
-            precio_unitario_usd: precio_usd,
-            iva_tasa: Number(item.iva_tasa)
-          };
-        }),
-        tipo_comprobante: tipoComprobante,
-        percepciones_iibb_ars: percepcionIIBB,
-        percepciones_iva_ars: percepcionIVA,
-        fecha_vto_pago: fechaVtoPago ? fechaVtoPago : undefined,
-        monto_negro: cobroNegro > 0 ? cobroNegro : undefined
-      };
+    mutationFn: async (payload: any) => {
       return api.post('/sales', payload);
     },
     onSuccess: () => {
@@ -509,7 +492,26 @@ const NewSalePage = () => {
               
               <button 
                 onClick={() => {
-                  if(window.confirm('¿CONFIRMAR REGISTRO DE OPERACIÓN?')) createSaleMutation.mutate();
+                  if(window.confirm('¿CONFIRMAR REGISTRO DE OPERACIÓN?')) {
+                    const payload = {
+                      cuit: clientCuit,
+                      items: cart.map(item => {
+                        const precio_usd = item.moneda === 'USD' ? Number(item.precio) : Number(item.precio) / cotizacion;
+                        return { 
+                          descripcion: item.descripcion,
+                          cantidad: Number(item.cantidad),
+                          precio_unitario_usd: precio_usd,
+                          iva_tasa: Number(item.iva_tasa)
+                        };
+                      }),
+                      tipo_comprobante: tipoComprobante,
+                      percepciones_iibb_ars: percepcionIIBB,
+                      percepciones_iva_ars: percepcionIVA,
+                      fecha_vto_pago: fechaVtoPago ? fechaVtoPago : undefined,
+                      monto_negro: cobroNegro > 0 ? cobroNegro : undefined
+                    };
+                    createSaleMutation.mutate(payload);
+                  }
                 }}
                 disabled={createSaleMutation.isPending || cart.length === 0 || !clientCuit || cuitNoRegistrado || superaTopeCF}
                 className="w-full bg-blue-600 text-white py-6 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-blue-700 transition-all disabled:bg-slate-100 disabled:text-slate-300 shadow-lg shadow-blue-100"
