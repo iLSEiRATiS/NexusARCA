@@ -434,17 +434,19 @@ const NewSalePage = () => {
         {/* CARRITO RESUMEN LATERAL */}
         <div className="lg:pl-8">
           <section className="sticky top-32 space-y-8 bg-white border border-slate-900 p-8 shadow-2xl">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 border-b border-slate-100 pb-4">Resumen USD</h2>
+            <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 border-b border-slate-100 pb-4">Resumen de Operación</h2>
             
             <div className="space-y-6 max-h-[45vh] overflow-y-auto pr-4 custom-scrollbar">
               {cart.map(item => (
                 <div key={item.id} className="group border-b border-slate-50 pb-6 last:border-0 flex justify-between items-center">
                   <div className="min-w-0 pr-4">
                     <p className="font-black uppercase text-[10px] tracking-tight text-slate-900 mb-1 truncate">{item.descripcion}</p>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase">{item.cantidad} KG x {item.moneda === 'USD' ? 'U$D' : 'ARS'} {Number(item.precio || 0).toFixed(2)}</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase">{item.cantidad} KG x {item.moneda === 'USD' ? 'U$D' : 'ARS'} {Number(item.precio || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                   </div>
                   <div className="text-right whitespace-nowrap">
-                    <p className="font-black text-blue-600 text-[11px]">U$D {item.subtotal_usd.toFixed(2)}</p>
+                    <p className="font-black text-blue-600 text-[11px]">
+                      {item.moneda === 'USD' ? 'U$D' : 'ARS'} {(Number(item.cantidad) * Number(item.precio || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -456,9 +458,15 @@ const NewSalePage = () => {
             </div>
 
             <div className="space-y-6 pt-8 border-t-2 border-slate-900">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Base Imponible USD</span>
-                <span className="text-lg font-black text-slate-900">U$D {totalUsd.toFixed(2)}</span>
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Base Imponible ARS</span>
+                  <span className="text-lg font-black text-slate-900">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-300 font-bold text-[9px] uppercase tracking-widest">Equivalente USD</span>
+                  <span className="text-[10px] font-black text-slate-400">U$D {totalUsd.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
               </div>
               
               <button 
