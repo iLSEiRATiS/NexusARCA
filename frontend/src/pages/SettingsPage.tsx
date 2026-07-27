@@ -62,7 +62,8 @@ const SettingsPage = () => {
         try {
           await api.post('/config/certificates', {
             cert: (form as any).cert_file,
-            key: (form as any).key_file
+            key: (form as any).key_file,
+            isTest: !form.modo_produccion
           });
           toast.success('Configuración y certificados guardados correctamente.');
         } catch (err: any) {
@@ -299,7 +300,7 @@ const SettingsPage = () => {
             {/* ── CARGA DE CERTIFICADOS ── */}
             <div className="pt-6 border-t border-slate-200">
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
-                Certificados de Producción ARCA
+                {form.modo_produccion ? 'Certificados de Producción ARCA' : 'Certificados de Homologación (Pruebas)'}
               </label>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -60,9 +60,9 @@ export class ConfigService {
   }
 
   /**
-   * Guarda los certificados de producción recibidos desde el frontend.
+   * Guarda los certificados recibidos desde el frontend.
    */
-  static async saveCertificates(certText: string, keyText: string) {
+  static async saveCertificates(certText: string, keyText: string, isTest: boolean = false) {
     const fs = require('fs');
     const path = require('path');
     
@@ -73,12 +73,12 @@ export class ConfigService {
       fs.mkdirSync(afipResDir, { recursive: true });
     }
 
-    const certPath = path.join(afipResDir, 'cert.crt');
-    const keyPath = path.join(afipResDir, 'key.key');
+    const certPath = path.join(afipResDir, isTest ? 'cert_test.crt' : 'cert.crt');
+    const keyPath = path.join(afipResDir, isTest ? 'key_test.key' : 'key.key');
 
     fs.writeFileSync(certPath, certText.trim(), 'utf8');
     fs.writeFileSync(keyPath, keyText.trim(), 'utf8');
 
-    return { success: true, message: 'Certificados guardados correctamente' };
+    return { success: true, message: isTest ? 'Certificados de prueba guardados correctamente' : 'Certificados de producción guardados correctamente' };
   }
 }
