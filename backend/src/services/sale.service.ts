@@ -27,13 +27,24 @@ export class SaleService {
     if (mode === 'ARCA' && sale.cae) throw new AppError('La venta ya posee CAE asignado', 400);
 
     return await prisma.$transaction(async (tx) => {
+      // Calcular total ORIGINAL (precios sin ajustar) para detectar diferencial
+      let total_original_ars = 0;
+
+      // Calcular ratio automatico si la venta tiene monto_negro pre-guardado y no hay customPrices manuales
+      const monto_negro_pregrabado = Number(sale.monto_no_facturado_ars || 0);
+      const total_original_estimado = sale.items.reduce((acc, item) => {
+        const n = Number(item.precio_unitario_ars) * Number(item.cantidad);
+        return acc + n + n * (Number(item.iva_tasa) / 100);
+      }, 0);
+      const hasCustomPrices = customPrices && Object.keys(customPrices).length > 0;
+      const autoRatio = (!hasCustomPrices && monto_negro_pregrabado > 0 && total_original_estimado > 0)
+        ? (total_original_estimado - monto_negro_pregrabado) / total_original_estimado
+        : 1;
+
       // Calcular total con precios AJUSTADOS (lo que va a ARCA)
       let total_real_ars = 0;
       let subtotal_ars = 0;
       let iva_ars = 0;
-
-      // Calcular total ORIGINAL (precios sin ajustar) para detectar diferencial
-      let total_original_ars = 0;
 
       for (const item of sale.items) {
         const precio_original_ars = Number(item.precio_unitario_ars);
@@ -45,8 +56,8 @@ export class SaleService {
         let precio_unitario_ars = precio_original_ars;
         let precio_unitario_usd = Number(item.precio_unitario_usd);
 
-        if (customPrices && customPrices[item.id]) {
-          const config = customPrices[item.id];
+        if (hasCustomPrices && customPrices![item.id]) {
+          const config = customPrices![item.id];
           if (config.currency === 'USD') {
             precio_unitario_usd = config.price;
             precio_unitario_ars = precio_unitario_usd * cotizacion_usada;
@@ -54,6 +65,10 @@ export class SaleService {
             precio_unitario_ars = config.price;
             precio_unitario_usd = precio_unitario_ars / cotizacion_usada;
           }
+        } else if (autoRatio < 1) {
+          // Aplica el ratio del cobro en negro pre-guardado proporcionalmente a cada item
+          precio_unitario_ars = precio_original_ars * autoRatio;
+          precio_unitario_usd = Number(item.precio_unitario_usd) * autoRatio;
         }
 
         const subtotal_item = precio_unitario_ars * cantidad_num;
