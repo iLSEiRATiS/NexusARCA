@@ -29,6 +29,7 @@ const NewSalePage = () => {
   const [tipoComprobante, setTipoComprobante] = useState('Factura A');
   const [percepcionIIBB, setPercepcionIIBB] = useState<number>(0);
   const [percepcionIVA, setPercepcionIVA] = useState<number>(0);
+  const [cobroNegro, setCobroNegro] = useState<number>(0);
 
   const { data: clients, isLoading: isLoadingClients } = useQuery({ 
     queryKey: ['clients'], 
@@ -167,7 +168,8 @@ const NewSalePage = () => {
         tipo_comprobante: tipoComprobante,
         percepciones_iibb_ars: percepcionIIBB,
         percepciones_iva_ars: percepcionIVA,
-        fecha_vto_pago: fechaVtoPago ? fechaVtoPago : undefined
+        fecha_vto_pago: fechaVtoPago ? fechaVtoPago : undefined,
+        monto_negro: cobroNegro > 0 ? cobroNegro : undefined
       };
       return api.post('/sales', payload);
     },
@@ -469,9 +471,34 @@ const NewSalePage = () => {
             </div>
 
             <div className="space-y-6 pt-8 border-t-2 border-slate-900">
+              {/* Campo Cobro en Negro */}
+              {tipoComprobante !== 'Remito' && (
+                <div className="bg-slate-900 p-4">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">⬛ Cobro en Negro (ARS)</p>
+                  <input
+                    type="number"
+                    min={0}
+                    value={cobroNegro || ''}
+                    onChange={e => setCobroNegro(Math.max(0, Number(e.target.value)))}
+                    placeholder="0"
+                    className="w-full bg-slate-800 border-b border-slate-600 text-white font-black text-lg px-3 py-2 outline-none focus:border-blue-400 transition-all"
+                  />
+                  <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
+                      <span className="text-slate-400">✅ Oficial a AFIP:</span>
+                      <span className="text-green-400">${Math.max(0, totalArs - cobroNegro).toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    </div>
+                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
+                      <span className="text-slate-400">⬛ En negro:</span>
+                      <span className="text-amber-400">${cobroNegro.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Base Imponible ARS</span>
+                  <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Subtotal (sin IVA) ARS</span>
                   <span className="text-lg font-black text-slate-900">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
                 </div>
                 <div className="flex justify-between items-center">

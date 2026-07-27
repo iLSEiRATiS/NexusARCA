@@ -214,8 +214,9 @@ export class SaleService {
     items: { descripcion: string; cantidad: number; precio_unitario_usd: number; iva_tasa: number }[];
     tipo_comprobante: string;
     fecha_vto_pago?: string;
+    monto_negro?: number; // Monto explícito a cobrar en negro (si se pasa, override el porcentaje del cliente)
   }) {
-    const { items, tipo_comprobante, fecha_vto_pago } = data;
+    const { items, tipo_comprobante, fecha_vto_pago, monto_negro } = data;
     const cotizacion = await CurrencyService.getDolarOficial();
     
     let client;
@@ -233,7 +234,6 @@ export class SaleService {
     }
 
     const client_id = client.id;
-    const porcentaje_split = tipo_comprobante === 'Remito' ? 0 : Number(client.porcentaje_facturacion ?? 100);
 
     return await prisma.$transaction(async (tx) => {
       let total_real_ars = 0;
@@ -261,9 +261,29 @@ export class SaleService {
         });
       }
 
-      const monto_facturado_ars = total_real_ars * (porcentaje_split / 100);
-      const monto_no_facturado_ars = total_real_ars - monto_facturado_ars;
-      const ratio_facturado = porcentaje_split / 100;
+      // Si se mandó un monto negro explícito desde el frontend, usarlo directamente.
+      // Si no, aplicar el porcentaje configurado en la ficha del cliente.
+      let monto_no_facturado_ars: number;
+      let monto_facturado_ars: number;
+      let porcentaje_split: number;
+
+      if (tipo_comprobante === 'Remito') {
+        monto_facturado_ars = 0;
+        monto_no_facturado_ars = total_real_ars;
+        porcentaje_split = 0;
+      } else if (monto_negro !== undefined && monto_negro >= 0) {
+        // El operador ingresó un monto negro explícito
+        monto_no_facturado_ars = Math.min(monto_negro, total_real_ars); // No puede ser mayor al total
+        monto_facturado_ars = total_real_ars - monto_no_facturado_ars;
+        porcentaje_split = total_real_ars > 0 ? (monto_facturado_ars / total_real_ars) * 100 : 100;
+      } else {
+        // Fallback al porcentaje configurado en la ficha del cliente
+        porcentaje_split = Number(client.porcentaje_facturacion ?? 100);
+        monto_facturado_ars = total_real_ars * (porcentaje_split / 100);
+        monto_no_facturado_ars = total_real_ars - monto_facturado_ars;
+      }
+
+      const ratio_facturado = total_real_ars > 0 ? monto_facturado_ars / total_real_ars : 1;
       const subtotal_ars = total_subtotal_ars * ratio_facturado;
       const iva_ars = total_iva_ars * ratio_facturado;
 
