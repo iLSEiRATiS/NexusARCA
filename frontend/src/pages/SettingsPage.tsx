@@ -15,6 +15,8 @@ interface SystemConfig {
   modo_produccion: boolean;
   cotizacion_dolar_actual: number;
   updatedAt: string;
+  cert_file?: string | ArrayBuffer | null;
+  key_file?: string | ArrayBuffer | null;
 }
 
 const fetchConfig = async (): Promise<SystemConfig> => {
