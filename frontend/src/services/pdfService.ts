@@ -136,7 +136,7 @@ const generateProformaPDF = (sale: any, _EMISOR: EmisorConfig) => {
     const precioUnitArs = Number(item.precio_unitario_ars || 0);
     const ivaRate = Number(item.iva_tasa || 0);
     
-    // Para presupuestos/negro, el precio unitario incluye el recargo del IVA internamente
+    // Para presupuestos/interno, el precio unitario incluye el recargo del IVA internamente
     // para que el total final coincida, pero sin mencionarlo.
     const precioUnitFinal = precioUnitArs * (1 + (ivaRate / 100));
     const subtotalFinal = precioUnitFinal * cantKg;
@@ -946,7 +946,7 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
   doc.text(`$${Number(client.saldo_blanco).toLocaleString('es-AR')}`, pageWidth - 15, 65, { align: 'right' });
 
   doc.text('Saldo Gestión:', pageWidth - 85, 71);
-  doc.text(`$${Number(client.saldo_negro).toLocaleString('es-AR')}`, pageWidth - 15, 71, { align: 'right' });
+  doc.text(`$${Number(client.saldo_interno).toLocaleString('es-AR')}`, pageWidth - 15, 71, { align: 'right' });
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');

@@ -224,8 +224,8 @@ const ClientsPage = () => {
                           <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_blanco)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </div>
                         <div className="px-3 py-1 border border-slate-100 text-center min-w-[100px] bg-white">
-                          <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Negro</p>
-                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_negro)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                          <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Interno</p>
+                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_interno)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </div>
                         <div className={`px-3 py-1 border text-center min-w-[100px] ${hasDebt ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-900'}`}>
                           <p className={`text-[7px] font-bold uppercase tracking-widest ${hasDebt ? 'text-slate-400' : 'text-slate-400'}`}>{hasDebt ? 'Deuda' : 'Saldo'}</p>
@@ -268,7 +268,7 @@ const ClientsPage = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 border border-slate-100 text-center bg-slate-50"><p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-1">Blanco</p><p className="text-xs font-black text-slate-900">${Number(client.saldo_blanco).toLocaleString('es-AR')}</p></div>
-                  <div className="p-2 border border-slate-100 text-center bg-slate-50"><p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-1">Negro</p><p className="text-xs font-black text-slate-900">${Number(client.saldo_negro).toLocaleString('es-AR')}</p></div>
+                  <div className="p-2 border border-slate-100 text-center bg-slate-50"><p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-1">Interno</p><p className="text-xs font-black text-slate-900">${Number(client.saldo_interno).toLocaleString('es-AR')}</p></div>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => openDetails(client)} className="flex-1 border border-slate-200 text-slate-600 py-2 font-black text-[9px] uppercase tracking-widest">Historial</button>
@@ -302,7 +302,7 @@ const ClientsPage = () => {
               <div className="sm:hidden mb-6"><button onClick={handleExportStatement} className="w-full bg-slate-900 text-white py-3 rounded-none font-black text-[10px] uppercase tracking-widest">📄 Descargar Estado de Cuenta</button></div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
                 <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Blanco</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_blanco).toLocaleString('es-AR')}</p></div>
-                <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Negro</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_negro).toLocaleString('es-AR')}</p></div>
+                <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Interno</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_interno).toLocaleString('es-AR')}</p></div>
                 <div className="p-6 bg-blue-600 text-white flex flex-col justify-between shadow-lg shadow-blue-100">
                   <div><p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Adeudado</p><p className="text-2xl font-black">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p></div>
                   <button onClick={() => setIsPaymentModalOpen(true)} className="mt-4 border border-white text-white py-2 font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-blue-600 transition-all">Registrar Cobro</button>
@@ -482,8 +482,8 @@ const ClientsPage = () => {
                   <span className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
                 <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Negro</p>
-                  <span className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_negro)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Interno</p>
+                  <span className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_interno)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
               </div>
 
@@ -502,7 +502,7 @@ const ClientsPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Método</label><select value={paymentData.metodo} onChange={e => setPaymentData({ ...paymentData, metodo: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="CHEQUE">Cheque</option></select></div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imputación</label><select value={paymentData.imputacion} onChange={e => setPaymentData({ ...paymentData, imputacion: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="MIXTO">Mixto (Auto)</option><option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0}>Solo Blanco</option><option value="NEGRO" disabled={Number(selectedClient.saldo_negro) >= 0}>Solo Negro</option></select></div>
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imputación</label><select value={paymentData.imputacion} onChange={e => setPaymentData({ ...paymentData, imputacion: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="MIXTO">Mixto (Auto)</option><option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0}>Solo Blanco</option><option value="INTERNO" disabled={Number(selectedClient.saldo_interno) >= 0}>Solo Interno</option></select></div>
               </div>
               <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">Confirmar Cobro</button>
             </form>

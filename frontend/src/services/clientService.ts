@@ -9,7 +9,7 @@ export interface Client {
   nro_iibb: string | null;
   telefono: string | null;
   saldo_blanco: number;
-  saldo_negro: number;
+  saldo_interno: number;
   saldo_deuda: number;
   porcentaje_facturacion: number;
 }

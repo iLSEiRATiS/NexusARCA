@@ -107,7 +107,7 @@ const Dashboard = () => {
          <Link to="/clientes" className="bg-white border border-slate-200 p-8 hover:border-blue-600 transition-all group">
            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block mb-4 group-hover:text-blue-600 transition-colors">Cartera Comercial</span>
            <span className="text-2xl font-black uppercase block mb-2 text-slate-900">Clientes & Cuentas</span>
-           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Gestión de saldos blancos y negros</span>
+           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Gestión de saldos oficiales e internos</span>
          </Link>
 
          <button onClick={() => setIsImportModalOpen(true)} className="bg-white border border-slate-200 p-8 hover:border-blue-600 transition-all text-left group">

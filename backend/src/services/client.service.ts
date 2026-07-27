@@ -49,7 +49,7 @@ export class ClientService {
     });
   }
 
-  static async registerPayment(clientId: number, montoArs: number, tipo: 'BLANCO' | 'NEGRO' | 'MIXTO' = 'MIXTO', metodo: string = 'TRANSFERENCIA', referencia: string = '') {
+  static async registerPayment(clientId: number, montoArs: number, tipo: 'BLANCO' | 'INTERNO' | 'MIXTO' = 'MIXTO', metodo: string = 'TRANSFERENCIA', referencia: string = '') {
     if (isNaN(montoArs) || montoArs <= 0) {
       throw new AppError('El monto debe ser un número positivo', 400);
     }
@@ -59,21 +59,21 @@ export class ClientService {
       if (!client) throw new AppError('Cliente no encontrado', 404);
 
       let newSaldoBlanco = Number(client.saldo_blanco);
-      let newSaldoNegro = Number(client.saldo_negro);
+      let newSaldoInterno = Number(client.saldo_interno);
 
       if (tipo === 'BLANCO') {
         newSaldoBlanco += montoArs; // Sumar para reducir deuda negativa
-      } else if (tipo === 'NEGRO') {
-        newSaldoNegro += montoArs;
+      } else if (tipo === 'INTERNO') {
+        newSaldoInterno += montoArs;
       } else {
-        // MIXTO: Salda primero Negro, remanente a Blanco
+        // MIXTO: Salda primero Interno, remanente a Blanco
         let restante = montoArs;
         
         // Si el saldo negro es negativo (deuda), lo reducimos sumando
-        if (newSaldoNegro < 0) {
-          const aSaldarNegro = Math.min(restante, Math.abs(newSaldoNegro));
-          newSaldoNegro += aSaldarNegro;
-          restante -= aSaldarNegro;
+        if (newSaldoInterno < 0) {
+          const aSaldarInterno = Math.min(restante, Math.abs(newSaldoInterno));
+          newSaldoInterno += aSaldarInterno;
+          restante -= aSaldarInterno;
         }
         
         // Si sobra dinero del cobro, lo aplicamos al blanco
@@ -99,8 +99,8 @@ export class ClientService {
         where: { id: clientId },
         data: {
           saldo_blanco: newSaldoBlanco,
-          saldo_negro: newSaldoNegro,
-          saldo_deuda: newSaldoBlanco + newSaldoNegro
+          saldo_interno: newSaldoInterno,
+          saldo_deuda: newSaldoBlanco + newSaldoInterno
         }
       });
 
@@ -112,7 +112,7 @@ export class ClientService {
     const client = await prisma.client.findUnique({ where: { id: clientId } });
     if (!client) return;
 
-    const total = Number(client.saldo_blanco) + Number(client.saldo_negro);
+    const total = Number(client.saldo_blanco) + Number(client.saldo_interno);
     await prisma.client.update({
       where: { id: clientId },
       data: { saldo_deuda: total }

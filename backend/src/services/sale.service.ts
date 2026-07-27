@@ -30,15 +30,15 @@ export class SaleService {
       // Calcular total ORIGINAL (precios sin ajustar) para detectar diferencial
       let total_original_ars = 0;
 
-      // Calcular ratio automatico si la venta tiene monto_negro pre-guardado y no hay customPrices manuales
-      const monto_negro_pregrabado = Number(sale.monto_no_facturado_ars || 0);
+      // Calcular ratio automatico si la venta tiene monto_interno pre-guardado y no hay customPrices manuales
+      const monto_interno_pregrabado = Number(sale.monto_no_facturado_ars || 0);
       const total_original_estimado = sale.items.reduce((acc, item) => {
         const n = Number(item.precio_unitario_ars) * Number(item.cantidad);
         return acc + n + n * (Number(item.iva_tasa) / 100);
       }, 0);
       const hasCustomPrices = customPrices && Object.keys(customPrices).length > 0;
-      const autoRatio = (!hasCustomPrices && monto_negro_pregrabado > 0 && total_original_estimado > 0)
-        ? (total_original_estimado - monto_negro_pregrabado) / total_original_estimado
+      const autoRatio = (!hasCustomPrices && monto_interno_pregrabado > 0 && total_original_estimado > 0)
+        ? (total_original_estimado - monto_interno_pregrabado) / total_original_estimado
         : 1;
 
       // Calcular total con precios AJUSTADOS (lo que va a ARCA)
@@ -182,7 +182,7 @@ export class SaleService {
             await tx.client.update({
               where: { id: sale.client_id },
               data: {
-                saldo_negro: { decrement: diferencial },
+                saldo_interno: { decrement: diferencial },
                 saldo_deuda: { decrement: diferencial }
               }
             });
@@ -211,7 +211,7 @@ export class SaleService {
           where: { id: updatedSale.client_id },
           data: {
             saldo_blanco: mode === 'ARCA' ? { decrement: total_real_ars } : undefined,
-            saldo_negro: mode === 'REMITO' ? { decrement: total_real_ars } : undefined,
+            saldo_interno: mode === 'REMITO' ? { decrement: total_real_ars } : undefined,
             saldo_deuda: { decrement: total_real_ars }
           }
         });
@@ -230,9 +230,9 @@ export class SaleService {
     items: { descripcion: string; cantidad: number; precio_unitario_usd: number; iva_tasa: number }[];
     tipo_comprobante: string;
     fecha_vto_pago?: string;
-    monto_negro?: number; // Monto explícito a cobrar en negro (si se pasa, override el porcentaje del cliente)
+    monto_interno?: number; // Monto explícito a cobrar en negro (si se pasa, override el porcentaje del cliente)
   }) {
-    const { items, tipo_comprobante, fecha_vto_pago, monto_negro } = data;
+    const { items, tipo_comprobante, fecha_vto_pago, monto_interno } = data;
     const cotizacion = await CurrencyService.getDolarOficial();
     
     let client;
@@ -287,10 +287,10 @@ export class SaleService {
         monto_facturado_ars = 0;
         monto_no_facturado_ars = total_real_ars;
         porcentaje_split = 0;
-      } else if (monto_negro !== undefined && monto_negro >= 0) {
+      } else if (monto_interno !== undefined && monto_interno >= 0) {
         // El operador ingresó un monto negro explícito
-        console.log(`[SaleService] Utilizando monto_negro explícito: ${monto_negro}`);
-        monto_no_facturado_ars = Math.min(monto_negro, total_real_ars); // No puede ser mayor al total
+        console.log(`[SaleService] Utilizando monto_interno explícito: ${monto_interno}`);
+        monto_no_facturado_ars = Math.min(monto_interno, total_real_ars); // No puede ser mayor al total
         monto_facturado_ars = total_real_ars - monto_no_facturado_ars;
         porcentaje_split = total_real_ars > 0 ? (monto_facturado_ars / total_real_ars) * 100 : 100;
       } else {
@@ -299,7 +299,7 @@ export class SaleService {
         monto_facturado_ars = total_real_ars * (porcentaje_split / 100);
         monto_no_facturado_ars = total_real_ars - monto_facturado_ars;
       }
-      console.log(`[SaleService] monto_negro=${monto_negro}, total_real_ars=${total_real_ars}, monto_facturado=${monto_facturado_ars}, monto_no_facturado=${monto_no_facturado_ars}, split=${porcentaje_split}`);
+      console.log(`[SaleService] monto_interno=${monto_interno}, total_real_ars=${total_real_ars}, monto_facturado=${monto_facturado_ars}, monto_no_facturado=${monto_no_facturado_ars}, split=${porcentaje_split}`);
 
       const ratio_facturado = total_real_ars > 0 ? monto_facturado_ars / total_real_ars : 1;
       const subtotal_ars = total_subtotal_ars * ratio_facturado;
