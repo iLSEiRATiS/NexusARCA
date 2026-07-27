@@ -218,7 +218,7 @@ const SalesPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-6 text-center">
-                      <div className="text-xl font-black text-slate-900 tracking-tighter">${Number(sale.total_real_ars).toLocaleString('es-AR')}</div>
+                      <div className="text-xl font-black text-slate-900 tracking-tighter">${Number(sale.total_real_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                       <div className="text-[8px] text-slate-400 font-black uppercase tracking-widest">REAL ARS</div>
                     </td>
                     <td className="px-8 py-6 text-right">
@@ -281,7 +281,7 @@ const SalesPage = () => {
                   )}
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-black text-slate-900 tracking-tighter">${Number(sale.total_real_ars).toLocaleString('es-AR')}</div>
+                  <div className="text-xl font-black text-slate-900 tracking-tighter">${Number(sale.total_real_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -338,7 +338,7 @@ const SalesPage = () => {
                  <div className="flex items-center gap-6">
                     <div className="text-right hidden sm:block">
                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">DÓLAR BNA OFICIAL</p>
-                       <p className="text-lg font-black text-white">${Number(dolarRate).toFixed(2)}</p>
+                       <p className="text-lg font-black text-white">${Number(dolarRate).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                     </div>
                     <button onClick={() => setBillingConfig({id: null, isOpen: false, sale: null})} className="text-white text-4xl font-light hover:text-slate-400 transition-colors">&times;</button>
                  </div>
@@ -417,7 +417,7 @@ const SalesPage = () => {
                                       const config = billingParams.customPrices[item.id];
                                       if (!config) return '0';
                                       const pArs = config.currency === 'USD' ? config.price * Number(dolarRate) : config.price;
-                                      return (pArs * Number(item.cantidad) * (1 + Number(item.iva_tasa || 21) / 100)).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+                                      return (pArs * Number(item.cantidad) * (1 + Number(item.iva_tasa || 21) / 100)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                                     })()}
                                   </p>
                                 </div>

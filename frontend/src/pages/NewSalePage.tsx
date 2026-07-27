@@ -196,7 +196,7 @@ const NewSalePage = () => {
           </label>
           <div className="text-right hidden sm:block">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dólar Operativo</p>
-            <p className="text-2xl font-black text-blue-600">${cotizacion.toFixed(2)}</p>
+            <p className="text-2xl font-black text-blue-600">${cotizacion.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
           </div>
         </div>
       </div>
@@ -223,7 +223,7 @@ const NewSalePage = () => {
             {selectedClient ? (
               <div className="mt-6 flex flex-col sm:flex-row gap-4 sm:gap-8 text-[10px] font-bold uppercase tracking-widest border-t border-slate-100 pt-4">
                 <span className="text-blue-600 font-black text-sm">{selectedClient.razon_social}</span>
-                <span className="text-slate-400 self-end">Saldo Cartera: <span className={Number(selectedClient.saldo_deuda) < 0 ? 'text-red-600' : 'text-slate-900'}>${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</span></span>
+                <span className="text-slate-400 self-end">Saldo Cartera: <span className={Number(selectedClient.saldo_deuda) < 0 ? 'text-red-600' : 'text-slate-900'}>${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></span>
               </div>
             ) : clientCuit ? (
               <div className="mt-6 text-[10px] font-black uppercase tracking-widest border-t border-slate-100 pt-4 text-red-600 flex items-center gap-2">
@@ -401,32 +401,32 @@ const NewSalePage = () => {
               <div className="bg-slate-50 border border-slate-100 p-8 flex flex-col justify-center">
                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
                     <span className="text-slate-400">Cotización Usada</span>
-                    <span className="text-slate-900">${cotizacion.toFixed(2)}</span>
+                    <span className="text-slate-900">${cotizacion.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                  </div>
                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mt-2">
                     <span className="text-slate-400">Subtotal ARS</span>
-                    <span className="text-slate-900">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    <span className="text-slate-900">${totalArs.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                  </div>
                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mt-2">
                     <span className="text-slate-400">IVA ARS</span>
-                    <span className="text-slate-900">${totalIvaArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    <span className="text-slate-900">${totalIvaArs.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                  </div>
                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mt-2">
                     <span className="text-slate-400">Percepciones</span>
-                    <span className="text-slate-900">${(percepcionIIBB + percepcionIVA).toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                    <span className="text-slate-900">${(percepcionIIBB + percepcionIVA).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                  </div>
                  <div className="pt-5 mt-5 border-t border-slate-200 flex justify-between items-center">
                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Total Factura</span>
-                     <span className="text-3xl font-black text-blue-600 tracking-tighter">${totalFactura.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                     <span className="text-3xl font-black text-blue-600 tracking-tighter">${totalFactura.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                   </div>
                   {tipoComprobante !== 'Remito' && selectedClient && Number(selectedClient.porcentaje_facturacion) < 100 && (
                     <div className="mt-4 bg-blue-50 border border-blue-200 p-4 flex flex-col gap-2">
                       <div className="flex items-center justify-between text-[9px] font-black text-blue-800 uppercase tracking-widest">
                         <span>Split Facturación Aplicado ({selectedClient.porcentaje_facturacion}%)</span>
-                        <span>A declarar en AFIP: ${(totalFactura * (Number(selectedClient.porcentaje_facturacion) / 100)).toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                        <span>A declarar en AFIP: ${(totalFactura * (Number(selectedClient.porcentaje_facturacion) / 100)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                       </div>
                       <p className="text-[8px] font-bold text-blue-600 uppercase tracking-widest">
-                        El {100 - Number(selectedClient.porcentaje_facturacion)}% restante (${(totalFactura * ((100 - Number(selectedClient.porcentaje_facturacion)) / 100)).toLocaleString('es-AR', {maximumFractionDigits: 0})}) se registrará internamente.
+                        El {100 - Number(selectedClient.porcentaje_facturacion)}% restante (${(totalFactura * ((100 - Number(selectedClient.porcentaje_facturacion)) / 100)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}) se registrará internamente.
                       </p>
                     </div>
                   )}
@@ -486,11 +486,11 @@ const NewSalePage = () => {
                   <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
                       <span className="text-slate-400">✅ Oficial a AFIP:</span>
-                      <span className="text-green-400">${Math.max(0, totalArs - cobroNegro).toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                      <span className="text-green-400">${Math.max(0, totalArs - cobroNegro).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
                       <span className="text-slate-400">⬛ En negro:</span>
-                      <span className="text-amber-400">${cobroNegro.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                      <span className="text-amber-400">${cobroNegro.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
                   </div>
                 </div>
@@ -499,7 +499,7 @@ const NewSalePage = () => {
               <div className="flex flex-col gap-1">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Subtotal (sin IVA) ARS</span>
-                  <span className="text-lg font-black text-slate-900">${totalArs.toLocaleString('es-AR', {maximumFractionDigits: 0})}</span>
+                  <span className="text-lg font-black text-slate-900">${totalArs.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-300 font-bold text-[9px] uppercase tracking-widest">Equivalente USD</span>

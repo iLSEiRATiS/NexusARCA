@@ -221,15 +221,15 @@ const ClientsPage = () => {
                       <div className="flex justify-center gap-2">
                         <div className="px-3 py-1 border border-slate-100 text-center min-w-[100px] bg-white">
                           <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Blanco</p>
-                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_blanco)).toLocaleString('es-AR')}</p>
+                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_blanco)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </div>
                         <div className="px-3 py-1 border border-slate-100 text-center min-w-[100px] bg-white">
                           <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Negro</p>
-                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_negro)).toLocaleString('es-AR')}</p>
+                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_negro)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </div>
                         <div className={`px-3 py-1 border text-center min-w-[100px] ${hasDebt ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-900'}`}>
                           <p className={`text-[7px] font-bold uppercase tracking-widest ${hasDebt ? 'text-slate-400' : 'text-slate-400'}`}>{hasDebt ? 'Deuda' : 'Saldo'}</p>
-                          <p className="text-[11px] font-black">${Math.abs(totalDebt).toLocaleString('es-AR')}</p>
+                          <p className="text-[11px] font-black">${Math.abs(totalDebt).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </div>
                       </div>
                     </td>
@@ -263,7 +263,7 @@ const ClientsPage = () => {
                     <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">CUIT: {client.cuit} • {client.porcentaje_facturacion}% SPLIT</div>
                   </div>
                   <div className={`shrink-0 px-2 py-1 border border-slate-900 ml-2 ${hasDebt ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}`}>
-                    <p className="text-[10px] font-black tracking-tighter">${Math.abs(totalDebt).toLocaleString('es-AR')}</p>
+                    <p className="text-[10px] font-black tracking-tighter">${Math.abs(totalDebt).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -332,7 +332,7 @@ const ClientsPage = () => {
                           <div className="flex items-center gap-6">
                             <div className="text-right">
                               <p className={`text-xl font-black ${item.type === 'venta' ? 'text-slate-900' : 'text-blue-600'}`}>
-                                {item.type === 'venta' ? '-' : '+'}${Number(item.total_real_ars || item.monto_ars).toLocaleString('es-AR')}
+                                <span className="font-black tracking-tighter text-lg">{item.type === 'venta' ? `-$${Number(item.total_real_ars || item.monto_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : `+$${Number(item.monto_ars || item.total_real_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}</span>
                               </p>
                               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">ARS</p>
                             </div>
@@ -479,11 +479,11 @@ const ClientsPage = () => {
               <div className="p-4 bg-white border border-slate-200 flex justify-between items-center mb-4 shadow-sm">
                 <div>
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deuda Total</p>
-                  <p className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p>
+                  <span className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Negro</p>
-                  <p className="text-sm font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_negro)).toLocaleString('es-AR')}</p>
+                  <span className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_negro)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
               </div>
 
