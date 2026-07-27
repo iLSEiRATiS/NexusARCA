@@ -374,17 +374,33 @@ const SalesPage = () => {
                              <div className="flex items-center gap-4 w-full sm:w-auto">
                                 <div className="flex border border-slate-200 bg-slate-50 overflow-hidden">
                                    <button 
-                                     onClick={() => setBillingParams({
-                                       ...billingParams, 
-                                       customPrices: { ...billingParams.customPrices, [item.id]: { ...billingParams.customPrices[item.id], currency: 'USD' } }
-                                     })}
+                                     onClick={() => {
+                                       const currentPrice = billingParams.customPrices[item.id]?.price || 0;
+                                       const currentCurrency = billingParams.customPrices[item.id]?.currency || 'ARS';
+                                       let newPrice = currentPrice;
+                                       if (currentCurrency === 'ARS' && Number(dolarRate) > 0) {
+                                         newPrice = currentPrice / Number(dolarRate);
+                                       }
+                                       setBillingParams({
+                                         ...billingParams, 
+                                         customPrices: { ...billingParams.customPrices, [item.id]: { currency: 'USD', price: newPrice } }
+                                       });
+                                     }}
                                      className={`px-4 py-2 text-[9px] font-black transition-all ${billingParams.customPrices[item.id]?.currency === 'USD' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-900'}`}
                                    >USD</button>
                                    <button 
-                                     onClick={() => setBillingParams({
-                                       ...billingParams, 
-                                       customPrices: { ...billingParams.customPrices, [item.id]: { ...billingParams.customPrices[item.id], currency: 'ARS' } }
-                                     })}
+                                     onClick={() => {
+                                       const currentPrice = billingParams.customPrices[item.id]?.price || 0;
+                                       const currentCurrency = billingParams.customPrices[item.id]?.currency || 'ARS';
+                                       let newPrice = currentPrice;
+                                       if (currentCurrency === 'USD') {
+                                         newPrice = currentPrice * Number(dolarRate);
+                                       }
+                                       setBillingParams({
+                                         ...billingParams, 
+                                         customPrices: { ...billingParams.customPrices, [item.id]: { currency: 'ARS', price: newPrice } }
+                                       });
+                                     }}
                                      className={`px-4 py-2 text-[9px] font-black transition-all ${billingParams.customPrices[item.id]?.currency === 'ARS' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-900'}`}
                                    >ARS</button>
                                 </div>
