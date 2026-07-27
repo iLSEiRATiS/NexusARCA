@@ -402,17 +402,6 @@ const NewSalePage = () => {
                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Total Factura</span>
                      <span className="text-3xl font-black text-blue-600 tracking-tighter">${totalFactura.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                   </div>
-                  {tipoComprobante !== 'Remito' && selectedClient && Number(selectedClient.porcentaje_facturacion) < 100 && (
-                    <div className="mt-4 bg-blue-50 border border-blue-200 p-4 flex flex-col gap-2">
-                      <div className="flex items-center justify-between text-[9px] font-black text-blue-800 uppercase tracking-widest">
-                        <span>Split Facturación Aplicado ({selectedClient.porcentaje_facturacion}%)</span>
-                        <span>A declarar en AFIP: ${(totalFactura * (Number(selectedClient.porcentaje_facturacion) / 100)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                      </div>
-                      <p className="text-[8px] font-bold text-blue-600 uppercase tracking-widest">
-                        El {100 - Number(selectedClient.porcentaje_facturacion)}% restante (${(totalFactura * ((100 - Number(selectedClient.porcentaje_facturacion)) / 100)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}) se registrará internamente.
-                      </p>
-                    </div>
-                  )}
                   {superaTopeCF && (
                     <div className="mt-4 bg-amber-50 border border-amber-300 p-4 flex items-start gap-3">
                       <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={16} />

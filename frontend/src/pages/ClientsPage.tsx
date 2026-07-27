@@ -195,8 +195,7 @@ const ClientsPage = () => {
               <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
                 <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest">Razón Social / CUIT</th>
                 <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-center">Estado de Cuenta</th>
-                <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-center">Split</th>
-                <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest text-right">Gestión</th>
+                <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -233,9 +232,6 @@ const ClientsPage = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-6 text-center">
-                      <span className="text-slate-900 font-black text-xs uppercase">{client.porcentaje_facturacion}%</span>
-                    </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex justify-end gap-2">
                         <button onClick={() => openDetails(client)} className="border border-slate-200 text-slate-600 px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-50 transition-all tracking-widest">Historial</button>
@@ -260,7 +256,7 @@ const ClientsPage = () => {
                 <div className="flex justify-between items-start">
                   <div className="min-w-0 flex-1">
                     <div className="font-black text-slate-900 text-base uppercase truncate" onClick={() => openDetails(client)}>{client.razon_social}</div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">CUIT: {client.cuit} • {client.porcentaje_facturacion}% SPLIT</div>
+                    <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">CUIT: {client.cuit}</div>
                   </div>
                   <div className={`shrink-0 px-2 py-1 border border-slate-900 ml-2 ${hasDebt ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}`}>
                     <p className="text-[10px] font-black tracking-tighter">${Math.abs(totalDebt).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
@@ -290,7 +286,6 @@ const ClientsPage = () => {
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-tight">{selectedClient.razon_social}</h2>
                 <div className="flex gap-4 mt-2">
                   <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">CUIT: {selectedClient.cuit}</span>
-                  <span className="text-slate-300 font-bold text-[10px] uppercase tracking-widest">Split: {selectedClient.porcentaje_facturacion}%</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -429,19 +424,6 @@ const ClientsPage = () => {
                     <input type="text" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-5 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all" />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Split Oficial (%)</label>
-                    <input
-                      required
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={formData.porcentaje_facturacion}
-                      onKeyDown={preventInvalidChars}
-                      onChange={e => setFormData({ ...formData, porcentaje_facturacion: handleNumericInput(e.target.value) })}
-                      className="w-full bg-white border border-slate-200 p-5 font-black text-slate-900 focus:border-blue-600 outline-none text-base transition-all"
-                    />
-                  </div>
                 </div>
 
                 <div className="mt-8 flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200">
