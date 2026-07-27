@@ -233,7 +233,7 @@ export class SaleService {
     }
 
     const client_id = client.id;
-    const porcentaje_split = tipo_comprobante === 'Factura A' || tipo_comprobante === 'Factura B' ? 100 : 0;
+    const porcentaje_split = tipo_comprobante === 'Remito' ? 0 : Number(client.porcentaje_facturacion ?? 100);
 
     return await prisma.$transaction(async (tx) => {
       let total_real_ars = 0;
