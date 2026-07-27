@@ -162,7 +162,7 @@ export class SaleService {
               subtotal_ars: diferencial,
               iva_ars: 0,
               tipo_comprobante: 'Remito',
-              estado_factura: 'PENDIENTE',
+              estado_factura: 'FACTURADO',
               fecha_vto_pago: sale.fecha_vto_pago,
               items: {
                 create: [{
@@ -193,7 +193,7 @@ export class SaleService {
         updateData = {
           ...updateData,
           tipo_comprobante: 'Remito',
-          estado_factura: 'PENDIENTE',
+          estado_factura: 'FACTURADO',
           monto_facturado_ars: 0,
           monto_no_facturado_ars: total_real_ars,
           porcentaje_split: 0
