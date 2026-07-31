@@ -24,6 +24,7 @@ const NewSalePage = () => {
 
   const [fechaVtoPago, setFechaVtoPago] = useState('');
   const [clientCuit, setClientCuit] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [tipoComprobante, setTipoComprobante] = useState('Factura A');
@@ -42,6 +43,10 @@ const NewSalePage = () => {
   });
 
   const selectedClient = clients?.find((c: any) => c.cuit === clientCuit);
+  const filteredClients = clients?.filter((c: any) => 
+    c.razon_social.toLowerCase().includes(clientCuit.toLowerCase()) || 
+    c.cuit.includes(clientCuit)
+  ) || [];
   const cotizacion = Number(dolar || 1);
 
   useEffect(() => {
@@ -187,21 +192,58 @@ const NewSalePage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
         <div className="lg:col-span-2 space-y-12">
           {/* CLIENTE */}
-          <section className="bg-white border border-slate-200 p-8 shadow-sm relative overflow-hidden group hover:border-blue-600 transition-all">
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-all pointer-events-none">
+          <section className="bg-white border border-slate-200 p-8 shadow-sm relative group hover:border-blue-600 transition-all">
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-all pointer-events-none overflow-hidden">
               <FileText size={100} />
             </div>
             <h2 className="text-[11px] font-black uppercase tracking-[0.3em] mb-8 text-slate-900 flex items-center gap-2">
               <span className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px]">01</span>
               Cliente (CUIT)
             </h2>
-            <input 
-              type="text"
-              placeholder="INGRESE EL CUIT DEL CLIENTE..."
-              className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-4 font-black text-slate-900 text-xl outline-none focus:border-blue-600 transition-all uppercase tracking-widest placeholder:text-slate-300 placeholder:text-sm placeholder:font-bold"
-              value={clientCuit}
-              onChange={(e) => setClientCuit(e.target.value)}
-            />
+            <div className="relative">
+              <input 
+                type="text"
+                placeholder="BUSQUE POR NOMBRE O INGRESE EL CUIT..."
+                className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-4 font-black text-slate-900 text-xl outline-none focus:border-blue-600 transition-all uppercase tracking-widest placeholder:text-slate-300 placeholder:text-sm placeholder:font-bold"
+                value={clientCuit}
+                onChange={(e) => {
+                  setClientCuit(e.target.value);
+                  setShowClientDropdown(true);
+                }}
+                onFocus={() => setShowClientDropdown(true)}
+                onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
+              />
+              
+              {showClientDropdown && !selectedClient && (
+                <div className="absolute z-10 w-full bg-white border border-slate-200 mt-1 shadow-xl max-h-[300px] overflow-y-auto">
+                  {filteredClients.length > 0 ? (
+                    filteredClients.map((c: any) => (
+                      <div 
+                        key={c.id} 
+                        className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex justify-between items-center transition-colors"
+                        onClick={() => { 
+                          setClientCuit(c.cuit); 
+                          setShowClientDropdown(false); 
+                        }}
+                      >
+                        <span className="font-bold text-slate-900 text-sm">{c.razon_social}</span>
+                        <span className="text-slate-500 text-xs font-mono bg-slate-100 px-2 py-1 rounded">{c.cuit}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-slate-400 text-xs font-bold text-center">
+                      NO SE ENCONTRARON CLIENTES
+                    </div>
+                  )}
+                  <div 
+                    className="p-4 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest cursor-pointer hover:bg-blue-600 transition-colors flex justify-center items-center gap-2"
+                    onClick={() => navigate('/clientes')}
+                  >
+                    <Plus size={14} /> CARGAR NUEVO CLIENTE
+                  </div>
+                </div>
+              )}
+            </div>
             
             {selectedClient ? (
               <div className="mt-6 flex flex-col sm:flex-row gap-4 sm:gap-8 text-[10px] font-bold uppercase tracking-widest border-t border-slate-100 pt-4">

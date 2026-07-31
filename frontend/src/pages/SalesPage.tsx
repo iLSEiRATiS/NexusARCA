@@ -83,6 +83,12 @@ const SalesPage = () => {
 
   const sales = data?.data || [];
 
+  const filteredSales = sales.filter((s: any) => {
+    const searchLower = searchTerm.toLowerCase();
+    const razonSocial = (s.client?.razon_social || '').toLowerCase();
+    return razonSocial.includes(searchLower) || String(s.id).includes(searchTerm);
+  });
+
   const openProcessModal = (sale: any) => {
     // FIX: usar item.precio_unitario_usd directamente (no item.product?.precio_usd)
     const initialPrices: Record<number, { price: number, currency: 'USD' | 'ARS' }> = {};
@@ -148,14 +154,18 @@ const SalesPage = () => {
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-1">Facturación</h1>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">Gestión de Comprobantes y Movimientos</p>
         </div>
-        <Link 
-          to="/facturacion/nueva" 
-          className="bg-blue-600 text-white px-8 py-3 font-black text-xs tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 group w-full md:w-auto uppercase shadow-lg shadow-blue-100"
-        >
-          + Facturar
-        </Link>
+        {!billingConfig.isOpen && (
+          <Link 
+            to="/facturacion/nueva" 
+            className="bg-blue-600 text-white px-8 py-3 font-black text-xs tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 group w-full md:w-auto uppercase shadow-lg shadow-blue-100"
+          >
+            + Facturar
+          </Link>
+        )}
       </div>
 
+      {!billingConfig.isOpen && (
+        <>
       <div className="flex gap-4">
         <div className="relative flex-1">
           <input 
@@ -184,7 +194,7 @@ const SalesPage = () => {
               {isLoading ? (
                 <tr><td colSpan={5} className="p-10 text-center"><Loader2 className="animate-spin inline-block text-slate-300" /></td></tr>
               ) : (
-                sales.filter((s:any) => s.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase())).map((sale: any) => (
+                filteredSales.map((sale: any) => (
                   <tr key={sale.id} className="group hover:bg-slate-50 transition-all">
                     <td className="px-8 py-6">
                       <div className="font-black text-slate-900 text-base uppercase">#{String(sale.id).padStart(5, '0')}</div>
@@ -273,7 +283,7 @@ const SalesPage = () => {
 
         {/* Mobile View */}
         <div className="md:hidden divide-y divide-slate-100">
-          {sales.filter((s:any) => s.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase())).map((sale: any) => (
+          {filteredSales.map((sale: any) => (
             <div key={sale.id} className="p-5 space-y-4">
               <div className="flex justify-between items-start">
                 <div>
@@ -324,12 +334,13 @@ const SalesPage = () => {
           ))}
         </div>
       </div>
+      </>
+      )}
 
       {/* MODAL DE PROCESAMIENTO */}
       {billingConfig.isOpen && billingConfig.sale && (
-        <div className="fixed inset-0 bg-slate-900/80 z-[200] flex items-center justify-center p-0 sm:p-4">
-           <div className="bg-white rounded-none w-full max-w-4xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-fade-in">
-              <div className="bg-slate-900 p-6 sm:p-8 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
+         <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
+            <div className="bg-slate-900 p-6 sm:p-8 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
                  <div>
                     <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter">Facturar Movimiento</h2>
                     <p className="text-slate-400 text-[10px] font-bold uppercase mt-1 tracking-widest">
@@ -343,11 +354,13 @@ const SalesPage = () => {
                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">DÓLAR BNA OFICIAL</p>
                        <p className="text-lg font-black text-white">${Number(dolarRate).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                     </div>
-                    <button onClick={() => setBillingConfig({id: null, isOpen: false, sale: null})} className="text-white text-4xl font-light hover:text-slate-400 transition-colors">&times;</button>
+                    <button onClick={() => setBillingConfig({id: null, isOpen: false, sale: null})} className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500">
+                      Cerrar y Volver
+                    </button>
                  </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-10 bg-slate-50">
+              <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-10 bg-slate-50 min-h-0">
 
                 {/* Tipo de comprobante a emitir — indicador informativo */}
                 <div className={`flex items-center gap-4 p-4 border-2 ${tipoComprobanteAEmitir.includes('A') ? 'border-blue-600 bg-blue-50' : 'border-slate-300 bg-slate-50'}`}>
@@ -550,7 +563,6 @@ const SalesPage = () => {
                  </div>
               </div>
            </div>
-        </div>
       )}
     </div>
   );

@@ -12,6 +12,8 @@ body {
   min-height: 100vh;
   color: #1e293b; /* Slate-800 */
   background-color: #f8fafc; /* Slate-50 */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
 #root {
@@ -58,7 +60,8 @@ input[type=number] {
 }
 
 /* Select and Input common styles */
-input, select {
+input, select, textarea, button {
+  font-family: inherit;
   font-size: 14px !important;
 }
 

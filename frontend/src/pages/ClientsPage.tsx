@@ -169,26 +169,82 @@ const ClientsPage = () => {
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-1">Clientes</h1>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">Cuentas Corrientes y Directorio</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <input
-              type="text"
-              placeholder="BUSCAR CLIENTE..."
-              value={searchTerm}
-              onChange={(e) => setSearchBar(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-bold uppercase outline-none focus:border-blue-600 transition-all tracking-widest text-slate-900"
-            />
+        {!isModalOpen && (
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <input
+                type="text"
+                placeholder="BUSCAR CLIENTE..."
+                value={searchTerm}
+                onChange={(e) => setSearchBar(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-bold uppercase outline-none focus:border-blue-600 transition-all tracking-widest text-slate-900"
+              />
+            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-blue-600 text-white px-8 py-3 font-black text-xs tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2 uppercase"
+            >
+              + Nuevo Cliente
+            </button>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 text-white px-8 py-3 font-black text-xs tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2 uppercase"
-          >
-            + Nuevo Cliente
-          </button>
-        </div>
+        )}
       </div>
 
-      <div className="bg-white border border-slate-200 shadow-sm rounded-none overflow-hidden">
+      {isModalOpen && (
+        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
+          <div className="bg-slate-900 px-6 py-6 sm:px-8 sm:py-8 text-white flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-widest">Nuevo Cliente</h2>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Alta en Cartera</p>
+            </div>
+            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500">
+              Cerrar y Volver
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 sm:p-10 bg-slate-50 flex flex-col gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Razón Social</label>
+                <input required type="text" value={formData.razon_social} onChange={e => setFormData({ ...formData, razon_social: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CUIT</label>
+                <input required type="text" value={formData.cuit} onChange={e => setFormData({ ...formData, cuit: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Condición IVA</label>
+                <select value={formData.condicion_iva} onChange={e => setFormData({ ...formData, condicion_iva: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all uppercase">
+                  <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+                  <option value="MONOTRIBUTO">Monotributo</option>
+                  <option value="EXENTO">Exento</option>
+                  <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono</label>
+                <input type="text" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
+                <input type="text" value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-col sm:flex-row gap-4 pt-8 border-t border-slate-200">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-1/3 py-4 font-bold text-[10px] uppercase text-slate-400 tracking-widest hover:text-slate-600 hover:bg-slate-200 transition-colors border border-transparent">
+                Cancelar
+              </button>
+              <button type="submit" className="w-full sm:w-2/3 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
+                Confirmar Alta
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {!isModalOpen && (
+        <>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-none overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
@@ -279,8 +335,7 @@ const ClientsPage = () => {
 
       {/* Details Modal */}
       {isDetailsModalOpen && selectedClient && (
-        <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-none w-full max-w-5xl shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] animate-fade-in">
+        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
             <div className="bg-slate-900 p-6 sm:p-8 text-white flex justify-between items-start border-b border-slate-800">
               <div className="flex-1">
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-tight">{selectedClient.razon_social}</h2>
@@ -290,7 +345,7 @@ const ClientsPage = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={handleExportStatement} className="hidden sm:flex items-center gap-2 bg-white text-slate-900 px-4 py-2 rounded-none font-black text-[10px] uppercase hover:bg-slate-100 transition-all tracking-widest">📄 Estado de Cuenta</button>
-                <button onClick={() => setIsDetailsModalOpen(false)} className="text-white hover:text-slate-400 transition-all text-3xl font-light leading-none px-2">&times;</button>
+                <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500">Cerrar y Volver</button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-slate-50">
@@ -366,98 +421,26 @@ const ClientsPage = () => {
               </div>
             </div>
           </div>
-        </div>
       )}
-
-      {/* New Client Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto">
-          {/* SOLID BACKGROUND, NO TRANSPARENCY, NO BLACK */}
-          <div className="fixed inset-0 bg-slate-900/50" onClick={() => setIsModalOpen(false)}></div>
-          <div className="flex min-h-full items-center justify-center p-4 sm:p-10">
-            {/* CORRECTLY CENTERED MODAL */}
-            <div className="bg-white w-full max-w-lg border border-slate-300 relative z-10 animate-fade-in flex flex-col shadow-2xl">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center text-slate-400 text-3xl font-light hover:text-red-600 hover:bg-red-50 transition-colors z-50"
-                title="Cerrar ventana"
-              >
-                &times;
-              </button>
-              <div className="bg-slate-900 px-8 py-8 text-white shrink-0">
-                <h2 className="text-2xl font-black uppercase tracking-widest">Nuevo Cliente</h2>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">Alta en Cartera</p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="p-8 bg-slate-50 flex flex-col gap-6">
-
-                {/* 1 Column Layout */}
-                <div className="flex flex-col gap-6">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Razón Social</label>
-                    <input required type="text" value={formData.razon_social} onChange={e => setFormData({ ...formData, razon_social: e.target.value })} className="w-full bg-white border border-slate-200 p-5 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-base transition-all" />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">CUIT</label>
-                    <input required type="text" value={formData.cuit} onChange={e => setFormData({ ...formData, cuit: e.target.value })} className="w-full bg-white border border-slate-200 p-5 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all" />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Condición IVA</label>
-                    <select value={formData.condicion_iva} onChange={e => setFormData({ ...formData, condicion_iva: e.target.value })} className="w-full bg-white border border-slate-200 p-5 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all uppercase">
-                      <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
-                      <option value="MONOTRIBUTO">Monotributo</option>
-                      <option value="EXENTO">Exento</option>
-                      <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
-                    <input type="text" value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-5 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all" />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono</label>
-                    <input type="text" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-5 font-bold text-slate-900 focus:border-blue-600 outline-none text-base transition-all" />
-                  </div>
-
-                </div>
-
-                <div className="mt-8 flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-1/3 py-5 font-bold text-xs uppercase text-slate-400 tracking-widest hover:text-slate-600 hover:bg-slate-200 transition-colors border border-transparent">
-                    Cancelar
-                  </button>
-                  <button type="submit" className="w-full sm:w-2/3 bg-blue-600 text-white py-5 font-black text-sm uppercase tracking-[0.2em] hover:bg-blue-700 transition-all">
-                    Confirmar Alta
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+      </>
       )}
-
       {/* Payment Modal */}
       {isPaymentModalOpen && selectedClient && (
-        <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-0 sm:p-4">
-          <div className="bg-white w-full h-full sm:h-auto sm:max-h-[92vh] sm:rounded-none sm:w-[95%] sm:max-w-lg border border-slate-200 shadow-2xl overflow-hidden flex flex-col animate-fade-in">
-            <div className="bg-slate-900 px-6 py-6 text-white flex justify-between items-start shrink-0">
-              <div>
-                <h2 className="text-xl font-black uppercase tracking-widest">Registrar Cobro</h2>
-                <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">{selectedClient.razon_social}</p>
+        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
+              <div className="bg-slate-900 px-6 py-6 text-white flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-widest">Registrar Cobro</h2>
+                  <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">{selectedClient.razon_social}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPaymentModalOpen(false)}
+                  className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500"
+                >
+                  Cerrar y Volver
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsPaymentModalOpen(false)}
-                className="w-10 h-10 flex items-center justify-center text-white text-3xl font-light"
-              >
-                &times;
-              </button>
-            </div>
-            <form onSubmit={handlePaymentSubmit} className="p-6 sm:p-10 space-y-6 flex-1 overflow-y-auto bg-slate-50">
+              <form onSubmit={handlePaymentSubmit} className="p-6 sm:p-10 space-y-6 bg-slate-50">
               <div className="p-4 bg-white border border-slate-200 flex justify-between items-center mb-4 shadow-sm">
                 <div>
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deuda Total</p>
@@ -487,8 +470,7 @@ const ClientsPage = () => {
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imputación</label><select value={paymentData.imputacion} onChange={e => setPaymentData({ ...paymentData, imputacion: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="MIXTO">Mixto (Auto)</option><option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0}>Solo Blanco</option><option value="INTERNO" disabled={Number(selectedClient.saldo_interno) >= 0}>Solo Interno</option></select></div>
               </div>
               <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">Confirmar Cobro</button>
-            </form>
-          </div>
+              </form>
         </div>
       )}
 

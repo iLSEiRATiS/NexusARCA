@@ -177,13 +177,13 @@ export class SaleService {
             }
           });
 
-          // Impactar saldo negro por el diferencial
+          // Impactar SOLO el saldo interno por el diferencial.
+          // El saldo_deuda se descuenta al final por el total_original_ars completo (una sola vez).
           if (impactBalance) {
             await tx.client.update({
               where: { id: sale.client_id },
               data: {
-                saldo_interno: { decrement: diferencial },
-                saldo_deuda: { decrement: diferencial }
+                saldo_interno: { decrement: diferencial }
               }
             });
           }
@@ -207,12 +207,15 @@ export class SaleService {
       });
 
       if (impactBalance) {
+        // saldo_blanco: solo la porción ARCA (total_real_ars, puede ser menor al original si hay split)
+        // saldo_interno: solo si es modo REMITO puro (el diferencial ya fue descontado arriba)
+        // saldo_deuda: siempre el total original completo (UNA sola vez, sin doble descuento)
         await tx.client.update({
           where: { id: updatedSale.client_id },
           data: {
             saldo_blanco: mode === 'ARCA' ? { decrement: total_real_ars } : undefined,
             saldo_interno: mode === 'REMITO' ? { decrement: total_real_ars } : undefined,
-            saldo_deuda: { decrement: total_real_ars }
+            saldo_deuda: { decrement: total_original_ars }
           }
         });
       }

@@ -5,7 +5,7 @@ import { currencyService } from '../services/currencyService';
 import { quotationService } from '../services/quotationService';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 
 interface QuotationCartItem {
   id: string;
@@ -64,6 +64,56 @@ const NewQuotationPage = () => {
       iva_tasa: 21,
       subtotal_usd: 0
     }]);
+  };
+
+  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) return toast.error('El CSV está vacío o no tiene formato correcto');
+
+      const rows = lines.slice(1);
+      const newCart: QuotationCartItem[] = [];
+      let foundDestino = '';
+
+      rows.forEach((row, index) => {
+        const columns = row.split(';');
+        if (columns.length < 6) return;
+
+        const [, , destino, , producto_nombre, cantidad] = columns;
+        if (!foundDestino && destino) foundDestino = destino;
+        
+        const cantInt = parseInt(cantidad) || 1;
+        const nombreItem = producto_nombre || `Ítem ${index + 1}`;
+
+        newCart.push({
+          id: Math.random().toString(36).substr(2, 9),
+          descripcion: nombreItem,
+          cantidad: cantInt,
+          precio: 0,
+          moneda: 'USD',
+          iva_tasa: 21,
+          subtotal_usd: 0
+        });
+      });
+
+      setCart(newCart);
+      toast.success('MOVIMIENTO CARGADO DESDE CSV');
+      
+      if (foundDestino) {
+        const matched = clients?.find((c: any) => c.razon_social.toLowerCase().includes(foundDestino.toLowerCase()));
+        if (matched) {
+           setSelectedClientId(matched.id);
+           toast.info(`Cliente autodetectado: ${matched.razon_social}`);
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const createQuotationMutation = useMutation({
@@ -150,9 +200,15 @@ const NewQuotationPage = () => {
                       <span className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px]">02</span>
                       Definición de Artículos
                     </h2>
-                    <button onClick={addManualItem} className="bg-slate-900 text-white px-6 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all">
-                      <Plus size={14}/> Agregar Ítem
-                    </button>
+                    <div className="flex gap-4">
+                      <label className="bg-slate-900 text-white px-6 py-3 cursor-pointer hover:bg-slate-800 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-2">
+                        <Upload size={14} /> Cargar CSV
+                        <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
+                      </label>
+                      <button onClick={addManualItem} className="bg-slate-900 text-white px-6 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all">
+                        <Plus size={14}/> Agregar Ítem
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="space-y-4">

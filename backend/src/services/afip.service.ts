@@ -48,7 +48,7 @@ export class AfipService {
     if (this.afip && this.currentMode === isProduction) return;
 
     // En Producción se usa el CUIT configurado. En homologación SE DEBE usar el CUIT de prueba (20409318550).
-    const cuitDB = settings?.cuit_emisor?.replace(/-/g, '');
+    const cuitDB = settings?.cuit_emisor?.replace(/[-\s]/g, '');
     const CUIT = isProduction ? (cuitDB || process.env.AFIP_CUIT || '20106102741') : '20409318550';
     const baseDir = process.env.PORTABLE_EXECUTABLE_DIR || process.cwd();
 
@@ -114,7 +114,7 @@ export class AfipService {
 
       // ── DocTipo / DocNro ──
       let docTipo = 80; // CUIT por defecto
-      let docNro = parseInt((sale.client?.cuit || '0').replace(/-/g, ''));
+      let docNro = parseInt((sale.client?.cuit || '0').replace(/[-\s]/g, ''));
 
       if (sale.client?.condicion_iva === 'CONSUMIDOR_FINAL' && (!sale.client.cuit || sale.client.cuit === '0')) {
         docTipo = 99;

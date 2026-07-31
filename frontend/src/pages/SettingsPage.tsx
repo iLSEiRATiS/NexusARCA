@@ -259,18 +259,18 @@ const SettingsPage = () => {
                     set('cert_file', null);
                     set('key_file', null);
                   }}
-                  className={`p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
+                  className={`group p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
                     !form.modo_produccion
                       ? 'border-amber-500 bg-amber-50'
-                      : 'border-slate-200 bg-white hover:border-slate-400'
+                      : 'border-slate-200 bg-white hover:border-amber-400'
                   }`}
                 >
-                  <ShieldOff size={24} className={!form.modo_produccion ? 'text-amber-500' : 'text-slate-300'} />
+                  <ShieldOff size={24} className={`transition-colors ${!form.modo_produccion ? 'text-amber-500' : 'text-slate-300 group-hover:text-amber-400'}`} />
                   <div>
-                    <p className={`font-black text-xs uppercase tracking-widest ${!form.modo_produccion ? 'text-amber-700' : 'text-slate-400'}`}>
+                    <p className={`font-black text-xs uppercase tracking-widest transition-colors ${!form.modo_produccion ? 'text-amber-700' : 'text-slate-400 group-hover:text-amber-600'}`}>
                       Homologación
                     </p>
-                    <p className={`text-[8px] font-bold mt-1 uppercase tracking-widest ${!form.modo_produccion ? 'text-amber-600' : 'text-slate-300'}`}>
+                    <p className={`text-[8px] font-bold mt-1 uppercase tracking-widest transition-colors ${!form.modo_produccion ? 'text-amber-600' : 'text-slate-300 group-hover:text-amber-500'}`}>
                       Facturas de prueba
                     </p>
                   </div>
@@ -284,18 +284,18 @@ const SettingsPage = () => {
                       set('key_file', null);
                     }
                   }}
-                  className={`p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
+                  className={`group p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
                     form.modo_produccion
                       ? 'border-green-500 bg-green-50'
                       : 'border-slate-200 bg-white hover:border-green-400'
                   }`}
                 >
-                  <ShieldCheck size={24} className={form.modo_produccion ? 'text-green-600' : 'text-slate-300'} />
+                  <ShieldCheck size={24} className={`transition-colors ${form.modo_produccion ? 'text-green-600' : 'text-slate-300 group-hover:text-green-500'}`} />
                   <div>
-                    <p className={`font-black text-xs uppercase tracking-widest ${form.modo_produccion ? 'text-green-800' : 'text-slate-400'}`}>
+                    <p className={`font-black text-xs uppercase tracking-widest transition-colors ${form.modo_produccion ? 'text-green-800' : 'text-slate-400 group-hover:text-green-600'}`}>
                       Producción
                     </p>
-                    <p className={`text-[8px] font-bold mt-1 uppercase tracking-widest ${form.modo_produccion ? 'text-green-600' : 'text-slate-300'}`}>
+                    <p className={`text-[8px] font-bold mt-1 uppercase tracking-widest transition-colors ${form.modo_produccion ? 'text-green-600' : 'text-slate-300 group-hover:text-green-500'}`}>
                       Facturas reales AFIP
                     </p>
                   </div>

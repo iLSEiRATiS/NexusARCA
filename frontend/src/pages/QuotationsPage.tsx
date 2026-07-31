@@ -51,8 +51,10 @@ const QuotationsPage = () => {
   });
 
   const filteredQuotations = quotations.filter((q: Quotation) => {
+    const searchLower = searchTerm.toLowerCase();
+    const razonSocial = (q.client?.razon_social || '').toLowerCase();
     const matchesSearch = 
-      q.client?.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      razonSocial.includes(searchLower) ||
       String(q.id).includes(searchTerm);
     
     const matchesStatus = filterStatus === 'TODOS' || q.estado === filterStatus;
