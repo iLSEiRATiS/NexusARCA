@@ -365,7 +365,7 @@ const ClientsPage = () => {
                 <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Interno</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_interno).toLocaleString('es-AR')}</p></div>
                 <div className="p-6 bg-blue-600 text-white flex flex-col justify-between shadow-lg shadow-blue-100">
                   <div><p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Adeudado</p><p className="text-2xl font-black">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p></div>
-                  <button onClick={() => setIsPaymentModalOpen(true)} className="mt-4 border border-white text-white py-2 font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-blue-600 transition-all">Registrar Cobro</button>
+                  <button onClick={() => { setIsDetailsModalOpen(false); setIsPaymentModalOpen(true); }} className="mt-4 border border-white text-white py-2 font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-blue-600 transition-all">Registrar Cobro</button>
                 </div>
               </div>
               <div className="space-y-6">
