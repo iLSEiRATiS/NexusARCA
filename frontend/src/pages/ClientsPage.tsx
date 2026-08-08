@@ -73,6 +73,7 @@ const ClientsPage = () => {
 
   const paymentMutation = useMutation({
     mutationFn: async (data: any) => {
+      if (!selectedClient?.id) throw new Error('No hay cliente seleccionado');
       return api.post(`/clients/${selectedClient.id}/payments`, data);
     },
     onSuccess: () => {
@@ -83,7 +84,7 @@ const ClientsPage = () => {
       toast.success('COBRO REGISTRADO EXITOSAMENTE');
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Error al registrar cobro');
+      toast.error(err.response?.data?.message || err.message || 'Error al registrar cobro');
     }
   });
 
@@ -125,7 +126,16 @@ const ClientsPage = () => {
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    paymentMutation.mutate(paymentData);
+    const monto = Number(paymentData.monto);
+    if (!selectedClient?.id) {
+      toast.error('No hay cliente seleccionado');
+      return;
+    }
+    if (isNaN(monto) || monto <= 0) {
+      toast.error('El monto debe ser un número mayor a 0');
+      return;
+    }
+    paymentMutation.mutate({ ...paymentData, monto });
   };
 
   const handleDeleteClick = (id: number) => {
@@ -469,7 +479,7 @@ const ClientsPage = () => {
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Método</label><select value={paymentData.metodo} onChange={e => setPaymentData({ ...paymentData, metodo: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="CHEQUE">Cheque</option></select></div>
                 <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imputación</label><select value={paymentData.imputacion} onChange={e => setPaymentData({ ...paymentData, imputacion: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="MIXTO">Mixto (Auto)</option><option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0}>Solo Blanco</option><option value="INTERNO" disabled={Number(selectedClient.saldo_interno) >= 0}>Solo Interno</option></select></div>
               </div>
-              <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">Confirmar Cobro</button>
+              <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">{paymentMutation.isPending ? 'Procesando...' : 'Confirmar Cobro'}</button>
               </form>
         </div>
       )}
