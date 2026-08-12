@@ -45,13 +45,17 @@ export class SaleService {
       let total_real_ars = 0;
       let subtotal_ars = 0;
       let iva_ars = 0;
+      let subtotal_original_ars = 0;
 
       for (const item of sale.items) {
         const precio_original_ars = Number(item.precio_unitario_ars);
+        (item as any).precio_original_ars_backup = precio_original_ars;
+        (item as any).precio_original_usd_backup = Number(item.precio_unitario_usd);
         const cantidad_num = Number(item.cantidad);
         const subtotal_original = precio_original_ars * cantidad_num;
         const iva_original = subtotal_original * (Number(item.iva_tasa) / 100);
         total_original_ars += (subtotal_original + iva_original);
+        subtotal_original_ars += subtotal_original;
 
         let precio_unitario_ars = precio_original_ars;
         let precio_unitario_usd = Number(item.precio_unitario_usd);
@@ -151,9 +155,20 @@ export class SaleService {
         if (diferencial > 1) { // Umbral de $1 para evitar errores de redondeo
           console.log(`[SaleService] Diferencial detectado: $${diferencial.toFixed(2)} → Creando Remito automático`);
           
+          const ratio_diferencial = diferencial / subtotal_original_ars;
+          const difItems = sale.items.map(item => ({
+            descripcion: item.descripcion,
+            cantidad: item.cantidad,
+            precio_unitario_ars: (item as any).precio_original_ars_backup * ratio_diferencial,
+            precio_unitario_usd: (item as any).precio_original_usd_backup * ratio_diferencial,
+            iva_tasa: 0,
+            iva_importe_ars: 0
+          }));
+
           await tx.sale.create({
             data: {
               client_id: sale.client_id,
+              nro_comprobante: `DIF-${saleId}`,
               total_real_ars: diferencial,
               cotizacion_dolar_usada: cotizacion_usada,
               monto_facturado_ars: 0,
@@ -165,14 +180,7 @@ export class SaleService {
               estado_factura: 'FACTURADO',
               fecha_vto_pago: sale.fecha_vto_pago,
               items: {
-                create: [{
-                  descripcion: `Diferencial de Factura #${String(saleId).padStart(5, '0')}`,
-                  cantidad: 1,
-                  precio_unitario_ars: diferencial,
-                  precio_unitario_usd: diferencial / cotizacion_usada,
-                  iva_tasa: 0,
-                  iva_importe_ars: 0
-                }]
+                create: difItems
               }
             }
           });
@@ -396,6 +404,44 @@ export class SaleService {
             saldo_deuda: { increment: Number(sale.monto_facturado_ars) }
           }
         });
+      }
+
+      // Buscar si existe un Remito interno (diferencial) desprendido de esta factura
+      const linkedRemito = await tx.sale.findFirst({
+        where: {
+          client_id: sale.client_id,
+          tipo_comprobante: 'Remito',
+          estado_factura: 'FACTURADO',
+          OR: [
+            { nro_comprobante: `DIF-${saleId}` },
+            {
+              items: {
+                some: {
+                  descripcion: `Diferencial de Factura #${String(saleId).padStart(5, '0')}`
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      if (linkedRemito) {
+        // Anular el remito asociado
+        await tx.sale.update({
+          where: { id: linkedRemito.id },
+          data: { estado_factura: 'ANULADA' }
+        });
+
+        // Restaurar el saldo interno y sumar a la cancelación de la deuda
+        if (currentClient) {
+          await tx.client.update({
+            where: { id: sale.client_id },
+            data: {
+              saldo_interno: { increment: Number(linkedRemito.total_real_ars) },
+              saldo_deuda: { increment: Number(linkedRemito.total_real_ars) }
+            }
+          });
+        }
       }
 
       const updatedSale = await tx.sale.update({

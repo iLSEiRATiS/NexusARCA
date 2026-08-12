@@ -38,6 +38,7 @@ model Client {
   external_id             Int?         @unique 
   razon_social            String
   cuit                    String       @unique
+  email                   String?
   direccion               String?
   condicion_iva           CondicionIva @default(RESPONSABLE_INSCRIPTO)
   nro_iibb                String?      

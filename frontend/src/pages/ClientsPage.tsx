@@ -8,30 +8,53 @@ import ConfirmModal from '../components/ConfirmModal';
 import { TableSkeleton } from '../components/Skeletons';
 import { Download, PackageOpen } from 'lucide-react';
 
+import { parseArgNumber } from '../utils/format';
+
 const ClientsPage = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchBar] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [balanceData, setBalanceData] = useState<{saldo_blanco: string | number; saldo_interno: string | number}>({ saldo_blanco: 0, saldo_interno: 0 });
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; clientId: number | null }>({
     isOpen: false,
     clientId: null
   });
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    razon_social: string;
+    cuit: string;
+    email: string;
+    direccion: string;
+    condicion_iva: string;
+    nro_iibb: string;
+    telefono: string;
+    porcentaje_facturacion: number;
+    saldo_blanco: number | string;
+    saldo_interno: number | string;
+  }>({
     razon_social: '',
     cuit: '',
+    email: '',
     direccion: '',
     condicion_iva: 'RESPONSABLE_INSCRIPTO',
     nro_iibb: '',
     telefono: '',
-    porcentaje_facturacion: 80
+    porcentaje_facturacion: 80,
+    saldo_blanco: 0,
+    saldo_interno: 0
   });
 
-  const [paymentData, setPaymentData] = useState({
+  const [paymentData, setPaymentData] = useState<{
+    monto: number | string;
+    metodo: string;
+    referencia: string;
+    imputacion: string;
+  }>({
     monto: 0,
     metodo: 'EFECTIVO',
     referencia: '',
@@ -58,7 +81,14 @@ const ClientsPage = () => {
   );
 
   const createMutation = useMutation({
-    mutationFn: clientService.create,
+    mutationFn: (data: any) => {
+      const payload = {
+        ...data,
+        saldo_blanco: parseArgNumber(data.saldo_blanco),
+        saldo_interno: parseArgNumber(data.saldo_interno)
+      };
+      return clientService.create(payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       setIsModalOpen(false);
@@ -88,6 +118,21 @@ const ClientsPage = () => {
     }
   });
 
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (paymentId: number) => {
+      if (!selectedClient?.id) throw new Error('No hay cliente seleccionado');
+      return clientService.deletePayment(selectedClient.id, paymentId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
+      toast.success('Movimiento deshecho exitosamente');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || err.message || 'Error al deshacer movimiento');
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: clientService.delete,
     onSuccess: () => {
@@ -97,15 +142,51 @@ const ClientsPage = () => {
     }
   });
 
+  const updateBalanceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (!selectedClient?.id) throw new Error('No hay cliente seleccionado');
+      return clientService.update(selectedClient.id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
+      setIsEditBalanceModalOpen(false);
+      toast.success('Saldos actualizados correctamente');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || err.message || 'Error al actualizar saldos');
+    }
+  });
+
+  const handleEditBalanceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateBalanceMutation.mutate({
+      saldo_blanco: parseArgNumber(balanceData.saldo_blanco),
+      saldo_interno: parseArgNumber(balanceData.saldo_interno)
+    });
+  };
+
+  const openEditBalance = (client: any) => {
+    setSelectedClient(client);
+    setBalanceData({
+      saldo_blanco: Number(client.saldo_blanco) || 0,
+      saldo_interno: Number(client.saldo_interno) || 0
+    });
+    setIsEditBalanceModalOpen(true);
+  };
+
   const resetForm = () => {
     setFormData({
       razon_social: '',
       cuit: '',
+      email: '',
       direccion: '',
       condicion_iva: 'RESPONSABLE_INSCRIPTO',
       nro_iibb: '',
       telefono: '',
-      porcentaje_facturacion: 80
+      porcentaje_facturacion: 80,
+      saldo_blanco: 0,
+      saldo_interno: 0
     });
   };
 
@@ -126,7 +207,7 @@ const ClientsPage = () => {
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const monto = Number(paymentData.monto);
+    const monto = parseArgNumber(paymentData.monto);
     if (!selectedClient?.id) {
       toast.error('No hay cliente seleccionado');
       return;
@@ -234,6 +315,18 @@ const ClientsPage = () => {
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono</label>
                 <input type="text" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
+                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Inicial Blanco</label>
+                <input type="text" value={formData.saldo_blanco === 0 ? '' : formData.saldo_blanco} onChange={e => setFormData({ ...formData, saldo_blanco: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Inicial Interno</label>
+                <input type="text" value={formData.saldo_interno === 0 ? '' : formData.saldo_interno} onChange={e => setFormData({ ...formData, saldo_interno: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
@@ -355,17 +448,47 @@ const ClientsPage = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={handleExportStatement} className="hidden sm:flex items-center gap-2 bg-white text-slate-900 px-4 py-2 rounded-none font-black text-[10px] uppercase hover:bg-slate-100 transition-all tracking-widest">📄 Estado de Cuenta</button>
-                <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500">Cerrar y Volver</button>
+                <button onClick={() => setIsDetailsModalOpen(false)} className="bg-red-600 hover:bg-red-700 text-white w-8 h-8 flex items-center justify-center font-black text-xl transition-colors" title="Cerrar">&times;</button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-slate-50">
               <div className="sm:hidden mb-6"><button onClick={handleExportStatement} className="w-full bg-slate-900 text-white py-3 rounded-none font-black text-[10px] uppercase tracking-widest">📄 Descargar Estado de Cuenta</button></div>
+              
+              {/* Información del Cliente */}
+              <div className="mb-6 bg-white border border-slate-200 shadow-sm p-4 sm:p-6">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Información del Cliente</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Email</p>
+                    <p className="text-xs font-black text-slate-900 truncate" title={selectedClient.email || 'S/D'}>{selectedClient.email || 'S/D'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Teléfono</p>
+                    <p className="text-xs font-black text-slate-900 uppercase">{selectedClient.telefono || 'S/D'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Condición IVA</p>
+                    <p className="text-xs font-black text-slate-900 uppercase">{selectedClient.condicion_iva ? selectedClient.condicion_iva.replace('_', ' ') : 'S/D'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Dirección</p>
+                    <p className="text-xs font-black text-slate-900 uppercase truncate" title={selectedClient.direccion || 'S/D'}>{selectedClient.direccion || 'S/D'}</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
                 <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Blanco</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_blanco).toLocaleString('es-AR')}</p></div>
                 <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Interno</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_interno).toLocaleString('es-AR')}</p></div>
                 <div className="p-6 bg-blue-600 text-white flex flex-col justify-between shadow-lg shadow-blue-100">
-                  <div><p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Adeudado</p><p className="text-2xl font-black">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p></div>
-                  <button onClick={() => { setIsDetailsModalOpen(false); setIsPaymentModalOpen(true); }} className="mt-4 border border-white text-white py-2 font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-blue-600 transition-all">Registrar Cobro</button>
+                  <div className="mb-6">
+                    <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Adeudado</p>
+                    <p className="text-3xl font-black">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 mt-auto">
+                    <button onClick={() => { setIsDetailsModalOpen(false); setIsPaymentModalOpen(true); }} className="w-full bg-white text-blue-600 py-3 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Registrar Cobro</button>
+                    <button onClick={() => openEditBalance(selectedClient)} className="w-full border border-blue-400 text-white py-2.5 font-black text-[9px] uppercase tracking-widest hover:bg-blue-500 transition-all">Modificar Deuda</button>
+                  </div>
                 </div>
               </div>
               <div className="space-y-6">
@@ -379,20 +502,20 @@ const ClientsPage = () => {
                           <div className="text-center sm:text-left">
                             <div className="flex items-center gap-2 justify-center sm:justify-start">
                               <p className="font-black text-slate-900 text-sm uppercase tracking-tight">
-                                {item.type === 'venta' ? `Facturación #${String(item.id).padStart(5, '0')}` : 'Cobro Recibido'}
+                                {item.type === 'venta' ? `Facturación #${String(item.id).padStart(5, '0')}` : (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? (item.metodo_pago === 'SALDO_PREVIO' ? 'Saldo Inicial' : 'Ajuste de Saldo') : 'Cobro Recibido')}
                               </p>
                               {item.external_id && (
                                 <span className="bg-slate-50 border border-slate-200 text-slate-400 text-[7px] font-black px-1.5 py-0.5 uppercase tracking-tighter">Sincronizado</span>
                               )}
                             </div>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                              {new Date(item.fecha).toLocaleDateString()} • {item.tipo_comprobante || item.metodo_pago}
+                              {new Date(item.fecha).toLocaleDateString()} • {item.tipo_comprobante || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? 'Ajuste Manual' : item.metodo_pago)}
                             </p>
                           </div>
                           <div className="flex items-center gap-6">
                             <div className="text-right">
-                              <p className={`text-xl font-black ${item.type === 'venta' ? 'text-slate-900' : 'text-blue-600'}`}>
-                                <span className="font-black tracking-tighter text-lg">{item.type === 'venta' ? `-$${Number(item.total_real_ars || item.monto_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : `+$${Number(item.monto_ars || item.total_real_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}</span>
+                              <p className={`text-xl font-black ${item.type === 'venta' || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) && Number(item.monto_ars) < 0) ? 'text-slate-900' : 'text-blue-600'}`}>
+                                <span className="font-black tracking-tighter text-lg">{item.type === 'venta' ? `-$${Number(item.total_real_ars || item.monto_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? `${Number(item.monto_ars) < 0 ? '-' : '+'}$${Math.abs(Number(item.monto_ars)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : `+$${Number(item.monto_ars || item.total_real_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`)}</span>
                               </p>
                               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">ARS</p>
                             </div>
@@ -403,6 +526,20 @@ const ClientsPage = () => {
                                 title="Descargar Comprobante"
                               >
                                 <Download size={16} />
+                              </button>
+                            )}
+                            {item.type === 'cobro' && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('¿Estás seguro de deshacer este movimiento?')) {
+                                    deletePaymentMutation.mutate(item.id);
+                                  }
+                                }}
+                                className="p-3 border border-slate-100 text-slate-300 hover:text-red-600 hover:border-red-600 transition-all text-sm font-black"
+                                title="Deshacer Movimiento"
+                                disabled={deletePaymentMutation.isPending}
+                              >
+                                &times;
                               </button>
                             )}
                           </div>
@@ -434,6 +571,55 @@ const ClientsPage = () => {
       )}
       </>
       )}
+      {/* Edit Balance Modal */}
+      {isEditBalanceModalOpen && selectedClient && (
+        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
+          <div className="bg-slate-900 px-6 py-6 text-white flex justify-between items-start">
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-widest">Ajustar Saldos</h2>
+              <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">{selectedClient.razon_social}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditBalanceModalOpen(false)}
+              className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500"
+            >
+              Cerrar y Volver
+            </button>
+          </div>
+          <form onSubmit={handleEditBalanceSubmit} className="p-6 sm:p-10 space-y-6 bg-slate-50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Blanco</label>
+                <input
+                  type="text"
+                  required
+                  value={balanceData.saldo_blanco === 0 ? '' : balanceData.saldo_blanco}
+                  onChange={e => setBalanceData({ ...balanceData, saldo_blanco: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Interno (Negro)</label>
+                <input
+                  type="text"
+                  required
+                  value={balanceData.saldo_interno === 0 ? '' : balanceData.saldo_interno}
+                  onChange={e => setBalanceData({ ...balanceData, saldo_interno: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] font-bold text-slate-500">Nota: Ingrese valores positivos para indicar deuda del cliente, y valores negativos para indicar saldo a favor.</p>
+            <button type="submit" disabled={updateBalanceMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">
+              {updateBalanceMutation.isPending ? 'Guardando...' : 'Guardar Saldos'}
+            </button>
+          </form>
+        </div>
+      )}
+
       {/* Payment Modal */}
       {isPaymentModalOpen && selectedClient && (
         <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
@@ -465,12 +651,10 @@ const ClientsPage = () => {
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a Cobrar (ARS)</label>
                 <input
+                  type="text"
                   required
-                  type="number"
-                  step="0.01"
                   value={paymentData.monto === 0 ? '' : paymentData.monto}
-                  onKeyDown={preventInvalidChars}
-                  onChange={e => setPaymentData({ ...paymentData, monto: e.target.value === '' ? 0 : handleNumericInput(e.target.value) })}
+                  onChange={e => setPaymentData({ ...paymentData, monto: e.target.value })}
                   className="w-full bg-transparent border-b-2 border-slate-900 rounded-none px-2 py-4 font-black text-4xl text-slate-900 focus:border-blue-600 outline-none transition-all"
                   placeholder="0.00"
                 />

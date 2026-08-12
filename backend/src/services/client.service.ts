@@ -25,16 +25,91 @@ export class ClientService {
   }
 
   static async create(data: any) {
-    return await prisma.client.create({
+    if (data.saldo_blanco !== undefined || data.saldo_interno !== undefined) {
+      data.saldo_deuda = Number(data.saldo_blanco || 0) + Number(data.saldo_interno || 0);
+    }
+    const client = await prisma.client.create({
       data
     });
+    
+    if (data.saldo_blanco && data.saldo_blanco !== 0) {
+      await prisma.payment.create({
+        data: {
+          client_id: client.id,
+          monto_ars: data.saldo_blanco,
+          tipo: 'BLANCO',
+          metodo_pago: 'SALDO_PREVIO',
+          referencia: 'Carga de saldo inicial blanco'
+        }
+      });
+    }
+    
+    if (data.saldo_interno && data.saldo_interno !== 0) {
+      await prisma.payment.create({
+        data: {
+          client_id: client.id,
+          monto_ars: data.saldo_interno,
+          tipo: 'INTERNO',
+          metodo_pago: 'SALDO_PREVIO',
+          referencia: 'Carga de saldo inicial interno'
+        }
+      });
+    }
+    return client;
   }
 
   static async update(id: number, data: any) {
-    return await prisma.client.update({
+    const currentClient = await prisma.client.findUnique({ where: { id } });
+    
+    const updated = await prisma.client.update({
       where: { id },
       data
     });
+    
+    // Si se modificaron los saldos, sincronizamos la deuda total
+    if (data.saldo_blanco !== undefined || data.saldo_interno !== undefined) {
+      const oldBlanco = Number(currentClient?.saldo_blanco || 0);
+      const oldInterno = Number(currentClient?.saldo_interno || 0);
+      
+      const newBlanco = Number(updated.saldo_blanco);
+      const newInterno = Number(updated.saldo_interno);
+      
+      const diffBlanco = newBlanco - oldBlanco;
+      const diffInterno = newInterno - oldInterno;
+
+      if (diffBlanco !== 0) {
+        await prisma.payment.create({
+          data: {
+            client_id: id,
+            monto_ars: diffBlanco,
+            tipo: 'BLANCO',
+            metodo_pago: 'AJUSTE_SALDO',
+            referencia: 'Ajuste manual de saldo blanco'
+          }
+        });
+      }
+
+      if (diffInterno !== 0) {
+        await prisma.payment.create({
+          data: {
+            client_id: id,
+            monto_ars: diffInterno,
+            tipo: 'INTERNO',
+            metodo_pago: 'AJUSTE_SALDO',
+            referencia: 'Ajuste manual de saldo interno'
+          }
+        });
+      }
+
+      const total = newBlanco + newInterno;
+      await prisma.client.update({
+        where: { id },
+        data: { saldo_deuda: total }
+      });
+      
+      updated.saldo_deuda = total as any;
+    }
+    return updated;
   }
 
   static async delete(id: number) {
@@ -94,17 +169,54 @@ export class ClientService {
         }
       });
 
-      // Actualizar cliente con saldos sincronizados
+      // Sincronizar deuda total
+      const newDeuda = newSaldoBlanco + newSaldoInterno;
       await tx.client.update({
         where: { id: clientId },
         data: {
           saldo_blanco: newSaldoBlanco,
           saldo_interno: newSaldoInterno,
-          saldo_deuda: newSaldoBlanco + newSaldoInterno
+          saldo_deuda: newDeuda
         }
       });
 
       return payment;
+    });
+  }
+
+  static async deletePayment(clientId: number, paymentId: number) {
+    return await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+      if (!payment || payment.client_id !== clientId) {
+        throw new AppError('Pago/Ajuste no encontrado', 404);
+      }
+
+      const client = await tx.client.findUnique({ where: { id: clientId } });
+      if (!client) throw new AppError('Cliente no encontrado', 404);
+
+      let newSaldoBlanco = Number(client.saldo_blanco);
+      let newSaldoInterno = Number(client.saldo_interno);
+      const monto = Number(payment.monto_ars);
+
+      if (payment.tipo === 'BLANCO') {
+        newSaldoBlanco -= monto;
+      } else {
+        newSaldoInterno -= monto;
+      }
+
+      await tx.payment.delete({ where: { id: paymentId } });
+      
+      const newDeuda = newSaldoBlanco + newSaldoInterno;
+      await tx.client.update({
+        where: { id: clientId },
+        data: {
+          saldo_blanco: newSaldoBlanco,
+          saldo_interno: newSaldoInterno,
+          saldo_deuda: newDeuda
+        }
+      });
+
+      return { success: true };
     });
   }
 

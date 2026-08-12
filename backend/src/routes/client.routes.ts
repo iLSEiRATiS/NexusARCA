@@ -12,6 +12,7 @@ router.patch('/:id', validate(updateClientSchema), ClientController.update);
 router.delete('/:id', ClientController.delete);
 
 router.post('/:id/payments', ClientController.registerPayment);
+router.delete('/:id/payments/:paymentId', ClientController.deletePayment);
 router.post('/sync-all', ClientController.syncAll);
 
 export default router;

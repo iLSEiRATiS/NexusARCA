@@ -7,13 +7,15 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, Plus, AlertTriangle } from 'lucide-react';
 
+import { parseArgNumber } from '../utils/format';
+
 interface CartItem {
   id: string;
   descripcion: string;
-  cantidad: number;
-  precio: number;
+  cantidad: number | string;
+  precio: number | string;
   moneda: 'USD' | 'ARS';
-  iva_tasa: number;
+  iva_tasa: number | string;
   subtotal_usd: number;
 }
 
@@ -28,9 +30,9 @@ const NewSalePage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [tipoComprobante, setTipoComprobante] = useState('Factura A');
-  const [percepcionIIBB, setPercepcionIIBB] = useState<number>(0);
-  const [percepcionIVA, setPercepcionIVA] = useState<number>(0);
-  const [cobroInterno, setCobroInterno] = useState<number>(0);
+  const [percepcionIIBB, setPercepcionIIBB] = useState<number | string>(0);
+  const [percepcionIVA, setPercepcionIVA] = useState<number | string>(0);
+  const [cobroInterno, setCobroInterno] = useState<number | string>(0);
 
   const { data: clients, isLoading: isLoadingClients } = useQuery({ 
     queryKey: ['clients'], 
@@ -68,7 +70,7 @@ const NewSalePage = () => {
   
   const totalIvaArs = cart.reduce((acc, item) => acc + (item.subtotal_usd * cotizacion * (item.iva_tasa / 100)), 0);
   
-  const totalFactura = totalArs + totalIvaArs + percepcionIIBB + percepcionIVA;
+  const totalFactura = totalArs + totalIvaArs + parseArgNumber(percepcionIIBB) + parseArgNumber(percepcionIVA);
 
   // Warning de tope para Consumidor Final sin identificar
   const isConsumidorFinalSinCuit = selectedClient?.condicion_iva === 'CONSUMIDOR_FINAL' && (!selectedClient.cuit || selectedClient.cuit === '0');
@@ -82,8 +84,8 @@ const NewSalePage = () => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         if (field === 'cantidad' || field === 'precio' || field === 'moneda') {
-          const priceInUsd = updated.moneda === 'USD' ? Number(updated.precio) : Number(updated.precio) / cotizacion;
-          updated.subtotal_usd = Number(updated.cantidad) * priceInUsd;
+          const priceInUsd = updated.moneda === 'USD' ? parseArgNumber(updated.precio) : parseArgNumber(updated.precio) / cotizacion;
+          updated.subtotal_usd = parseArgNumber(updated.cantidad) * priceInUsd;
         }
         return updated;
       }
@@ -301,7 +303,7 @@ const NewSalePage = () => {
                            </td>
                            <td className="py-2 px-2">
                              <input 
-                               type="number" 
+                               type="text" 
                                value={item.cantidad || ''}
                                onChange={e => updateItem(item.id, 'cantidad', e.target.value)}
                                className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-center"
@@ -319,7 +321,7 @@ const NewSalePage = () => {
                            </td>
                            <td className="py-2 px-2">
                              <input 
-                               type="number" 
+                               type="text" 
                                value={item.precio || ''}
                                onChange={e => updateItem(item.id, 'precio', e.target.value)}
                                className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-right"
@@ -327,7 +329,7 @@ const NewSalePage = () => {
                            </td>
                            <td className="py-2 px-2">
                              <input 
-                               type="number" 
+                               type="text" 
                                value={item.iva_tasa || ''}
                                onChange={e => updateItem(item.id, 'iva_tasa', e.target.value)}
                                className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-center"
@@ -390,25 +392,31 @@ const NewSalePage = () => {
 
                  {tipoComprobante.includes('Factura') && (
                  <div className="mt-8 flex gap-4">
-                    <div className="flex-1">
-                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Perc. IIBB (ARS)</label>
-                      <input 
-                        type="number"
-                        className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition-all"
-                        value={percepcionIIBB || ''}
-                        onChange={(e) => setPercepcionIIBB(Number(e.target.value))}
-                        placeholder="0.00"
-                      />
+                    <div className="flex-1 bg-slate-50 border border-slate-200 p-3 sm:p-4">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Percepción IIBB</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-bold">$</span>
+                        <input 
+                          type="text" 
+                          value={percepcionIIBB || ''}
+                          onChange={(e) => setPercepcionIIBB(e.target.value)}
+                          className="w-full bg-transparent font-black text-slate-900 outline-none"
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Perc. IVA (ARS)</label>
-                      <input 
-                        type="number"
-                        className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition-all"
-                        value={percepcionIVA || ''}
-                        onChange={(e) => setPercepcionIVA(Number(e.target.value))}
-                        placeholder="0.00"
-                      />
+                    <div className="flex-1 bg-slate-50 border border-slate-200 p-3 sm:p-4">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Percepción IVA</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400 font-bold">$</span>
+                        <input 
+                          type="text" 
+                          value={percepcionIVA || ''}
+                          onChange={(e) => setPercepcionIVA(e.target.value)}
+                          className="w-full bg-transparent font-black text-slate-900 outline-none"
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
                  </div>
                  )}
@@ -438,7 +446,7 @@ const NewSalePage = () => {
                  </div>
                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mt-2">
                     <span className="text-slate-400">Percepciones</span>
-                    <span className="text-slate-900">${(percepcionIIBB + percepcionIVA).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span className="text-slate-900">${(parseArgNumber(percepcionIIBB) + parseArgNumber(percepcionIVA)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                  </div>
                  <div className="pt-5 mt-5 border-t border-slate-200 flex justify-between items-center">
                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">Total Factura</span>
@@ -468,11 +476,11 @@ const NewSalePage = () => {
                 <div key={item.id} className="group border-b border-slate-50 pb-6 last:border-0 flex justify-between items-center">
                   <div className="min-w-0 pr-4">
                     <p className="font-black uppercase text-[10px] tracking-tight text-slate-900 mb-1 truncate">{item.descripcion}</p>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase">{item.cantidad} KG x {item.moneda === 'USD' ? 'U$D' : 'ARS'} {Number(item.precio || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase">{item.cantidad} KG x {item.moneda === 'USD' ? 'U$D' : 'ARS'} {parseArgNumber(item.precio || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                   </div>
-                  <div className="text-right whitespace-nowrap">
-                    <p className="font-black text-blue-600 text-[11px]">
-                      {item.moneda === 'USD' ? 'U$D' : 'ARS'} {(Number(item.cantidad) * Number(item.precio || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  <div className="text-right">
+                    <p className="font-black text-slate-900 text-sm">
+                      {item.moneda === 'USD' ? 'U$D' : 'ARS'} {(parseArgNumber(item.cantidad) * parseArgNumber(item.precio || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </p>
                   </div>
                 </div>
@@ -488,23 +496,24 @@ const NewSalePage = () => {
               {/* Campo Cobro Interno */}
               {tipoComprobante !== 'Remito' && (
                 <div className="bg-slate-900 p-4">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">⬛ Cobro Interno (ARS)</p>
+                  <label className="text-slate-400 font-bold uppercase tracking-widest text-[9px] mb-2 block">
+                    Cobro Interno Registrado (Opcional)
+                  </label>
                   <input
-                    type="number"
-                    min={0}
+                    type="text"
                     value={cobroInterno || ''}
-                    onChange={e => setCobroInterno(Math.max(0, Number(e.target.value)))}
+                    onChange={e => setCobroInterno(e.target.value)}
                     placeholder="0"
                     className="w-full bg-slate-800 border-b border-slate-600 text-white font-black text-lg px-3 py-2 outline-none focus:border-blue-400 transition-all"
                   />
                   <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
                       <span className="text-slate-400">✅ Oficial a AFIP:</span>
-                      <span className="text-green-400">${Math.max(0, totalArs - cobroInterno).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                      <span className="text-green-400">${Math.max(0, totalArs - parseArgNumber(cobroInterno)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
                     <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
                       <span className="text-slate-400">⬛ Interno:</span>
-                      <span className="text-amber-400">${cobroInterno.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                      <span className="text-amber-400">${parseArgNumber(cobroInterno).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     </div>
                   </div>
                 </div>
@@ -527,19 +536,20 @@ const NewSalePage = () => {
                     const payload = {
                       cuit: clientCuit,
                       items: cart.map(item => {
-                        const precio_usd = item.moneda === 'USD' ? Number(item.precio) : Number(item.precio) / cotizacion;
-                        return { 
+                        const precio_usd = item.moneda === 'USD' ? parseArgNumber(item.precio) : parseArgNumber(item.precio) / cotizacion;
+                        
+                        return {
                           descripcion: item.descripcion,
-                          cantidad: Number(item.cantidad),
+                          cantidad: parseArgNumber(item.cantidad),
                           precio_unitario_usd: precio_usd,
-                          iva_tasa: Number(item.iva_tasa)
+                          iva_tasa: parseArgNumber(item.iva_tasa)
                         };
                       }),
                       tipo_comprobante: tipoComprobante,
-                      percepciones_iibb_ars: percepcionIIBB,
-                      percepciones_iva_ars: percepcionIVA,
+                      percepciones_iibb_ars: parseArgNumber(percepcionIIBB),
+                      percepciones_iva_ars: parseArgNumber(percepcionIVA),
                       fecha_vto_pago: fechaVtoPago ? fechaVtoPago : undefined,
-                      monto_interno: cobroInterno > 0 ? cobroInterno : undefined
+                      monto_interno: parseArgNumber(cobroInterno) > 0 ? parseArgNumber(cobroInterno) : undefined
                     };
                     createSaleMutation.mutate(payload);
                   }

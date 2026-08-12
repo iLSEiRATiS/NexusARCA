@@ -7,13 +7,15 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Upload } from 'lucide-react';
 
+import { parseArgNumber } from '../utils/format';
+
 interface QuotationCartItem {
   id: string;
   descripcion: string;
-  cantidad: number;
-  precio: number;
+  cantidad: number | string;
+  precio: number | string;
   moneda: 'USD' | 'ARS';
-  iva_tasa: number;
+  iva_tasa: number | string;
   subtotal_usd: number;
 }
 
@@ -41,8 +43,8 @@ const NewQuotationPage = () => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         if (field === 'cantidad' || field === 'precio' || field === 'moneda') {
-          const priceInUsd = updated.moneda === 'USD' ? Number(updated.precio) : Number(updated.precio) / cotizacion;
-          updated.subtotal_usd = Number(updated.cantidad) * priceInUsd;
+          const priceInUsd = updated.moneda === 'USD' ? parseArgNumber(updated.precio) : parseArgNumber(updated.precio) / cotizacion;
+          updated.subtotal_usd = parseArgNumber(updated.cantidad) * priceInUsd;
         }
         return updated;
       }
@@ -121,12 +123,12 @@ const NewQuotationPage = () => {
       const payload = {
         client_id: selectedClientId!,
         items: cart.map(item => {
-          const precio_usd = item.moneda === 'USD' ? Number(item.precio) : Number(item.precio) / cotizacion;
+          const precio_usd = item.moneda === 'USD' ? parseArgNumber(item.precio) : parseArgNumber(item.precio) / cotizacion;
           return { 
             descripcion: item.descripcion,
-            cantidad: Number(item.cantidad),
+            cantidad: parseArgNumber(item.cantidad),
             precio_unitario_usd: precio_usd,
-            iva_tasa: Number(item.iva_tasa)
+            iva_tasa: parseArgNumber(item.iva_tasa)
           };
         }),
         validez_dias: validezDias
@@ -242,7 +244,7 @@ const NewQuotationPage = () => {
                                  </td>
                                  <td className="py-2 px-2">
                                    <input 
-                                     type="number" 
+                                     type="text" 
                                      value={item.cantidad || ''}
                                      onChange={e => updateItem(item.id, 'cantidad', e.target.value)}
                                      className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-center"
@@ -260,7 +262,7 @@ const NewQuotationPage = () => {
                                  </td>
                                  <td className="py-2 px-2">
                                    <input 
-                                     type="number" 
+                                     type="text" 
                                      value={item.precio || ''}
                                      onChange={e => updateItem(item.id, 'precio', e.target.value)}
                                      className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-right"
@@ -268,7 +270,7 @@ const NewQuotationPage = () => {
                                  </td>
                                  <td className="py-2 px-2">
                                    <input 
-                                     type="number" 
+                                     type="text" 
                                      value={item.iva_tasa || ''}
                                      onChange={e => updateItem(item.id, 'iva_tasa', e.target.value)}
                                      className="w-full bg-transparent border-b border-transparent focus:border-blue-600 outline-none text-center"
@@ -332,12 +334,14 @@ const NewQuotationPage = () => {
               <div className="space-y-8 mb-12 max-h-[45vh] overflow-y-auto pr-3 custom-scrollbar">
                 {cart.map(item => (
                   <div key={item.id} className="flex justify-between items-start border-b border-slate-50 pb-6 last:border-0">
-                    <div className="flex-1 min-w-0 pr-6">
-                      <p className="font-black uppercase text-[11px] text-slate-900 mb-2 truncate tracking-tight">{item.descripcion}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{item.cantidad} KG x {item.moneda === 'USD' ? 'U$D' : 'ARS'} {Number(item.precio || 0).toFixed(2)}</p>
+                    <div className="min-w-0 pr-4">
+                      <p className="font-black uppercase text-[10px] tracking-tight text-slate-900 mb-1 truncate">{item.descripcion}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{item.cantidad} KG x {item.moneda === 'USD' ? 'U$D' : 'ARS'} {parseArgNumber(item.precio || 0).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-black text-slate-900 text-xs uppercase">USD {item.subtotal_usd.toFixed(2)}</p>
+                    <div className="text-right whitespace-nowrap">
+                      <p className="font-black text-slate-900 text-sm">
+                        {item.moneda === 'USD' ? 'U$D' : 'ARS'} {(parseArgNumber(item.cantidad) * parseArgNumber(item.precio || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </p>
                     </div>
                   </div>
                 ))}

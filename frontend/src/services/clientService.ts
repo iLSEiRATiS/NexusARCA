@@ -4,6 +4,7 @@ export interface Client {
   id: number;
   razon_social: string;
   cuit: string;
+  email: string | null;
   direccion: string | null;
   condicion_iva: string;
   nro_iibb: string | null;
@@ -35,4 +36,8 @@ export const clientService = {
     const response = await api.delete(`/clients/${id}`);
     return response.data;
   },
+  deletePayment: async (clientId: number, paymentId: number) => {
+    const response = await api.delete(`/clients/${clientId}/payments/${paymentId}`);
+    return response.data;
+  }
 };

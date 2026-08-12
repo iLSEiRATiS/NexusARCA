@@ -251,10 +251,15 @@ export const generateSalePDF = async (sale: any) => {
     doc.setFillColor(255, 255, 255);
     doc.rect(10, 10, (pW - 20) * 0.42, 55, 'F');
 
-    doc.setFontSize(13);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text(EMISOR.razon_social, 15, 22);
+    doc.text("Oscar C. Mascolo", 15, 20);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(80, 80, 80);
+    doc.text("Insumos Químicos", 15, 25);
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
@@ -568,10 +573,15 @@ export const generateCreditNotePDF = async (sale: any) => {
     doc.setFillColor(255, 255, 255);
     doc.rect(10, 10, (pW - 20) * 0.42, 55, 'F');
 
-    doc.setFontSize(13);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text(EMISOR.razon_social, 15, 22);
+    doc.text("Oscar C. Mascolo", 15, 20);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(80, 80, 80);
+    doc.text("Insumos Químicos", 15, 25);
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');

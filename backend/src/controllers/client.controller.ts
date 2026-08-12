@@ -60,4 +60,9 @@ export class ClientController {
     }
     res.json({ message: 'Saldos sincronizados correctamente' });
   });
+
+  static deletePayment = asyncHandler(async (req: Request, res: Response) => {
+    await ClientService.deletePayment(Number(req.params.id), Number(req.params.paymentId));
+    res.status(204).send();
+  });
 }
