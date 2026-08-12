@@ -35,7 +35,7 @@ const NewQuotationPage = () => {
 
   const totalUsd = cart.reduce((acc, item) => acc + item.subtotal_usd, 0);
   const totalArs = totalUsd * cotizacion;
-  const totalIvaArs = cart.reduce((acc, item) => acc + (item.subtotal_usd * cotizacion * (item.iva_tasa / 100)), 0);
+  const totalIvaArs = cart.reduce((acc, item) => acc + (item.subtotal_usd * cotizacion * (parseArgNumber(item.iva_tasa) / 100)), 0);
   const totalFactura = totalArs + totalIvaArs;
 
   const updateItem = (id: string, field: keyof QuotationCartItem, value: any) => {

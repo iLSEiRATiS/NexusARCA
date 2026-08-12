@@ -238,19 +238,6 @@ const ClientsPage = () => {
     generateAccountStatementPDF(selectedClient, history);
   };
 
-  const handleNumericInput = (value: string, min: number = 0) => {
-    const cleanedValue = value.replace(/[^0-9.]/g, '');
-    const numValue = parseFloat(cleanedValue);
-    if (isNaN(numValue)) return 0;
-    return Math.max(min, numValue);
-  };
-
-  const preventInvalidChars = (e: React.KeyboardEvent) => {
-    if (['e', 'E', '+', '-'].includes(e.key)) {
-      e.preventDefault();
-    }
-  };
-
   if (isLoading) return <div className="p-6 md:p-10"><TableSkeleton /></div>;
 
   return (
