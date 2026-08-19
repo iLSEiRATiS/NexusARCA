@@ -52,7 +52,7 @@ app.use(errorHandler);
 
 // Servidor e inicialización de seguridad
 app.listen(PORT, async () => {
-  console.log(`🚀 Mascolo Facturador Backend ejecutándose en puerto ${PORT}`);
+  console.log(`🚀 Máscolo Facturador Backend ejecutándose en puerto ${PORT}`);
   // Crear admin inicial si no existe
   await UserService.createInitialAdmin();
   

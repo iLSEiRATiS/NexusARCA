@@ -129,7 +129,7 @@ const SettingsPage = () => {
             </p>
             <p className="text-amber-700 text-xs font-bold mt-1 leading-relaxed">
               Completá los datos a continuación para que aparezcan correctamente en las facturas generadas.
-              Pedile estos datos al contador de Mascolo Químicos.
+              Pedile estos datos al contador de Máscolo Químicos.
             </p>
           </div>
         </div>
@@ -141,7 +141,7 @@ const SettingsPage = () => {
         <section className="space-y-8">
           <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 flex items-center gap-2 pb-4 border-b border-slate-200">
             <Building2 size={14} className="text-blue-600" />
-            Datos del Emisor (Mascolo Químicos)
+            Datos del Emisor (Máscolo Químicos)
           </h2>
 
           <div className="space-y-6">
@@ -155,7 +155,7 @@ const SettingsPage = () => {
                 value={form.razon_social || ''}
                 onChange={e => set('razon_social', e.target.value)}
                 className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-bold text-slate-900 text-sm outline-none focus:border-blue-600 transition-all uppercase"
-                placeholder="MASCOLO OSCAR ADOLFO"
+                placeholder="MÁSCOLO OSCAR ADOLFO"
               />
             </div>
 

@@ -37,7 +37,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1300,
     height: 900,
-    title: "Mascolo Facturador",
+    title: "Máscolo Facturador",
     icon: path.join(__dirname, 'public/logo.png'),
     webPreferences: {
       nodeIntegration: false,

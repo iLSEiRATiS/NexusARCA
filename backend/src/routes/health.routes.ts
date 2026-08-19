@@ -5,7 +5,7 @@ const router = Router();
 router.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'online',
-    project: 'Mascolo Facturador',
+    project: 'Máscolo Facturador',
     timestamp: new Date().toISOString()
   });
 });

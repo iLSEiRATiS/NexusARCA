@@ -95,7 +95,7 @@ const generateProformaPDF = (sale: any, _EMISOR: EmisorConfig) => {
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('Mascolo Químicos', 15, 23);
+  doc.text('Máscolo Químicos', 15, 23);
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
@@ -254,7 +254,7 @@ export const generateSalePDF = async (sale: any) => {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text("Oscar C. Mascolo", 15, 20);
+    doc.text("Oscar C. Máscolo", 15, 20);
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'italic');
@@ -576,7 +576,7 @@ export const generateCreditNotePDF = async (sale: any) => {
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text("Oscar C. Mascolo", 15, 20);
+    doc.text("Oscar C. Máscolo", 15, 20);
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'italic');
@@ -807,7 +807,7 @@ export const generateQuotationPDF = (quotation: any) => {
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text('Mascolo Químicos', 15, 23);
+    doc.text('Máscolo Químicos', 15, 23);
 
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
@@ -930,7 +930,7 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Mascolo Químicos - Facturador Fiscal', 15, 32);
+  doc.text('Máscolo Químicos - Facturador Fiscal', 15, 32);
 
   doc.setTextColor(44, 85, 23);
   doc.setFontSize(14);

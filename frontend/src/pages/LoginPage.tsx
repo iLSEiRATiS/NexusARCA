@@ -27,7 +27,7 @@ const LoginPage = () => {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans text-slate-900">
       <div className="w-full max-w-md bg-white border border-slate-200 p-10 md:p-14 shadow-sm">
         <div className="mb-12 text-center">
-          <h1 className="text-3xl font-black uppercase tracking-tighter mb-3 text-slate-900">Mascolo <span className="text-blue-600">Facturador</span></h1>
+          <h1 className="text-3xl font-black uppercase tracking-tighter mb-3 text-slate-900">Máscolo <span className="text-blue-600">Facturador</span></h1>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-10">

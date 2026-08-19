@@ -67,7 +67,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
       <nav className="border-b border-slate-200 px-6 md:px-10 py-6 flex justify-between items-center sticky top-0 z-50 bg-white">
         <Link to="/" className="flex items-center gap-2">
-          <span className="text-xl font-black tracking-tighter uppercase text-slate-900">Mascolo <span className="text-blue-600 font-light">Facturador</span></span>
+          <span className="text-xl font-black tracking-tighter uppercase text-slate-900">Máscolo <span className="text-blue-600 font-light">Facturador</span></span>
         </Link>
 
         {/* Desktop Nav */}
@@ -122,7 +122,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       </main>
 
       <footer className="py-12 text-center border-t border-slate-200 bg-white">
-        <span className="text-slate-300 text-[10px] font-bold uppercase tracking-[0.4em]">Mascolo Químicos &bull; 2026</span>
+        <span className="text-slate-300 text-[10px] font-bold uppercase tracking-[0.4em]">Máscolo Químicos &bull; 2026</span>
       </footer>
     </div>
   );

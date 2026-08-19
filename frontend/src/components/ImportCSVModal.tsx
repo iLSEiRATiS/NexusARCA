@@ -64,7 +64,7 @@ const ImportCSVModal = ({ isOpen, onClose }: ImportCSVModalProps) => {
         <div className="bg-slate-900 p-8 text-white flex justify-between items-center border-b border-slate-800">
           <div>
             <h2 className="text-2xl font-black uppercase tracking-tighter">Importar Movimientos</h2>
-            <p className="text-slate-400 text-[9px] font-black uppercase mt-1 tracking-[0.2em]">Intercambio de datos externo (Mascolo Stock)</p>
+            <p className="text-slate-400 text-[9px] font-black uppercase mt-1 tracking-[0.2em]">Intercambio de datos externo (Máscolo Stock)</p>
           </div>
           <button onClick={onClose} className="text-white hover:text-slate-400 transition-all text-3xl font-light leading-none px-2">&times;</button>
         </div>

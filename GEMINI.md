@@ -69,3 +69,16 @@ A lo largo de esta sesiÃ³n, hemos transformado a **NexusARCA** para que deje d
 * **Corrección de Deuda en Ventas Split:** Se solucionó un bug contable en `sale.service.ts` relacionado a la facturación mixta (oficial/interno). El sistema ahora garantiza que el `saldo_deuda` del cliente se descuente exactamente una sola vez por el valor real total, sin generar duplicidad en el descuento durante el proceso de bifurcación del pago.
 * **Mejoras en el Modal de Facturación:** Se rediseñó el despliegue del modal de facturación (en las pantallas de ventas y presupuestos) para mejorar su integración visual. Se eliminaron fondos oscuros intrusivos y se reemplazó el tradicional icono de cierre por un botón explícito de "Cerrar y Volver", optimizando la comprensión del usuario y limpiando la vista de fondo.
 * **Interactividad en Configuración:** Se aplicaron nuevos estilos reactivos de hover (`group-hover`) a las tarjetas selectoras de "Producción" y "Homologación" (`SettingsPage.tsx`), elevando la calidad estética de las herramientas administrativas.
+
+## 12. Actualización en Producción (VPS)
+Para actualizar el backend en el VPS tras nuevos desarrollos, se debe ejecutar el siguiente bloque de comandos estando posicionados en la ruta donde se sirve el proyecto (ej. `/var/www/NexusARCA`):
+
+```bash
+cd /var/www/NexusARCA && \
+git pull origin main && \
+cd backend && \
+npm install && \
+npm run build && \
+pm2 restart 1
+```
+*(Nota: El frontend alojado en Netlify se reconstruye de manera automática al detectar el `git pull` en la rama `main`).*
