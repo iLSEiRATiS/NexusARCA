@@ -155,7 +155,7 @@ const SettingsPage = () => {
                 value={form.razon_social || ''}
                 onChange={e => set('razon_social', e.target.value)}
                 className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-bold text-slate-900 text-sm outline-none focus:border-blue-600 transition-all uppercase"
-                placeholder="MÁSCOLO OSCAR ADOLFO"
+                placeholder="MÁSCOLO OSCAR CARMELO"
               />
             </div>
 
