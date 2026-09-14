@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build": "tsc -b && vite build",
     "electron": "electron .",
     "build:frontend": "tsc -b && vite build",
     "build:backend": "cd ../backend && npm run build && xcopy /E /I /Y dist ..\\frontend\\backend-dist",

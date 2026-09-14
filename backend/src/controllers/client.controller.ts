@@ -18,11 +18,15 @@ export class ClientController {
   });
 
   static create = asyncHandler(async (req: Request, res: Response) => {
-    const existing = await ClientService.getByCuit(req.body.cuit);
+    const cleanCuit = req.body.cuit ? String(req.body.cuit).replace(/[-\s.]/g, '') : '';
+    const existing = await ClientService.getByCuit(cleanCuit);
     if (existing) {
-      throw new AppError('Ya existe un cliente con ese CUIT', 400);
+      throw new AppError(`Ya existe un cliente registrado con el CUIT/documento ${cleanCuit} (${existing.razon_social})`, 400);
     }
-    const client = await ClientService.create(req.body);
+    const client = await ClientService.create({
+      ...req.body,
+      cuit: cleanCuit
+    });
     res.status(201).json(client);
   });
 

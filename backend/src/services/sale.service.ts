@@ -250,7 +250,15 @@ export class SaleService {
     if (data.client_id) {
       client = await prisma.client.findUnique({ where: { id: data.client_id } });
     } else if (data.cuit) {
-      client = await prisma.client.findUnique({ where: { cuit: data.cuit } });
+      const cleanCuit = String(data.cuit).replace(/[-\s.]/g, '');
+      client = await prisma.client.findFirst({
+        where: {
+          OR: [
+            { cuit: cleanCuit },
+            { cuit: data.cuit }
+          ]
+        }
+      });
     }
     
     if (!client) {

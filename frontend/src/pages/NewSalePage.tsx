@@ -5,7 +5,7 @@ import { currencyService } from '../services/currencyService';
 import api from '../services/api';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, Plus, AlertTriangle } from 'lucide-react';
+import { Upload, FileText, Plus, AlertTriangle, UserPlus, X } from 'lucide-react';
 
 import { parseArgNumber } from '../utils/format';
 
@@ -22,7 +22,6 @@ interface CartItem {
 const NewSalePage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  
 
   const [fechaVtoPago, setFechaVtoPago] = useState('');
   const [clientCuit, setClientCuit] = useState('');
@@ -34,6 +33,17 @@ const NewSalePage = () => {
   const [percepcionIVA, setPercepcionIVA] = useState<number | string>(0);
   const [cobroInterno, setCobroInterno] = useState<number | string>(0);
 
+  // Modal de Alta Rápida de Cliente
+  const [isQuickClientModalOpen, setIsQuickClientModalOpen] = useState(false);
+  const [quickClientForm, setQuickClientForm] = useState({
+    razon_social: '',
+    cuit: '',
+    condicion_iva: 'RESPONSABLE_INSCRIPTO',
+    direccion: '',
+    telefono: '',
+    email: ''
+  });
+
   const { data: clients, isLoading: isLoadingClients } = useQuery({ 
     queryKey: ['clients'], 
     queryFn: clientService.getAll 
@@ -44,11 +54,49 @@ const NewSalePage = () => {
     queryFn: currencyService.getDolarOficial 
   });
 
-  const selectedClient = clients?.find((c: any) => c.cuit === clientCuit);
-  const filteredClients = clients?.filter((c: any) => 
-    c.razon_social.toLowerCase().includes(clientCuit.toLowerCase()) || 
-    c.cuit.includes(clientCuit)
-  ) || [];
+  const quickCreateClientMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const payload = {
+        ...data,
+        cuit: data.cuit ? String(data.cuit).replace(/[-\s.]/g, '') : '',
+        email: data.email ? data.email.trim() : null,
+        direccion: data.direccion ? data.direccion.trim() : null,
+        telefono: data.telefono ? data.telefono.trim() : null,
+        saldo_blanco: 0,
+        saldo_interno: 0
+      };
+      return clientService.create(payload);
+    },
+    onSuccess: (newClient) => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      setClientCuit(newClient.cuit);
+      setIsQuickClientModalOpen(false);
+      setShowClientDropdown(false);
+      toast.success(`Cliente ${newClient.razon_social} registrado y seleccionado exitosamente`);
+    },
+    onError: (err: any) => {
+      console.error('Error creating client:', err);
+      const msg = err.response?.data?.message || err.message || 'Error al registrar cliente';
+      toast.error(msg);
+    }
+  });
+
+  const handleQuickClientSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    quickCreateClientMutation.mutate(quickClientForm);
+  };
+
+  const cleanInputCuit = clientCuit.replace(/[-\s.]/g, '');
+  const selectedClient = clients?.find((c: any) => {
+    const cleanDbCuit = String(c.cuit || '').replace(/[-\s.]/g, '');
+    return (cleanInputCuit && cleanDbCuit === cleanInputCuit) || c.cuit === clientCuit;
+  });
+  const filteredClients = clients?.filter((c: any) => {
+    const cleanDbCuit = String(c.cuit || '').replace(/[-\s.]/g, '');
+    return c.razon_social.toLowerCase().includes(clientCuit.toLowerCase()) || 
+      (cleanInputCuit && cleanDbCuit.includes(cleanInputCuit)) ||
+      c.cuit.includes(clientCuit);
+  }) || [];
   const cotizacion = Number(dolar || 1);
 
   useEffect(() => {
@@ -239,9 +287,22 @@ const NewSalePage = () => {
                   )}
                   <div 
                     className="p-4 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest cursor-pointer hover:bg-blue-600 transition-colors flex justify-center items-center gap-2"
-                    onClick={() => navigate('/clientes')}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      const isDigits = /^\d+$/.test(clientCuit.replace(/[-\s.]/g, ''));
+                      setQuickClientForm({
+                        razon_social: !isDigits ? clientCuit.toUpperCase() : '',
+                        cuit: isDigits ? clientCuit : '',
+                        condicion_iva: 'RESPONSABLE_INSCRIPTO',
+                        direccion: '',
+                        telefono: '',
+                        email: ''
+                      });
+                      setIsQuickClientModalOpen(true);
+                      setShowClientDropdown(false);
+                    }}
                   >
-                    <Plus size={14} /> CARGAR NUEVO CLIENTE
+                    <UserPlus size={14} /> + REGISTRAR CLIENTE EN ESTA PANTALLA
                   </div>
                 </div>
               )}
@@ -253,9 +314,29 @@ const NewSalePage = () => {
                 <span className="text-slate-400 self-end">Saldo Cartera: <span className={Number(selectedClient.saldo_deuda) < 0 ? 'text-red-600' : 'text-slate-900'}>${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></span>
               </div>
             ) : clientCuit ? (
-              <div className="mt-6 text-[10px] font-black uppercase tracking-widest border-t border-slate-100 pt-4 text-red-600 flex items-center gap-2">
-                <AlertTriangle size={14} />
-                CUIT NO REGISTRADO — CARGUE EL CLIENTE PRIMERO DESDE LA SECCIÓN DE CLIENTES
+              <div className="mt-6 p-4 bg-amber-50 border border-amber-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-amber-900 flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+                  <span>CLIENTE O CUIT NO REGISTRADO</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isDigits = /^\d+$/.test(clientCuit.replace(/[-\s.]/g, ''));
+                    setQuickClientForm({
+                      razon_social: !isDigits ? clientCuit.toUpperCase() : '',
+                      cuit: isDigits ? clientCuit : '',
+                      condicion_iva: 'RESPONSABLE_INSCRIPTO',
+                      direccion: '',
+                      telefono: '',
+                      email: ''
+                    });
+                    setIsQuickClientModalOpen(true);
+                  }}
+                  className="bg-slate-900 hover:bg-blue-600 text-white px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus size={12} /> Registrar Cliente Ahora
+                </button>
               </div>
             ) : null}
           </section>
@@ -534,7 +615,8 @@ const NewSalePage = () => {
                 onClick={() => {
                   if(window.confirm('¿CONFIRMAR REGISTRO DE OPERACIÓN?')) {
                     const payload = {
-                      cuit: clientCuit,
+                      cuit: selectedClient ? selectedClient.cuit : clientCuit.replace(/[-\s.]/g, ''),
+                      client_id: selectedClient?.id,
                       items: cart.map(item => {
                         const precio_usd = item.moneda === 'USD' ? parseArgNumber(item.precio) : parseArgNumber(item.precio) / cotizacion;
                         
@@ -563,6 +645,132 @@ const NewSalePage = () => {
           </section>
         </div>
       </div>
+
+      {/* MODAL ALTA RÁPIDA DE CLIENTE */}
+      {isQuickClientModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white border-2 border-slate-900 shadow-2xl max-w-lg w-full overflow-hidden">
+            <div className="bg-slate-900 text-white p-6 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-widest">Alta Rápida de Cliente</h3>
+                <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mt-1">Registrar sin salir del facturador</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickClientModalOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickClientSubmit} className="p-6 bg-slate-50 space-y-4">
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                  Razón Social / Nombre Completo *
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder="EJ: DISTRIBUIDORA NORTE S.A."
+                  value={quickClientForm.razon_social}
+                  onChange={e => setQuickClientForm({ ...quickClientForm, razon_social: e.target.value })}
+                  className="w-full bg-white border border-slate-200 p-3 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    CUIT o DNI *
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="20-12345678-9 o DNI"
+                    value={quickClientForm.cuit}
+                    onChange={e => setQuickClientForm({ ...quickClientForm, cuit: e.target.value })}
+                    className="w-full bg-white border border-slate-200 p-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    Condición IVA *
+                  </label>
+                  <select
+                    value={quickClientForm.condicion_iva}
+                    onChange={e => setQuickClientForm({ ...quickClientForm, condicion_iva: e.target.value })}
+                    className="w-full bg-white border border-slate-200 p-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  >
+                    <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+                    <option value="MONOTRIBUTO">Monotributo</option>
+                    <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+                    <option value="EXENTO">Exento</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                  Dirección Fiscal (Opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Calle, Número, Localidad"
+                  value={quickClientForm.direccion}
+                  onChange={e => setQuickClientForm({ ...quickClientForm, direccion: e.target.value })}
+                  className="w-full bg-white border border-slate-200 p-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    Teléfono (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="011-12345678"
+                    value={quickClientForm.telefono}
+                    onChange={e => setQuickClientForm({ ...quickClientForm, telefono: e.target.value })}
+                    className="w-full bg-white border border-slate-200 p-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    Email (Opcional)
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="contacto@cliente.com"
+                    value={quickClientForm.email}
+                    onChange={e => setQuickClientForm({ ...quickClientForm, email: e.target.value })}
+                    className="w-full bg-white border border-slate-200 p-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickClientModalOpen(false)}
+                  className="w-1/3 py-3 font-bold text-[10px] uppercase text-slate-400 hover:text-slate-600 tracking-widest"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={quickCreateClientMutation.isPending}
+                  className="w-2/3 bg-blue-600 hover:bg-blue-700 text-white py-3 font-black text-[10px] uppercase tracking-widest transition-all disabled:bg-slate-300 shadow-md"
+                >
+                  {quickCreateClientMutation.isPending ? 'Guardando...' : 'Guardar y Seleccionar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

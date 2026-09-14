@@ -84,6 +84,11 @@ const ClientsPage = () => {
     mutationFn: (data: any) => {
       const payload = {
         ...data,
+        cuit: data.cuit ? String(data.cuit).replace(/[-\s.]/g, '') : '',
+        email: data.email ? data.email.trim() : null,
+        direccion: data.direccion ? data.direccion.trim() : null,
+        nro_iibb: data.nro_iibb ? data.nro_iibb.trim() : null,
+        telefono: data.telefono ? data.telefono.trim() : null,
         saldo_blanco: parseArgNumber(data.saldo_blanco),
         saldo_interno: parseArgNumber(data.saldo_interno)
       };
@@ -97,7 +102,8 @@ const ClientsPage = () => {
     },
     onError: (err: any) => {
       console.error('Error creating client:', err);
-      toast.error(err.response?.data?.message || 'Error al registrar cliente. Verifique los datos.');
+      const msg = err.response?.data?.message || err.message || 'Error al registrar cliente. Verifique los datos.';
+      toast.error(msg);
     }
   });
 

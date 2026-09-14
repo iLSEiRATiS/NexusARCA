@@ -4,7 +4,7 @@
   "description": "Sistema de gestión de stock y ventas para químicos industriales con integración ARCA",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
-    "build": "tsc",
+    "build": "prisma generate && prisma db push && tsc",
     "start": "node dist/index.js",
     "prisma:generate": "npx prisma generate",
     "prisma:push": "npx prisma db push",

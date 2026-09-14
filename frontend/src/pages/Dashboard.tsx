@@ -85,8 +85,8 @@ const Dashboard = () => {
             <h3 className="text-xs font-black uppercase tracking-[0.4em] text-slate-900">Evolución Semanal de Facturación</h3>
             <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">VALORES EN PESOS ARGENTINOS</span>
           </div>
-          <div className="h-[350px] w-full border-t border-slate-100 pt-10">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[350px] w-full min-w-0 border-t border-slate-100 pt-10">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
               <BarChart data={salesChartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 'bold'}} dy={10} />

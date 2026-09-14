@@ -25,18 +25,31 @@ export class ClientService {
   }
 
   static async create(data: any) {
-    if (data.saldo_blanco !== undefined || data.saldo_interno !== undefined) {
-      data.saldo_deuda = Number(data.saldo_blanco || 0) + Number(data.saldo_interno || 0);
+    const cleanCuit = data.cuit ? String(data.cuit).replace(/[-\s.]/g, '') : '';
+    const payload: any = {
+      ...data,
+      cuit: cleanCuit
+    };
+
+    if (payload.saldo_blanco !== undefined || payload.saldo_interno !== undefined) {
+      payload.saldo_deuda = Number(payload.saldo_blanco || 0) + Number(payload.saldo_interno || 0);
     }
+
+    // Convertir strings vacíos a null para campos opcionales
+    if (payload.email === '') payload.email = null;
+    if (payload.direccion === '') payload.direccion = null;
+    if (payload.nro_iibb === '') payload.nro_iibb = null;
+    if (payload.telefono === '') payload.telefono = null;
+
     const client = await prisma.client.create({
-      data
+      data: payload
     });
     
-    if (data.saldo_blanco && data.saldo_blanco !== 0) {
+    if (payload.saldo_blanco && Number(payload.saldo_blanco) !== 0) {
       await prisma.payment.create({
         data: {
           client_id: client.id,
-          monto_ars: data.saldo_blanco,
+          monto_ars: Number(payload.saldo_blanco),
           tipo: 'BLANCO',
           metodo_pago: 'SALDO_PREVIO',
           referencia: 'Carga de saldo inicial blanco'
@@ -44,11 +57,11 @@ export class ClientService {
       });
     }
     
-    if (data.saldo_interno && data.saldo_interno !== 0) {
+    if (payload.saldo_interno && Number(payload.saldo_interno) !== 0) {
       await prisma.payment.create({
         data: {
           client_id: client.id,
-          monto_ars: data.saldo_interno,
+          monto_ars: Number(payload.saldo_interno),
           tipo: 'INTERNO',
           metodo_pago: 'SALDO_PREVIO',
           referencia: 'Carga de saldo inicial interno'
@@ -119,8 +132,15 @@ export class ClientService {
   }
 
   static async getByCuit(cuit: string) {
-    return await prisma.client.findUnique({
-      where: { cuit }
+    if (!cuit) return null;
+    const cleanCuit = String(cuit).replace(/[-\s.]/g, '');
+    return await prisma.client.findFirst({
+      where: {
+        OR: [
+          { cuit: cleanCuit },
+          { cuit: cuit }
+        ]
+      }
     });
   }
 

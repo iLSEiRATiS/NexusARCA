@@ -70,7 +70,14 @@ A lo largo de esta sesiÃ³n, hemos transformado a **NexusARCA** para que deje d
 * **Mejoras en el Modal de Facturación:** Se rediseñó el despliegue del modal de facturación (en las pantallas de ventas y presupuestos) para mejorar su integración visual. Se eliminaron fondos oscuros intrusivos y se reemplazó el tradicional icono de cierre por un botón explícito de "Cerrar y Volver", optimizando la comprensión del usuario y limpiando la vista de fondo.
 * **Interactividad en Configuración:** Se aplicaron nuevos estilos reactivos de hover (`group-hover`) a las tarjetas selectoras de "Producción" y "Homologación" (`SettingsPage.tsx`), elevando la calidad estética de las herramientas administrativas.
 
-## 12. Actualización en Producción (VPS)
+## 13. Optimización del Facturador y Saneamiento de Clientes
+* **Corrección de Advertencia Recharts:** Se configuró `minWidth={0} minHeight={300}` y `min-w-0` en `Dashboard.tsx`, eliminando la advertencia de dimensiones negativas al renderizar gráficos.
+* **Alta Rápida de Cliente en el Facturador:** Se integró un modal emergente en `NewSalePage.tsx` para permitir registrar clientes en el acto sin salir del facturador ni perder el carrito o archivo CSV cargado.
+* **Saneamiento y Búsqueda Tolerante de CUITs:** El backend y frontend ahora sanitizan CUITs removiendo guiones, espacios y puntos, permitiendo encontrar clientes registrados sin importar si fueron ingresados con o sin guiones.
+* **Auto-sincronización de Base de Datos en Producción:** Se actualizó el script `build` en `backend/package.json` para ejecutar `prisma generate && prisma db push && tsc`, asegurando que cualquier cambio de schema en Prisma (como columnas agregadas) se sincronice automáticamente en el VPS al hacer build.
+* **Manejo Descriptivo de Excepciones:** Se enriqueció `error.middleware.ts` para reportar detalles precisos en errores de base de datos y Prisma en lugar de enmascararlos tras un error 500 genérico.
+
+## 14. Actualización en Producción (VPS)
 Para actualizar el backend en el VPS tras nuevos desarrollos, se debe ejecutar el siguiente bloque de comandos estando posicionados en la ruta donde se sirve el proyecto (ej. `/var/www/NexusARCA`):
 
 ```bash
@@ -82,3 +89,4 @@ npm run build && \
 pm2 restart 1
 ```
 *(Nota: El frontend alojado en Netlify se reconstruye de manera automática al detectar el `git pull` en la rama `main`).*
+
