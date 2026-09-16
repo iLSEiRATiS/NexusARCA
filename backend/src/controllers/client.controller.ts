@@ -31,7 +31,16 @@ export class ClientController {
   });
 
   static update = asyncHandler(async (req: Request, res: Response) => {
-    const client = await ClientService.update(Number(req.params.id), req.body);
+    const clientId = Number(req.params.id);
+    if (req.body.cuit) {
+      const cleanCuit = String(req.body.cuit).replace(/[-\s.]/g, '');
+      const existing = await ClientService.getByCuit(cleanCuit);
+      if (existing && existing.id !== clientId) {
+        throw new AppError(`Ya existe otro cliente registrado con el CUIT/documento ${cleanCuit} (${existing.razon_social})`, 400);
+      }
+      req.body.cuit = cleanCuit;
+    }
+    const client = await ClientService.update(clientId, req.body);
     res.json(client);
   });
 

@@ -73,10 +73,25 @@ export class ClientService {
 
   static async update(id: number, data: any) {
     const currentClient = await prisma.client.findUnique({ where: { id } });
+    if (!currentClient) {
+      throw new AppError('Cliente no encontrado', 404);
+    }
+
+    const payload: any = { ...data };
+    if (payload.cuit) {
+      payload.cuit = String(payload.cuit).replace(/[-\s.]/g, '');
+    }
+    if (payload.email === '') payload.email = null;
+    if (payload.direccion === '') payload.direccion = null;
+    if (payload.nro_iibb === '') payload.nro_iibb = null;
+    if (payload.telefono === '') payload.telefono = null;
+    if (payload.porcentaje_facturacion !== undefined) {
+      payload.porcentaje_facturacion = Number(payload.porcentaje_facturacion);
+    }
     
     const updated = await prisma.client.update({
       where: { id },
-      data
+      data: payload
     });
     
     // Si se modificaron los saldos, sincronizamos la deuda total

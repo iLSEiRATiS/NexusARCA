@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { generateAccountStatementPDF, generateSalePDF } from '../services/pdfService';
 import ConfirmModal from '../components/ConfirmModal';
 import { TableSkeleton } from '../components/Skeletons';
-import { Download, PackageOpen } from 'lucide-react';
+import { Download, PackageOpen, Pencil } from 'lucide-react';
 
 import { parseArgNumber } from '../utils/format';
 
@@ -14,10 +14,12 @@ const ClientsPage = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchBar] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedClientForEdit, setSelectedClientForEdit] = useState<any>(null);
   const [balanceData, setBalanceData] = useState<{saldo_blanco: string | number; saldo_interno: string | number}>({ saldo_blanco: 0, saldo_interno: 0 });
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; clientId: number | null }>({
@@ -47,6 +49,24 @@ const ClientsPage = () => {
     porcentaje_facturacion: 80,
     saldo_blanco: 0,
     saldo_interno: 0
+  });
+
+  const [editFormData, setEditFormData] = useState<{
+    razon_social: string;
+    cuit: string;
+    email: string;
+    direccion: string;
+    condicion_iva: string;
+    nro_iibb: string;
+    telefono: string;
+  }>({
+    razon_social: '',
+    cuit: '',
+    email: '',
+    direccion: '',
+    condicion_iva: 'RESPONSABLE_INSCRIPTO',
+    nro_iibb: '',
+    telefono: '',
   });
 
   const [paymentData, setPaymentData] = useState<{
@@ -103,6 +123,38 @@ const ClientsPage = () => {
     onError: (err: any) => {
       console.error('Error creating client:', err);
       const msg = err.response?.data?.message || err.message || 'Error al registrar cliente. Verifique los datos.';
+      toast.error(msg);
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => {
+      if (!selectedClientForEdit?.id) throw new Error('No hay cliente seleccionado');
+      const payload = {
+        razon_social: data.razon_social ? data.razon_social.trim() : '',
+        cuit: data.cuit ? String(data.cuit).replace(/[-\s.]/g, '') : '',
+        email: data.email ? data.email.trim() : null,
+        direccion: data.direccion ? data.direccion.trim() : null,
+        condicion_iva: data.condicion_iva,
+        nro_iibb: data.nro_iibb ? data.nro_iibb.trim() : null,
+        telefono: data.telefono ? data.telefono.trim() : null,
+      };
+      return clientService.update(selectedClientForEdit.id, payload);
+    },
+    onSuccess: (updatedClient) => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client', selectedClientForEdit?.id] });
+      if (selectedClient && selectedClient.id === selectedClientForEdit?.id) {
+        setSelectedClient((prev: any) => ({ ...prev, ...updatedClient }));
+        setIsDetailsModalOpen(true);
+      }
+      setIsEditModalOpen(false);
+      setSelectedClientForEdit(null);
+      toast.success('Cliente actualizado correctamente');
+    },
+    onError: (err: any) => {
+      console.error('Error updating client:', err);
+      const msg = err.response?.data?.message || err.message || 'Error al actualizar cliente. Verifique los datos.';
       toast.error(msg);
     }
   });
@@ -201,6 +253,23 @@ const ClientsPage = () => {
     setIsPaymentModalOpen(true);
   };
 
+  const openEditModal = (client: any) => {
+    setSelectedClientForEdit(client);
+    setEditFormData({
+      razon_social: client.razon_social || '',
+      cuit: client.cuit || '',
+      email: client.email || '',
+      direccion: client.direccion || '',
+      condicion_iva: client.condicion_iva || 'RESPONSABLE_INSCRIPTO',
+      nro_iibb: client.nro_iibb || '',
+      telefono: client.telefono || '',
+    });
+    setIsDetailsModalOpen(false);
+    setIsPaymentModalOpen(false);
+    setIsEditBalanceModalOpen(false);
+    setIsEditModalOpen(true);
+  };
+
   const openDetails = (client: any) => {
     setSelectedClient(client);
     setIsDetailsModalOpen(true);
@@ -209,6 +278,11 @@ const ClientsPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(formData);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateMutation.mutate(editFormData);
   };
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
@@ -253,7 +327,7 @@ const ClientsPage = () => {
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-1">Clientes</h1>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">Cuentas Corrientes y Directorio</p>
         </div>
-        {!isModalOpen && (
+        {!isModalOpen && !isEditModalOpen && (
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <div className="relative flex-1 sm:w-64">
               <input
@@ -321,24 +395,88 @@ const ClientsPage = () => {
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Inicial Interno</label>
                 <input type="text" value={formData.saldo_interno === 0 ? '' : formData.saldo_interno} onChange={e => setFormData({ ...formData, saldo_interno: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
               </div>
-              <div className="sm:col-span-2">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nro. Ingresos Brutos (IIBB)</label>
+                <input type="text" value={formData.nro_iibb} onChange={e => setFormData({ ...formData, nro_iibb: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
+              </div>
+              <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
-                <input type="text" value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
+                <input type="text" value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Calle, Número, Localidad" />
               </div>
             </div>
             <div className="mt-4 flex flex-col sm:flex-row gap-4 pt-8 border-t border-slate-200">
               <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-1/3 py-4 font-bold text-[10px] uppercase text-slate-400 tracking-widest hover:text-slate-600 hover:bg-slate-200 transition-colors border border-transparent">
                 Cancelar
               </button>
-              <button type="submit" className="w-full sm:w-2/3 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
-                Confirmar Alta
+              <button type="submit" disabled={createMutation.isPending} className="w-full sm:w-2/3 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50">
+                {createMutation.isPending ? 'Registrando...' : 'Confirmar Alta'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {!isModalOpen && (
+      {isEditModalOpen && selectedClientForEdit && (
+        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
+          <div className="bg-slate-900 px-6 py-6 sm:px-8 sm:py-8 text-white flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-widest">Modificar Cliente</h2>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Actualizar datos de {selectedClientForEdit.razon_social}</p>
+            </div>
+            <button onClick={() => { setIsEditModalOpen(false); setSelectedClientForEdit(null); }} className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500">
+              Cerrar y Volver
+            </button>
+          </div>
+
+          <form onSubmit={handleEditSubmit} className="p-6 sm:p-10 bg-slate-50 flex flex-col gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Razón Social *</label>
+                <input required type="text" value={editFormData.razon_social} onChange={e => setEditFormData({ ...editFormData, razon_social: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CUIT o Documento *</label>
+                <input required type="text" value={editFormData.cuit} onChange={e => setEditFormData({ ...editFormData, cuit: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Condición IVA *</label>
+                <select value={editFormData.condicion_iva} onChange={e => setEditFormData({ ...editFormData, condicion_iva: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all uppercase">
+                  <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
+                  <option value="MONOTRIBUTO">Monotributo</option>
+                  <option value="EXENTO">Exento</option>
+                  <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono</label>
+                <input type="text" value={editFormData.telefono} onChange={e => setEditFormData({ ...editFormData, telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
+                <input type="email" value={editFormData.email} onChange={e => setEditFormData({ ...editFormData, email: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nro. Ingresos Brutos (IIBB)</label>
+                <input type="text" value={editFormData.nro_iibb} onChange={e => setEditFormData({ ...editFormData, nro_iibb: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
+                <input type="text" value={editFormData.direccion} onChange={e => setEditFormData({ ...editFormData, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Calle, Número, Localidad" />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-col sm:flex-row gap-4 pt-8 border-t border-slate-200">
+              <button type="button" onClick={() => { setIsEditModalOpen(false); setSelectedClientForEdit(null); }} className="w-full sm:w-1/3 py-4 font-bold text-[10px] uppercase text-slate-400 tracking-widest hover:text-slate-600 hover:bg-slate-200 transition-colors border border-transparent">
+                Cancelar
+              </button>
+              <button type="submit" disabled={updateMutation.isPending} className="w-full sm:w-2/3 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50">
+                {updateMutation.isPending ? 'Guardando Cambios...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {!isModalOpen && !isEditModalOpen && (
         <>
         <div className="bg-white border border-slate-200 shadow-sm rounded-none overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
@@ -386,6 +524,10 @@ const ClientsPage = () => {
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex justify-end gap-2">
+                        <button onClick={() => openEditModal(client)} className="border border-slate-200 text-slate-600 px-3 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-100 hover:text-blue-600 transition-all tracking-widest flex items-center gap-1.5">
+                          <Pencil size={11} />
+                          Editar
+                        </button>
                         <button onClick={() => openDetails(client)} className="border border-slate-200 text-slate-600 px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-50 transition-all tracking-widest">Historial</button>
                         <button onClick={() => openPaymentModal(client)} className="bg-slate-900 text-white px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-800 transition-all tracking-widest">Cobrar</button>
                         <button onClick={() => handleDeleteClick(client.id)} className="text-slate-300 hover:text-red-600 transition-all px-2 py-1 font-bold text-lg">&times;</button>
@@ -419,6 +561,10 @@ const ClientsPage = () => {
                   <div className="p-2 border border-slate-100 text-center bg-slate-50"><p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-1">Interno</p><p className="text-xs font-black text-slate-900">${Number(client.saldo_interno).toLocaleString('es-AR')}</p></div>
                 </div>
                 <div className="flex gap-2">
+                  <button onClick={() => openEditModal(client)} className="flex-1 border border-slate-200 text-slate-600 py-2 font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1 hover:bg-slate-50">
+                    <Pencil size={11} />
+                    Editar
+                  </button>
                   <button onClick={() => openDetails(client)} className="flex-1 border border-slate-200 text-slate-600 py-2 font-black text-[9px] uppercase tracking-widest">Historial</button>
                   <button onClick={() => openPaymentModal(client)} className="flex-[1.5] bg-slate-900 text-white py-2 font-black text-[9px] uppercase tracking-widest">Cobrar</button>
                   <button onClick={() => handleDeleteClick(client.id)} className="w-10 border border-slate-200 text-slate-400 flex items-center justify-center font-bold text-xl">&times;</button>
@@ -440,17 +586,35 @@ const ClientsPage = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => openEditModal(selectedClient)} className="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-none font-black text-[10px] uppercase hover:bg-blue-700 transition-all tracking-widest shadow-md">
+                  <Pencil size={12} />
+                  Modificar Datos
+                </button>
                 <button onClick={handleExportStatement} className="hidden sm:flex items-center gap-2 bg-white text-slate-900 px-4 py-2 rounded-none font-black text-[10px] uppercase hover:bg-slate-100 transition-all tracking-widest">📄 Estado de Cuenta</button>
                 <button onClick={() => setIsDetailsModalOpen(false)} className="bg-red-600 hover:bg-red-700 text-white w-8 h-8 flex items-center justify-center font-black text-xl transition-colors" title="Cerrar">&times;</button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-slate-50">
-              <div className="sm:hidden mb-6"><button onClick={handleExportStatement} className="w-full bg-slate-900 text-white py-3 rounded-none font-black text-[10px] uppercase tracking-widest">📄 Descargar Estado de Cuenta</button></div>
+              <div className="sm:hidden mb-6 flex flex-col gap-2">
+                <button onClick={() => openEditModal(selectedClient)} className="w-full bg-blue-600 text-white py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                  <Pencil size={13} />
+                  Modificar Datos
+                </button>
+                <button onClick={handleExportStatement} className="w-full bg-slate-900 text-white py-3 rounded-none font-black text-[10px] uppercase tracking-widest">
+                  📄 Descargar Estado de Cuenta
+                </button>
+              </div>
               
               {/* Información del Cliente */}
               <div className="mb-6 bg-white border border-slate-200 shadow-sm p-4 sm:p-6">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Información del Cliente</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Información del Cliente</h3>
+                  <button onClick={() => openEditModal(selectedClient)} className="text-blue-600 hover:text-blue-800 font-black text-[9px] uppercase tracking-widest flex items-center gap-1 transition-colors">
+                    <Pencil size={11} />
+                    Editar
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Email</p>
                     <p className="text-xs font-black text-slate-900 truncate" title={selectedClient.email || 'S/D'}>{selectedClient.email || 'S/D'}</p>
@@ -462,6 +626,10 @@ const ClientsPage = () => {
                   <div>
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Condición IVA</p>
                     <p className="text-xs font-black text-slate-900 uppercase">{selectedClient.condicion_iva ? selectedClient.condicion_iva.replace('_', ' ') : 'S/D'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nro. IIBB</p>
+                    <p className="text-xs font-black text-slate-900 uppercase">{selectedClient.nro_iibb || 'S/D'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Dirección</p>

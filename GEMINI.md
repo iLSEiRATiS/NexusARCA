@@ -90,3 +90,8 @@ pm2 restart 1
 ```
 *(Nota: El frontend alojado en Netlify se reconstruye de manera automática al detectar el `git pull` en la rama `main`).*
 
+## 15. Edición y Completado de Datos de Clientes
+* **Modificación de Clientes:** Se incorporó la posibilidad de modificar clientes ya registrados tanto desde la tabla principal (botón "Editar") como desde la ficha de detalle (botones "Modificar Datos").
+* **Completado de Información:** Permite actualizar Razón Social, CUIT, Condición IVA, Teléfono, Email, Nro. IIBB y Dirección Fiscal en cualquier momento, reflejándose inmediatamente en toda la plataforma.
+* **Sanitización y Validación Backend:** Se agregó saneamiento de CUIT y prevención de duplicados con mensajes de error amigables (`client.controller.ts`), además del tratamiento de campos opcionales vacíos (`""` a `null`) en `client.service.ts`.
+
