@@ -95,3 +95,9 @@ pm2 restart 1
 * **Completado de Información:** Permite actualizar Razón Social, CUIT, Condición IVA, Teléfono, Email, Nro. IIBB y Dirección Fiscal en cualquier momento, reflejándose inmediatamente en toda la plataforma.
 * **Sanitización y Validación Backend:** Se agregó saneamiento de CUIT y prevención de duplicados con mensajes de error amigables (`client.controller.ts`), además del tratamiento de campos opcionales vacíos (`""` a `null`) en `client.service.ts`.
 
+## 16. Carga de Deuda (Blanco / Interno) a Clientes Existentes
+* **Bug corregido:** El modal "Ajustar Saldos" tenía ambos campos `required` y mostraba vacío cuando el saldo era 0, bloqueando el envío. Además no cerraba la ficha de detalle, por lo que quedaba fuera de vista.
+* **Convención de signo:** En el sistema la deuda se guarda en **negativo** (ventas restan, cobros suman). La UI ahora recibe montos de deuda en positivo y los convierte (tanto en "Deuda Inicial" del alta como en "Cargar Deuda").
+* **Nuevo flujo "Cargar Deuda":** Botón `+ Deuda` en cada fila (desktop y mobile) y en la ficha del cliente. El monto ingresado se **suma** a la deuda actual (Blanco y/o Interno); un valor negativo la descuenta. El backend registra el movimiento como `AJUSTE_SALDO` en el historial, deshacible.
+
+

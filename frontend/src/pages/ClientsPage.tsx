@@ -109,8 +109,9 @@ const ClientsPage = () => {
         direccion: data.direccion ? data.direccion.trim() : null,
         nro_iibb: data.nro_iibb ? data.nro_iibb.trim() : null,
         telefono: data.telefono ? data.telefono.trim() : null,
-        saldo_blanco: parseArgNumber(data.saldo_blanco),
-        saldo_interno: parseArgNumber(data.saldo_interno)
+        // En el sistema la deuda se guarda en negativo (ventas restan, cobros suman)
+        saldo_blanco: -parseArgNumber(data.saldo_blanco),
+        saldo_interno: -parseArgNumber(data.saldo_interno)
       };
       return clientService.create(payload);
     },
@@ -205,11 +206,13 @@ const ClientsPage = () => {
       if (!selectedClient?.id) throw new Error('No hay cliente seleccionado');
       return clientService.update(selectedClient.id, data);
     },
-    onSuccess: () => {
+    onSuccess: (updatedClient) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
+      setSelectedClient((prev: any) => ({ ...prev, ...updatedClient }));
       setIsEditBalanceModalOpen(false);
-      toast.success('Saldos actualizados correctamente');
+      setBalanceData({ saldo_blanco: 0, saldo_interno: 0 });
+      toast.success('Deuda cargada correctamente');
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || 'Error al actualizar saldos');
@@ -218,19 +221,28 @@ const ClientsPage = () => {
 
   const handleEditBalanceSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedClient) return;
+    // Montos ingresados = deuda a AGREGAR (positivo). Negativo = descontar deuda.
+    const addBlanco = parseArgNumber(balanceData.saldo_blanco);
+    const addInterno = parseArgNumber(balanceData.saldo_interno);
+    if (addBlanco === 0 && addInterno === 0) {
+      toast.error('Ingrese un monto en Blanco y/o Interno');
+      return;
+    }
+    // La deuda se guarda en negativo: nuevo saldo = saldo actual - monto agregado
     updateBalanceMutation.mutate({
-      saldo_blanco: parseArgNumber(balanceData.saldo_blanco),
-      saldo_interno: parseArgNumber(balanceData.saldo_interno)
+      saldo_blanco: Number(selectedClient.saldo_blanco || 0) - addBlanco,
+      saldo_interno: Number(selectedClient.saldo_interno || 0) - addInterno
     });
   };
 
   const openEditBalance = (client: any) => {
     setSelectedClient(client);
-    setBalanceData({
-      saldo_blanco: Number(client.saldo_blanco) || 0,
-      saldo_interno: Number(client.saldo_interno) || 0
-    });
+    setBalanceData({ saldo_blanco: 0, saldo_interno: 0 });
+    setIsDetailsModalOpen(false);
+    setIsPaymentModalOpen(false);
     setIsEditBalanceModalOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetForm = () => {
@@ -327,7 +339,7 @@ const ClientsPage = () => {
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-1">Clientes</h1>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">Cuentas Corrientes y Directorio</p>
         </div>
-        {!isModalOpen && !isEditModalOpen && (
+        {!isModalOpen && !isEditModalOpen && !isEditBalanceModalOpen && (
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <div className="relative flex-1 sm:w-64">
               <input
@@ -388,11 +400,11 @@ const ClientsPage = () => {
                 <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Inicial Blanco</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Deuda Inicial Blanco</label>
                 <input type="text" value={formData.saldo_blanco === 0 ? '' : formData.saldo_blanco} onChange={e => setFormData({ ...formData, saldo_blanco: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Inicial Interno</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Deuda Inicial Interno</label>
                 <input type="text" value={formData.saldo_interno === 0 ? '' : formData.saldo_interno} onChange={e => setFormData({ ...formData, saldo_interno: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
               </div>
               <div>
@@ -476,7 +488,7 @@ const ClientsPage = () => {
         </div>
       )}
 
-      {!isModalOpen && !isEditModalOpen && (
+      {!isModalOpen && !isEditModalOpen && !isEditBalanceModalOpen && (
         <>
         <div className="bg-white border border-slate-200 shadow-sm rounded-none overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
@@ -529,6 +541,7 @@ const ClientsPage = () => {
                           Editar
                         </button>
                         <button onClick={() => openDetails(client)} className="border border-slate-200 text-slate-600 px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-50 transition-all tracking-widest">Historial</button>
+                        <button onClick={() => openEditBalance(client)} className="border border-slate-900 text-slate-900 px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-900 hover:text-white transition-all tracking-widest">+ Deuda</button>
                         <button onClick={() => openPaymentModal(client)} className="bg-slate-900 text-white px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-800 transition-all tracking-widest">Cobrar</button>
                         <button onClick={() => handleDeleteClick(client.id)} className="text-slate-300 hover:text-red-600 transition-all px-2 py-1 font-bold text-lg">&times;</button>
                       </div>
@@ -566,6 +579,7 @@ const ClientsPage = () => {
                     Editar
                   </button>
                   <button onClick={() => openDetails(client)} className="flex-1 border border-slate-200 text-slate-600 py-2 font-black text-[9px] uppercase tracking-widest">Historial</button>
+                  <button onClick={() => openEditBalance(client)} className="flex-1 border border-slate-900 text-slate-900 py-2 font-black text-[9px] uppercase tracking-widest">+ Deuda</button>
                   <button onClick={() => openPaymentModal(client)} className="flex-[1.5] bg-slate-900 text-white py-2 font-black text-[9px] uppercase tracking-widest">Cobrar</button>
                   <button onClick={() => handleDeleteClick(client.id)} className="w-10 border border-slate-200 text-slate-400 flex items-center justify-center font-bold text-xl">&times;</button>
                 </div>
@@ -648,7 +662,7 @@ const ClientsPage = () => {
                   </div>
                   <div className="flex flex-col gap-2 mt-auto">
                     <button onClick={() => { setIsDetailsModalOpen(false); setIsPaymentModalOpen(true); }} className="w-full bg-white text-blue-600 py-3 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Registrar Cobro</button>
-                    <button onClick={() => openEditBalance(selectedClient)} className="w-full border border-blue-400 text-white py-2.5 font-black text-[9px] uppercase tracking-widest hover:bg-blue-500 transition-all">Modificar Deuda</button>
+                    <button onClick={() => openEditBalance(selectedClient)} className="w-full border border-blue-400 text-white py-2.5 font-black text-[9px] uppercase tracking-widest hover:bg-blue-500 transition-all">Cargar Deuda</button>
                   </div>
                 </div>
               </div>
@@ -737,7 +751,7 @@ const ClientsPage = () => {
         <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
           <div className="bg-slate-900 px-6 py-6 text-white flex justify-between items-start">
             <div>
-              <h2 className="text-xl font-black uppercase tracking-widest">Ajustar Saldos</h2>
+              <h2 className="text-xl font-black uppercase tracking-widest">Cargar Deuda</h2>
               <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">{selectedClient.razon_social}</p>
             </div>
             <button
@@ -749,12 +763,21 @@ const ClientsPage = () => {
             </button>
           </div>
           <form onSubmit={handleEditBalanceSubmit} className="p-6 sm:p-10 space-y-6 bg-slate-50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-white border border-slate-200">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deuda actual Blanco</p>
+                <p className="text-lg font-black text-slate-900">${(-Number(selectedClient.saldo_blanco || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+              </div>
+              <div className="p-4 bg-white border border-slate-200">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deuda actual Interno</p>
+                <p className="text-lg font-black text-slate-900">${(-Number(selectedClient.saldo_interno || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Blanco</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Blanco</label>
                 <input
                   type="text"
-                  required
                   value={balanceData.saldo_blanco === 0 ? '' : balanceData.saldo_blanco}
                   onChange={e => setBalanceData({ ...balanceData, saldo_blanco: e.target.value })}
                   className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
@@ -762,10 +785,9 @@ const ClientsPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Interno (Negro)</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Interno</label>
                 <input
                   type="text"
-                  required
                   value={balanceData.saldo_interno === 0 ? '' : balanceData.saldo_interno}
                   onChange={e => setBalanceData({ ...balanceData, saldo_interno: e.target.value })}
                   className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
@@ -773,9 +795,9 @@ const ClientsPage = () => {
                 />
               </div>
             </div>
-            <p className="text-[10px] font-bold text-slate-500">Nota: Ingrese valores positivos para indicar deuda del cliente, y valores negativos para indicar saldo a favor.</p>
+            <p className="text-[10px] font-bold text-slate-500">Nota: El monto se SUMA a la deuda actual del cliente. Puede completar solo uno de los dos campos. Use un valor negativo para descontar deuda.</p>
             <button type="submit" disabled={updateBalanceMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">
-              {updateBalanceMutation.isPending ? 'Guardando...' : 'Guardar Saldos'}
+              {updateBalanceMutation.isPending ? 'Guardando...' : 'Confirmar Carga de Deuda'}
             </button>
           </form>
         </div>
