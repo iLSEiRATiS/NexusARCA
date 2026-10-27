@@ -13,8 +13,10 @@ import api from '../services/api';
 import { currencyService } from '../services/currencyService';
 import { SalesTable } from '../components/sales/SalesTable';
 import { ProcessBillingModal } from '../components/sales/ProcessBillingModal';
+import { usePrivacy } from '../context/PrivacyContext';
 
 const SalesPage = () => {
+  const { isManagementUnlocked } = usePrivacy();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSaleToProcess, setSelectedSaleToProcess] = useState<any | null>(null);
@@ -50,25 +52,37 @@ const SalesPage = () => {
   const sales = data?.data || [];
 
   const filteredSales = useMemo(() => {
-    return sales.filter((s: any) => {
-      const searchLower = searchTerm.toLowerCase();
-      const razonSocial = (s.client?.razon_social || '').toLowerCase();
-      const cuit = String(s.client?.cuit || '');
-      return (
-        razonSocial.includes(searchLower) || 
-        cuit.includes(searchLower) || 
-        String(s.id).includes(searchTerm)
-      );
-    });
-  }, [sales, searchTerm]);
+    return sales
+      .filter((s: any) => {
+        if (!isManagementUnlocked) {
+          // Si está en Modo Fiscal Oficial, ocultar comprobantes de remito interno sin CAE
+          const isInternalRemito = s.tipo_comprobante === 'Remito' && !s.cae;
+          if (isInternalRemito) return false;
+        }
+        return true;
+      })
+      .filter((s: any) => {
+        const searchLower = searchTerm.toLowerCase();
+        const razonSocial = (s.client?.razon_social || '').toLowerCase();
+        const cuit = String(s.client?.cuit || '');
+        return (
+          razonSocial.includes(searchLower) || 
+          cuit.includes(searchLower) || 
+          String(s.id).includes(searchTerm)
+        );
+      });
+  }, [sales, searchTerm, isManagementUnlocked]);
 
   // Quick metrics
   const metrics = useMemo(() => {
-    const totalArs = sales.reduce((acc: number, s: any) => acc + (s.estado_factura !== 'ANULADA' ? Number(s.total_real_ars || 0) : 0), 0);
-    const autorizadasCount = sales.filter((s: any) => Boolean(s.cae) && s.estado_factura !== 'ANULADA').length;
-    const pendientesCount = sales.filter((s: any) => !s.cae && s.estado_factura !== 'ANULADA').length;
+    const activeSales = isManagementUnlocked
+      ? sales
+      : sales.filter((s: any) => !(s.tipo_comprobante === 'Remito' && !s.cae));
+    const totalArs = activeSales.reduce((acc: number, s: any) => acc + (s.estado_factura !== 'ANULADA' ? Number(s.total_real_ars || 0) : 0), 0);
+    const autorizadasCount = activeSales.filter((s: any) => Boolean(s.cae) && s.estado_factura !== 'ANULADA').length;
+    const pendientesCount = activeSales.filter((s: any) => !s.cae && s.estado_factura !== 'ANULADA').length;
     return { totalArs, autorizadasCount, pendientesCount };
-  }, [sales]);
+  }, [sales, isManagementUnlocked]);
 
   const handleCreditNote = (sale: any) => {
     const tipo = sale.tipo_comprobante === 'Factura A' ? 'A' : 'B';

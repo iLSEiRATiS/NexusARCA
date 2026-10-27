@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Client } from '../../services/clientService';
 import { Eye, DollarSign, PlusCircle, Pencil, Trash2, Building2 } from 'lucide-react';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 interface ClientsTableProps {
   clients: Client[];
@@ -21,6 +22,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
   onEditClient,
   onDeleteClient,
 }) => {
+  const { isManagementUnlocked } = usePrivacy();
   const filteredClients = clients.filter((c) =>
     c.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.cuit.includes(searchTerm)
@@ -64,9 +66,13 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
             <tr className="bg-slate-900 text-white border-b border-slate-800 text-[11px] font-black uppercase tracking-wider">
               <th className="py-4 px-6">Cliente / CUIT</th>
               <th className="py-4 px-4">Condición IVA</th>
-              <th className="py-4 px-4 text-right">Saldo Blanco</th>
-              <th className="py-4 px-4 text-right">Saldo Interno</th>
-              <th className="py-4 px-6 text-right">Deuda Total</th>
+              <th className="py-4 px-4 text-right">Saldo Fiscal</th>
+              {isManagementUnlocked && (
+                <>
+                  <th className="py-4 px-4 text-right">Remitos / Gestión</th>
+                  <th className="py-4 px-6 text-right">Deuda Total</th>
+                </>
+              )}
               <th className="py-4 px-6 text-center">Acciones</th>
             </tr>
           </thead>
@@ -105,33 +111,36 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                     {getCondicionBadge(client.condicion_iva)}
                   </td>
 
-                  {/* Saldo Blanco */}
+                  {/* Saldo Fiscal */}
                   <td className="py-4 px-4 text-right font-black">
                     <span className={blancoNum < 0 ? 'text-slate-900' : 'text-slate-500'}>
                       ${blancoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </td>
 
-                  {/* Saldo Interno */}
-                  <td className="py-4 px-4 text-right font-black">
-                    <span className={internoNum < 0 ? 'text-slate-900' : 'text-slate-500'}>
-                      ${internoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </td>
+                  {/* Columnas protegidas de Gestión Comercial */}
+                  {isManagementUnlocked && (
+                    <>
+                      <td className="py-4 px-4 text-right font-black">
+                        <span className={internoNum < 0 ? 'text-slate-900' : 'text-slate-500'}>
+                          ${internoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </td>
 
-                  {/* Deuda Total */}
-                  <td className="py-4 px-6 text-right">
-                    <span
-                      className={`text-sm font-black tracking-tight ${
-                        hasDebt ? 'text-red-600' : 'text-emerald-600'
-                      }`}
-                    >
-                      ${Math.abs(deudaTotal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400 block mt-0.5">
-                      {hasDebt ? 'Saldo pendiente' : 'Al día'}
-                    </span>
-                  </td>
+                      <td className="py-4 px-6 text-right">
+                        <span
+                          className={`text-sm font-black tracking-tight ${
+                            hasDebt ? 'text-red-600' : 'text-emerald-600'
+                          }`}
+                        >
+                          ${Math.abs(deudaTotal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 block mt-0.5">
+                          {hasDebt ? 'Saldo pendiente' : 'Al día'}
+                        </span>
+                      </td>
+                    </>
+                  )}
 
                   {/* Acciones */}
                   <td className="py-4 px-6" onClick={(e) => e.stopPropagation()}>
@@ -153,14 +162,16 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                         <DollarSign size={12} />
                         Cobrar
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onOpenBalance(client)}
-                        className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200"
-                        title="Cargar Deuda"
-                      >
-                        <PlusCircle size={14} />
-                      </button>
+                      {isManagementUnlocked && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenBalance(client)}
+                          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200"
+                          title="Cargar Deuda / Remito"
+                        >
+                          <PlusCircle size={14} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => onEditClient(client)}
@@ -208,38 +219,44 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                 {getCondicionBadge(client.condicion_iva)}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-100 text-xs">
+              <div className={`grid ${isManagementUnlocked ? 'grid-cols-2' : 'grid-cols-1'} gap-3 p-3 bg-slate-50 border border-slate-100 text-xs`}>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Blanco</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Saldo Fiscal</span>
                   <span className="font-bold text-slate-900">${Number(client.saldo_blanco || 0).toLocaleString('es-AR')}</span>
                 </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Interno</span>
-                  <span className="font-bold text-slate-900">${Number(client.saldo_interno || 0).toLocaleString('es-AR')}</span>
-                </div>
-                <div className="col-span-2 pt-2 border-t border-slate-200 flex justify-between items-center">
-                  <span className="text-slate-500 font-bold uppercase text-[10px]">Deuda Total:</span>
-                  <span className={`font-black text-sm ${hasDebt ? 'text-red-600' : 'text-emerald-600'}`}>
-                    ${Math.abs(deudaTotal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
+                {isManagementUnlocked && (
+                  <>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Remitos / Gestión</span>
+                      <span className="font-bold text-slate-900">${Number(client.saldo_interno || 0).toLocaleString('es-AR')}</span>
+                    </div>
+                    <div className="col-span-2 pt-2 border-t border-slate-200 flex justify-between items-center">
+                      <span className="text-slate-500 font-bold uppercase text-[10px]">Deuda Total:</span>
+                      <span className={`font-black text-sm ${hasDebt ? 'text-red-600' : 'text-emerald-600'}`}>
+                        ${Math.abs(deudaTotal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
                   onClick={() => onOpenPayment(client)}
-                  className="px-3 py-1.5 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-sm"
+                  className="px-3 py-1.5 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-sm cursor-pointer"
                 >
                   <DollarSign size={12} /> Cobrar
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenBalance(client)}
-                  className="px-3 py-1.5 border border-slate-300 text-slate-700 font-bold text-[10px] uppercase tracking-wider hover:bg-slate-100"
-                >
-                  Deuda
-                </button>
+                {isManagementUnlocked && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenBalance(client)}
+                    className="px-3 py-1.5 border border-slate-300 text-slate-700 font-bold text-[10px] uppercase tracking-wider hover:bg-slate-100 cursor-pointer"
+                  >
+                    Deuda
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => onEditClient(client)}

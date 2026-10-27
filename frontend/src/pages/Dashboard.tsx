@@ -11,8 +11,10 @@ import {
   TrendingUp, Users, FileText, PlusCircle, UploadCloud, 
   ShieldCheck, ArrowUpRight, Calculator, Calendar 
 } from 'lucide-react';
+import { usePrivacy } from '../context/PrivacyContext';
 
 const Dashboard = () => {
+  const { isManagementUnlocked } = usePrivacy();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   
   const { data: clients, isLoading: loadingClients } = useQuery({ 
@@ -47,13 +49,21 @@ const Dashboard = () => {
     );
   }
 
+  // Filtrar comprobantes visibles según el modo activo
+  const visibleSales = isManagementUnlocked
+    ? sales
+    : sales.filter((s: any) => !(s.tipo_comprobante === 'REMITO' && !s.cae));
+
   // Cálculos de cartera
   const totalDebtPortfolio = clients?.reduce((acc: number, c: any) => {
-    const balance = Number(c.saldo_deuda);
+    const balance = isManagementUnlocked ? Number(c.saldo_deuda) : Number(c.saldo_blanco);
     return balance < 0 ? acc + Math.abs(balance) : acc;
   }, 0) || 0;
   
-  const debtorClientsCount = clients?.filter((c: any) => Number(c.saldo_deuda) < 0).length || 0;
+  const debtorClientsCount = clients?.filter((c: any) => {
+    const balance = isManagementUnlocked ? Number(c.saldo_deuda) : Number(c.saldo_blanco);
+    return balance < 0;
+  }).length || 0;
   const totalClientsCount = clients?.length || 0;
 
   // Cálculo de ventas del mes actual
@@ -61,7 +71,7 @@ const Dashboard = () => {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  const salesThisMonth = sales.filter((s: any) => {
+  const salesThisMonth = visibleSales.filter((s: any) => {
     const d = new Date(s.fecha);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
@@ -79,7 +89,7 @@ const Dashboard = () => {
   }).reverse();
 
   const salesChartData = last7Days.map(dateStr => {
-    const daySales = sales.filter((s: any) => new Date(s.fecha).toISOString().split('T')[0] === dateStr);
+    const daySales = visibleSales.filter((s: any) => new Date(s.fecha).toISOString().split('T')[0] === dateStr);
     const dayTotal = daySales.reduce((acc: number, s: any) => acc + Number(s.total_real_ars), 0);
     const parts = dateStr.split('-');
     return {
@@ -159,7 +169,9 @@ const Dashboard = () => {
         >
           <div>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Deuda Cartera</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {isManagementUnlocked ? 'Deuda Cartera Total' : 'Deuda Fiscal Cartera'}
+              </span>
               <Users size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
             </div>
             <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
@@ -179,7 +191,9 @@ const Dashboard = () => {
         >
           <div>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Facturación del Mes</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {isManagementUnlocked ? 'Facturación del Mes' : 'Facturación Fiscal Mes'}
+              </span>
               <FileText size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
             </div>
             <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">

@@ -20,8 +20,12 @@ import {
   LogOut, 
   Menu, 
   X, 
-  RefreshCw 
+  RefreshCw,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
+import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
+import { PinAuthModal } from './components/PinAuthModal';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -91,6 +95,40 @@ const HeaderDolarIndicator = () => {
   );
 };
 
+// Indicador discreto del modo de privacidad para el Navbar
+const PrivacyNavbarBadge = () => {
+  const { isManagementUnlocked, openPinModal, lockManagement } = usePrivacy();
+
+  if (isManagementUnlocked) {
+    return (
+      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-emerald-800 animate-fade-in shadow-2xs">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Gestión Activa</span>
+        <button
+          type="button"
+          onClick={lockManagement}
+          className="ml-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+          title="Bloquear y volver a Modo Fiscal Oficial (Esc)"
+        >
+          <Lock size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={openPinModal}
+      className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-600 transition-all cursor-pointer"
+      title="Modo Fiscal Oficial protegido. Clic para autorizar gestión comercial (Ctrl+Shift+G)"
+    >
+      <ShieldCheck size={14} className="text-blue-600" />
+      <span>Modo Fiscal</span>
+    </button>
+  );
+};
+
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
@@ -141,8 +179,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavLink to="/configuracion" icon={<Settings size={14} />}>Config</NavLink>
         </div>
 
-        {/* Desktop Right Section: Dolar + User */}
-        <div className="hidden md:flex items-center gap-4">
+        {/* Desktop Right Section: Privacy + Dolar + User */}
+        <div className="hidden md:flex items-center gap-3">
+          <PrivacyNavbarBadge />
           <HeaderDolarIndicator />
 
           <div className="h-5 w-px bg-slate-200"></div>
@@ -180,6 +219,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="md:hidden border-b border-slate-200 bg-white p-5 flex flex-col gap-2 animate-fade-in shadow-lg">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-1">
+            <PrivacyNavbarBadge />
+            <HeaderDolarIndicator />
+          </div>
           <NavLink to="/" icon={<LayoutDashboard size={16} />} onClick={() => setIsMenuOpen(false)}>Inicio</NavLink>
           <NavLink to="/facturacion" icon={<FileText size={16} />} onClick={() => setIsMenuOpen(false)}>Facturación</NavLink>
           <NavLink to="/cotizaciones" icon={<Calculator size={16} />} onClick={() => setIsMenuOpen(false)}>Presupuestos</NavLink>
@@ -223,21 +266,24 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster position="top-right" richColors closeButton />
-      <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/clientes" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
-            <Route path="/facturacion" element={<ProtectedRoute><SalesPage /></ProtectedRoute>} />
-            <Route path="/facturacion/nueva" element={<ProtectedRoute><NewSalePage /></ProtectedRoute>} />
-            <Route path="/cotizaciones" element={<ProtectedRoute><QuotationsPage /></ProtectedRoute>} />
-            <Route path="/cotizaciones/nueva" element={<ProtectedRoute><NewQuotationPage /></ProtectedRoute>} />
-            <Route path="/configuracion" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          </Routes>
-        </Layout>
-      </BrowserRouter>
+      <PrivacyProvider>
+        <Toaster position="top-right" richColors closeButton />
+        <PinAuthModal />
+        <BrowserRouter>
+          <Layout>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/clientes" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
+              <Route path="/facturacion" element={<ProtectedRoute><SalesPage /></ProtectedRoute>} />
+              <Route path="/facturacion/nueva" element={<ProtectedRoute><NewSalePage /></ProtectedRoute>} />
+              <Route path="/cotizaciones" element={<ProtectedRoute><QuotationsPage /></ProtectedRoute>} />
+              <Route path="/cotizaciones/nueva" element={<ProtectedRoute><NewQuotationPage /></ProtectedRoute>} />
+              <Route path="/configuracion" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
+      </PrivacyProvider>
     </QueryClientProvider>
   );
 }

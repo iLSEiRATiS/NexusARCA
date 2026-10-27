@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Client } from '../../services/clientService';
 import { DollarSign, X, CheckCircle2, Calendar, FileText } from 'lucide-react';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 interface PaymentDataState {
   monto: number | string;
@@ -33,10 +34,18 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
   onSelectDebt,
   isPending,
 }) => {
+  const { isManagementUnlocked } = usePrivacy();
+
   if (!isOpen || !client) return null;
 
   const deudaTotal = Math.abs(Number(client.saldo_deuda || 0));
   const deudaInterno = Math.abs(Number(client.saldo_interno || 0));
+  const saldoFiscalPendiente = Math.abs(Number(client.saldo_blanco || 0));
+
+  // En Modo Fiscal Oficial, sólo se muestran deudas fiscales
+  const visibleDebts = isManagementUnlocked
+    ? pendingDebts
+    : pendingDebts.filter((d) => d.classification?.caracter === 'FISCAL' || d.tipo === 'BLANCO');
 
   return (
     <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
@@ -65,36 +74,51 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
         {/* Resumen de deuda */}
         <div className="p-4 bg-white border border-slate-200 flex justify-between items-center shadow-sm">
           <div>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Deuda Total</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              {isManagementUnlocked ? 'Deuda Total Consolidada' : 'Saldo Fiscal Pendiente'}
+            </span>
             <span className="text-xl font-black text-slate-900">
-              ${deudaTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${(isManagementUnlocked ? deudaTotal : saldoFiscalPendiente).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="text-right">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Saldo Interno</span>
-            <span className="text-xl font-black text-slate-900">
-              ${deudaInterno.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+            {isManagementUnlocked ? (
+              <>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Remitos / Gestión</span>
+                <span className="text-xl font-black text-slate-900">
+                  ${deudaInterno.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 uppercase">
+                Modo Fiscal Oficial
+              </span>
+            )}
           </div>
         </div>
 
         {/* Selector de comprobante específico (Opcional) */}
-        {pendingDebts.length > 0 && (
+        {visibleDebts.length > 0 && (
           <div className="p-4 bg-white border border-slate-200 space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-xs font-black text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
                 <CheckCircle2 size={13} />
-                Imputar a Factura / Remito Específico
+                {isManagementUnlocked ? 'Imputar a Factura / Remito Específico' : 'Imputar a Factura Fiscal Específica'}
               </label>
               <span className="text-[11px] text-slate-400 font-bold uppercase">Opcional</span>
             </div>
             <select
               onChange={(e) => {
                 if (!e.target.value) {
-                  setPaymentData((prev) => ({ ...prev, monto: 0, referencia: '', imputacion: 'MIXTO' }));
+                  setPaymentData((prev) => ({
+                    ...prev,
+                    monto: 0,
+                    referencia: '',
+                    imputacion: isManagementUnlocked ? 'MIXTO' : 'BLANCO',
+                  }));
                   return;
                 }
-                const found = pendingDebts.find((d) => d.id === e.target.value);
+                const found = visibleDebts.find((d) => d.id === e.target.value);
                 if (found) {
                   onSelectDebt(found);
                 }
@@ -103,7 +127,7 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
               className="w-full bg-slate-50 border border-slate-200 px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs cursor-pointer"
             >
               <option value="">— Cobro Libre / Pago Global a Cuenta —</option>
-              {pendingDebts.map((d) => (
+              {visibleDebts.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label} — ${d.monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • {new Date(d.fecha).toLocaleDateString('es-AR')}
                 </option>
@@ -147,19 +171,29 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
               Imputación Contable
             </label>
-            <select
-              value={paymentData.imputacion}
-              onChange={(e) => setPaymentData({ ...paymentData, imputacion: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs cursor-pointer"
-            >
-              <option value="MIXTO">Mixto (Automático)</option>
-              <option value="BLANCO" disabled={Number(client.saldo_blanco) >= 0 && paymentData.imputacion !== 'BLANCO'}>
-                Solo Blanco (Fiscal)
-              </option>
-              <option value="INTERNO" disabled={Number(client.saldo_interno) >= 0 && paymentData.imputacion !== 'INTERNO'}>
-                Solo Interno (Gestión)
-              </option>
-            </select>
+            {isManagementUnlocked ? (
+              <select
+                value={paymentData.imputacion}
+                onChange={(e) => setPaymentData({ ...paymentData, imputacion: e.target.value })}
+                className="w-full bg-white border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs cursor-pointer"
+              >
+                <option value="MIXTO">Mixto (Automático)</option>
+                <option value="BLANCO" disabled={Number(client.saldo_blanco) >= 0 && paymentData.imputacion !== 'BLANCO'}>
+                  Solo Fiscal (Oficial)
+                </option>
+                <option value="INTERNO" disabled={Number(client.saldo_interno) >= 0 && paymentData.imputacion !== 'INTERNO'}>
+                  Solo Remitos / Gestión Comercial
+                </option>
+              </select>
+            ) : (
+              <select
+                value="BLANCO"
+                disabled
+                className="w-full bg-slate-100 border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-700 outline-none uppercase text-xs cursor-not-allowed"
+              >
+                <option value="BLANCO">Oficial / Fiscal (Cuenta Corriente)</option>
+              </select>
+            )}
           </div>
         </div>
 

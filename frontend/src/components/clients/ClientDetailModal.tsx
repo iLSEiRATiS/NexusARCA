@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 import { processClientLedger, getDocumentClassification, type DocumentClassification } from '../../utils/accountLedger';
+import { usePrivacy } from '../../context/PrivacyContext';
 
 const renderCaracterBadge = (info: DocumentClassification) => {
   if (info.caracter === 'FISCAL') {
@@ -63,6 +64,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   onExportStatement,
   isDeletePending,
 }) => {
+  const { isManagementUnlocked } = usePrivacy();
   const [activeTab, setActiveTab] = useState<'pendientes' | 'pagados' | 'historial'>('pendientes');
 
   // Procesar estado contable real: transacciones, pendientes y pagados (debe invocarse incondicionalmente por Reglas de Hooks)
@@ -70,8 +72,17 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
     if (!isOpen || !client) {
       return { transactions: [], pendingDebts: [], paidDebts: [] };
     }
-    return processClientLedger(client, clientDetails);
-  }, [isOpen, client, clientDetails]);
+    const fullLedger = processClientLedger(client, clientDetails);
+    if (isManagementUnlocked) {
+      return fullLedger;
+    }
+    // En Modo Fiscal Oficial, filtrar y mostrar únicamente movimientos de naturaleza fiscal
+    return {
+      transactions: fullLedger.transactions.filter((t) => t.classification?.caracter === 'FISCAL'),
+      pendingDebts: fullLedger.pendingDebts.filter((d) => d.classification?.caracter === 'FISCAL'),
+      paidDebts: fullLedger.paidDebts.filter((p) => p.classification?.caracter === 'FISCAL'),
+    };
+  }, [isOpen, client, clientDetails, isManagementUnlocked]);
 
   if (!isOpen || !client) return null;
 
@@ -167,7 +178,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         </div>
 
         {/* Tarjetas de Saldo y Acciones */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className={`grid grid-cols-1 ${isManagementUnlocked ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-5`}>
           <div className="p-6 bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
             <div>
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
@@ -182,27 +193,30 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             </p>
           </div>
 
-          <div className="p-6 bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                Saldo Interno (Gestión)
-              </span>
-              <p className="text-2xl font-black text-slate-900">
-                ${saldoInternoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {/* Tarjeta de Remitos y Gestión (Protegida por PIN) */}
+          {isManagementUnlocked && (
+            <div className="p-6 bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  Remitos y Gestión Comercial
+                </span>
+                <p className="text-2xl font-black text-slate-900">
+                  ${saldoInternoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-3">
+                {saldoInternoNum < 0 ? 'Remitos / Presupuestos pendientes' : 'Al día / a favor'}
               </p>
             </div>
-            <p className="text-[11px] text-slate-400 mt-3">
-              {saldoInternoNum < 0 ? 'Remitos / Presupuestos pendientes' : 'Al día / a favor'}
-            </p>
-          </div>
+          )}
 
           <div className="p-6 bg-blue-600 text-white flex flex-col justify-between shadow-lg shadow-blue-100">
             <div className="mb-4">
               <span className="text-xs font-bold text-blue-200 uppercase tracking-widest block mb-1">
-                Total Adeudado
+                {isManagementUnlocked ? 'Total Adeudado' : 'Deuda Fiscal Exigible'}
               </span>
               <p className="text-3xl font-black">
-                ${saldoDeudaTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${(isManagementUnlocked ? saldoDeudaTotal : Math.abs(saldoBlancoNum)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             <div className="flex flex-col gap-2 mt-auto">
@@ -213,13 +227,15 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               >
                 Registrar Cobro
               </button>
-              <button
-                type="button"
-                onClick={() => onOpenBalance(client)}
-                className="w-full border border-blue-400 text-white py-2.5 font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition-all cursor-pointer"
-              >
-                Cargar Deuda
-              </button>
+              {isManagementUnlocked && (
+                <button
+                  type="button"
+                  onClick={() => onOpenBalance(client)}
+                  className="w-full border border-blue-400 text-white py-2.5 font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition-all cursor-pointer"
+                >
+                  Cargar Deuda
+                </button>
+              )}
             </div>
           </div>
         </div>

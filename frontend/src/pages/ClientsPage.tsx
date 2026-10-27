@@ -13,9 +13,11 @@ import { ClientPaymentModal } from '../components/clients/ClientPaymentModal';
 import { ClientDetailModal } from '../components/clients/ClientDetailModal';
 import { ClientsTable } from '../components/clients/ClientsTable';
 import { processClientLedger, getDocumentClassification } from '../utils/accountLedger';
+import { usePrivacy } from '../context/PrivacyContext';
 
 const ClientsPage = () => {
   const queryClient = useQueryClient();
+  const { isManagementUnlocked } = usePrivacy();
   const [searchTerm, setSearchBar] = useState('');
 
   // Modales
@@ -132,7 +134,7 @@ const ClientsPage = () => {
         monto: '',
         metodo: 'EFECTIVO',
         referencia: '',
-        imputacion: 'MIXTO',
+        imputacion: isManagementUnlocked ? 'MIXTO' : 'BLANCO',
         fecha: new Date().toISOString().split('T')[0],
       });
       toast.success('Cobro registrado exitosamente');
@@ -201,7 +203,7 @@ const ClientsPage = () => {
       monto: '',
       metodo: 'EFECTIVO',
       referencia: '',
-      imputacion: 'MIXTO',
+      imputacion: isManagementUnlocked ? 'MIXTO' : 'BLANCO',
       fecha: new Date().toISOString().split('T')[0],
     });
     setIsPaymentModalOpen(true);
@@ -213,6 +215,7 @@ const ClientsPage = () => {
   };
 
   const handleOpenBalance = (client: Client) => {
+    if (!isManagementUnlocked) return;
     setSelectedClient(client);
     setIsBalanceModalOpen(true);
     setIsDetailsModalOpen(false);
@@ -229,7 +232,11 @@ const ClientsPage = () => {
       : (isVenta ? Number(item.total_real_ars || item.monto_ars || 0) : Math.abs(Number(item.monto_ars || 0)));
 
     const info = item.classification || getDocumentClassification(item);
-    const imputacion = info.caracter === 'FISCAL' ? 'BLANCO' : (info.caracter === 'INTERNO' ? 'INTERNO' : 'MIXTO');
+    const imputacion = info.caracter === 'FISCAL' 
+      ? 'BLANCO' 
+      : (info.caracter === 'INTERNO' 
+          ? (isManagementUnlocked ? 'INTERNO' : 'BLANCO') 
+          : (isManagementUnlocked ? 'MIXTO' : 'BLANCO'));
     const referencia = `Cobro ${info.title}`;
 
     setPaymentData({

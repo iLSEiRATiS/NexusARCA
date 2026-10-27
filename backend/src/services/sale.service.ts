@@ -168,7 +168,7 @@ export class SaleService {
           await tx.sale.create({
             data: {
               client_id: sale.client_id,
-              nro_comprobante: `DIF-${saleId}`,
+              nro_comprobante: `REM-${saleId}`,
               total_real_ars: diferencial,
               cotizacion_dolar_usada: cotizacion_usada,
               monto_facturado_ars: 0,
@@ -421,6 +421,7 @@ export class SaleService {
           tipo_comprobante: 'Remito',
           estado_factura: 'FACTURADO',
           OR: [
+            { nro_comprobante: `REM-${saleId}` },
             { nro_comprobante: `DIF-${saleId}` },
             {
               items: {
