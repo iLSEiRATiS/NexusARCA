@@ -67,10 +67,11 @@ export const PrivacyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       sessionStorage.setItem(STORAGE_KEY, 'true');
       setIsManagementUnlocked(true);
       setIsPinModalOpen(false);
-      toast.success('Modo Gestión Comercial habilitado');
+      toast.dismiss();
+      toast.success('Modo Gestión Comercial habilitado', { duration: 1200 });
       return true;
     } else {
-      toast.error('Clave gerencial incorrecta');
+      toast.error('Clave gerencial incorrecta', { duration: 1500 });
       return false;
     }
   };
@@ -78,7 +79,8 @@ export const PrivacyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const lockManagement = () => {
     sessionStorage.removeItem(STORAGE_KEY);
     setIsManagementUnlocked(false);
-    toast.info('Modo Fiscal Oficial activado (Vista protegida)');
+    toast.dismiss();
+    toast.info('Modo Fiscal Oficial activado (Vista protegida)', { duration: 1000 });
   };
 
   const openPinModal = () => setIsPinModalOpen(true);
