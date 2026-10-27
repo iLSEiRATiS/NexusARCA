@@ -1,5 +1,6 @@
 node_modules/
 .env
+.env.*
 dist/
 *.log
 *.db
@@ -8,3 +9,12 @@ frontend/dist-electron/
 frontend/backend-dist/
 backend/afip_res/
 .tmp/
+backend/test_*
+backend/check_*
+backend/query_*
+backend/fix_*
+backend/read_log.js
+backend/consultar_cae.js
+backend/add_product.ts
+backend/update_settings.ts
+
