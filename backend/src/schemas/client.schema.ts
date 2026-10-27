@@ -34,5 +34,9 @@ export const updateClientSchema = z.object({
     saldo_blanco: z.number().optional(),
     saldo_interno: z.number().optional(),
     saldo_deuda: z.number().optional(),
+    nro_factura: z.string().optional().nullable(),
+    fecha_factura: z.string().optional().nullable(),
+    nro_remito: z.string().optional().nullable(),
+    fecha_remito: z.string().optional().nullable(),
   })
 });

@@ -55,13 +55,15 @@ export class ClientController {
     const tipo = req.body.imputacion || req.body.tipo || 'MIXTO';
     const metodo = req.body.metodo || 'EFECTIVO';
     const referencia = req.body.referencia || '';
+    const fecha = req.body.fecha || undefined;
     
     const payment = await ClientService.registerPayment(
       Number(req.params.id), 
       Number(monto), 
       tipo, 
       metodo,
-      referencia
+      referencia,
+      fecha
     );
     res.status(201).json(payment);
   });

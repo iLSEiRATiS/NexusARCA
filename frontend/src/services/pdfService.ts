@@ -963,13 +963,23 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
   doc.text('DEUDA TOTAL:', pageWidth - 85, 80);
   doc.text(`$${Number(client.saldo_deuda).toLocaleString('es-AR')}`, pageWidth - 15, 80, { align: 'right' });
 
-  const tableData = transactions.map(t => [
-    new Date(t.fecha).toLocaleDateString('es-AR'),
-    t.tipo === 'FACTURACIÓN' ? `FACTURACIÓN #${String(t.id).padStart(5, '0')}` : 'COBRO REGISTRADO',
-    t.tipo_comprobante || (t.tipo === 'COBRO' ? t.metodo_pago : '—'),
-    t.tipo === 'FACTURACIÓN' ? `$${Number(t.total_real_ars).toLocaleString('es-AR')}` : '—',
-    t.tipo === 'COBRO' ? `$${Number(t.monto_ars).toLocaleString('es-AR')}` : '—',
-  ]);
+  const tableData = transactions.map(t => {
+    const isDebt = t.tipo === 'FACTURACIÓN' || (t.tipo === 'COBRO' && Number(t.monto_ars) < 0);
+    const concept = t.tipo === 'FACTURACIÓN'
+      ? `FACTURACIÓN #${String(t.id).padStart(5, '0')}`
+      : (t.referencia && t.referencia.trim() !== '' ? t.referencia : (isDebt ? 'CARGA DE DEUDA' : 'COBRO REGISTRADO'));
+    const detail = t.tipo_comprobante || (t.tipo === 'COBRO' ? (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(t.metodo_pago) ? (t.tipo_cuenta || t.tipo || 'AJUSTE') : t.metodo_pago) : '—');
+    const debe = isDebt ? `$${Math.abs(Number(t.total_real_ars || t.monto_ars)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—';
+    const haber = (!isDebt && t.tipo === 'COBRO') ? `$${Number(t.monto_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—';
+    
+    return [
+      new Date(t.fecha).toLocaleDateString('es-AR'),
+      concept,
+      detail,
+      debe,
+      haber,
+    ];
+  });
 
   autoTable(doc, {
     startY: 90,

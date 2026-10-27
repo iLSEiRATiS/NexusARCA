@@ -77,7 +77,8 @@ export class ClientService {
       throw new AppError('Cliente no encontrado', 404);
     }
 
-    const payload: any = { ...data };
+    const { nro_factura, fecha_factura, nro_remito, fecha_remito, ...clientData } = data;
+    const payload: any = { ...clientData };
     if (payload.cuit) {
       payload.cuit = String(payload.cuit).replace(/[-\s.]/g, '');
     }
@@ -106,25 +107,59 @@ export class ClientService {
       const diffInterno = newInterno - oldInterno;
 
       if (diffBlanco !== 0) {
+        let referenciaBlanco = 'Ajuste manual de saldo blanco';
+        if (nro_factura && String(nro_factura).trim()) {
+          const trimmedFactura = String(nro_factura).trim();
+          referenciaBlanco = trimmedFactura.toLowerCase().startsWith('factura')
+            ? trimmedFactura
+            : `Factura N° ${trimmedFactura}`;
+        }
+
+        let fechaPago = new Date();
+        if (fecha_factura) {
+          fechaPago = new Date(String(fecha_factura).includes('T') ? String(fecha_factura) : `${fecha_factura}T12:00:00`);
+          if (isNaN(fechaPago.getTime())) {
+            fechaPago = new Date();
+          }
+        }
+
         await prisma.payment.create({
           data: {
             client_id: id,
             monto_ars: diffBlanco,
             tipo: 'BLANCO',
             metodo_pago: 'AJUSTE_SALDO',
-            referencia: 'Ajuste manual de saldo blanco'
+            referencia: referenciaBlanco,
+            fecha: fechaPago
           }
         });
       }
 
       if (diffInterno !== 0) {
+        let referenciaInterno = 'Ajuste manual de saldo interno';
+        if (nro_remito && String(nro_remito).trim()) {
+          const trimmedRemito = String(nro_remito).trim();
+          referenciaInterno = (trimmedRemito.toLowerCase().startsWith('remito') || trimmedRemito.toLowerCase().startsWith('comp'))
+            ? trimmedRemito
+            : `Remito N° ${trimmedRemito}`;
+        }
+
+        let fechaPagoInterno = new Date();
+        if (fecha_remito) {
+          fechaPagoInterno = new Date(String(fecha_remito).includes('T') ? String(fecha_remito) : `${fecha_remito}T12:00:00`);
+          if (isNaN(fechaPagoInterno.getTime())) {
+            fechaPagoInterno = new Date();
+          }
+        }
+
         await prisma.payment.create({
           data: {
             client_id: id,
             monto_ars: diffInterno,
             tipo: 'INTERNO',
             metodo_pago: 'AJUSTE_SALDO',
-            referencia: 'Ajuste manual de saldo interno'
+            referencia: referenciaInterno,
+            fecha: fechaPagoInterno
           }
         });
       }
@@ -159,9 +194,17 @@ export class ClientService {
     });
   }
 
-  static async registerPayment(clientId: number, montoArs: number, tipo: 'BLANCO' | 'INTERNO' | 'MIXTO' = 'MIXTO', metodo: string = 'TRANSFERENCIA', referencia: string = '') {
+  static async registerPayment(clientId: number, montoArs: number, tipo: 'BLANCO' | 'INTERNO' | 'MIXTO' = 'MIXTO', metodo: string = 'TRANSFERENCIA', referencia: string = '', fecha?: Date | string) {
     if (isNaN(montoArs) || montoArs <= 0) {
       throw new AppError('El monto debe ser un número positivo', 400);
+    }
+
+    let fechaPago = new Date();
+    if (fecha) {
+      fechaPago = new Date(String(fecha).includes('T') ? String(fecha) : `${fecha}T12:00:00`);
+      if (isNaN(fechaPago.getTime())) {
+        fechaPago = new Date();
+      }
     }
 
     return await prisma.$transaction(async (tx) => {
@@ -200,7 +243,7 @@ export class ClientService {
           tipo: tipo,
           metodo_pago: metodo,
           referencia: referencia,
-          fecha: new Date()
+          fecha: fechaPago
         }
       });
 

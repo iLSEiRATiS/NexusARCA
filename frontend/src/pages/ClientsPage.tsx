@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { generateAccountStatementPDF, generateSalePDF } from '../services/pdfService';
 import ConfirmModal from '../components/ConfirmModal';
 import { TableSkeleton } from '../components/Skeletons';
-import { Download, PackageOpen, Pencil } from 'lucide-react';
+import { Download, PackageOpen, Pencil, DollarSign, CheckCircle2 } from 'lucide-react';
 
 import { parseArgNumber } from '../utils/format';
 
@@ -20,7 +20,21 @@ const ClientsPage = () => {
   const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [selectedClientForEdit, setSelectedClientForEdit] = useState<any>(null);
-  const [balanceData, setBalanceData] = useState<{saldo_blanco: string | number; saldo_interno: string | number}>({ saldo_blanco: 0, saldo_interno: 0 });
+  const [balanceData, setBalanceData] = useState<{
+    saldo_blanco: string | number;
+    saldo_interno: string | number;
+    nro_factura: string;
+    fecha_factura: string;
+    nro_remito: string;
+    fecha_remito: string;
+  }>({
+    saldo_blanco: 0,
+    saldo_interno: 0,
+    nro_factura: '',
+    fecha_factura: new Date().toISOString().split('T')[0],
+    nro_remito: '',
+    fecha_remito: new Date().toISOString().split('T')[0]
+  });
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; clientId: number | null }>({
     isOpen: false,
@@ -74,11 +88,13 @@ const ClientsPage = () => {
     metodo: string;
     referencia: string;
     imputacion: string;
+    fecha: string;
   }>({
     monto: 0,
     metodo: 'EFECTIVO',
     referencia: '',
-    imputacion: 'MIXTO'
+    imputacion: 'MIXTO',
+    fecha: new Date().toISOString().split('T')[0]
   });
 
   const { data: clients, isLoading } = useQuery({
@@ -169,7 +185,13 @@ const ClientsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
       setIsPaymentModalOpen(false);
-      setPaymentData({ monto: 0, metodo: 'EFECTIVO', referencia: '', imputacion: 'MIXTO' });
+      setPaymentData({
+        monto: 0,
+        metodo: 'EFECTIVO',
+        referencia: '',
+        imputacion: 'MIXTO',
+        fecha: new Date().toISOString().split('T')[0]
+      });
       toast.success('COBRO REGISTRADO EXITOSAMENTE');
     },
     onError: (err: any) => {
@@ -211,7 +233,14 @@ const ClientsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
       setSelectedClient((prev: any) => ({ ...prev, ...updatedClient }));
       setIsEditBalanceModalOpen(false);
-      setBalanceData({ saldo_blanco: 0, saldo_interno: 0 });
+      setBalanceData({
+        saldo_blanco: 0,
+        saldo_interno: 0,
+        nro_factura: '',
+        fecha_factura: new Date().toISOString().split('T')[0],
+        nro_remito: '',
+        fecha_remito: new Date().toISOString().split('T')[0]
+      });
       toast.success('Deuda cargada correctamente');
     },
     onError: (err: any) => {
@@ -232,13 +261,24 @@ const ClientsPage = () => {
     // La deuda se guarda en negativo: nuevo saldo = saldo actual - monto agregado
     updateBalanceMutation.mutate({
       saldo_blanco: Number(selectedClient.saldo_blanco || 0) - addBlanco,
-      saldo_interno: Number(selectedClient.saldo_interno || 0) - addInterno
+      saldo_interno: Number(selectedClient.saldo_interno || 0) - addInterno,
+      nro_factura: balanceData.nro_factura.trim() || undefined,
+      fecha_factura: balanceData.fecha_factura || undefined,
+      nro_remito: balanceData.nro_remito.trim() || undefined,
+      fecha_remito: balanceData.fecha_remito || undefined
     });
   };
 
   const openEditBalance = (client: any) => {
     setSelectedClient(client);
-    setBalanceData({ saldo_blanco: 0, saldo_interno: 0 });
+    setBalanceData({
+      saldo_blanco: 0,
+      saldo_interno: 0,
+      nro_factura: '',
+      fecha_factura: new Date().toISOString().split('T')[0],
+      nro_remito: '',
+      fecha_remito: new Date().toISOString().split('T')[0]
+    });
     setIsDetailsModalOpen(false);
     setIsPaymentModalOpen(false);
     setIsEditBalanceModalOpen(true);
@@ -262,7 +302,63 @@ const ClientsPage = () => {
 
   const openPaymentModal = (client: any) => {
     setSelectedClient(client);
+    setPaymentData({
+      monto: 0,
+      metodo: 'EFECTIVO',
+      referencia: '',
+      imputacion: 'MIXTO',
+      fecha: new Date().toISOString().split('T')[0]
+    });
+    setIsDetailsModalOpen(false);
     setIsPaymentModalOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const applyDebtToPayment = (item: any) => {
+    const isVenta = item.type === 'venta';
+    const rawMonto = isVenta 
+      ? Number(item.total_real_ars || item.monto_ars || 0) 
+      : Math.abs(Number(item.monto_ars || 0));
+    
+    let imputacion = 'MIXTO';
+    if (isVenta) {
+      if (Number(item.monto_facturado_ars) > 0 && Number(item.monto_no_facturado_ars) === 0) {
+        imputacion = 'BLANCO';
+      } else if (Number(item.monto_no_facturado_ars) > 0 && Number(item.monto_facturado_ars) === 0) {
+        imputacion = 'INTERNO';
+      } else {
+        imputacion = 'MIXTO';
+      }
+    } else {
+      if (item.tipo === 'BLANCO') imputacion = 'BLANCO';
+      else if (item.tipo === 'INTERNO') imputacion = 'INTERNO';
+    }
+
+    let referencia = '';
+    if (isVenta) {
+      referencia = item.nro_comprobante 
+        ? `Cobro ${item.tipo_comprobante || 'Factura'} ${item.nro_comprobante}` 
+        : `Cobro Facturación #${String(item.id).padStart(5, '0')}`;
+    } else {
+      referencia = item.referencia 
+        ? (item.referencia.toLowerCase().startsWith('cobro') ? item.referencia : `Cobro ${item.referencia}`)
+        : `Cobro Ajuste`;
+    }
+
+    setPaymentData(prev => ({
+      ...prev,
+      monto: rawMonto,
+      referencia: referencia,
+      imputacion: imputacion,
+      fecha: new Date().toISOString().split('T')[0]
+    }));
+  };
+
+  const quickPay = (item: any) => {
+    applyDebtToPayment(item);
+    setIsDetailsModalOpen(false);
+    setIsPaymentModalOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const openEditModal = (client: any) => {
@@ -677,14 +773,20 @@ const ClientsPage = () => {
                           <div className="text-center sm:text-left">
                             <div className="flex items-center gap-2 justify-center sm:justify-start">
                               <p className="font-black text-slate-900 text-sm uppercase tracking-tight">
-                                {item.type === 'venta' ? `Facturación #${String(item.id).padStart(5, '0')}` : (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? (item.metodo_pago === 'SALDO_PREVIO' ? 'Saldo Inicial' : 'Ajuste de Saldo') : 'Cobro Recibido')}
+                                {item.type === 'venta' 
+                                  ? `Facturación #${String(item.id).padStart(5, '0')}` 
+                                  : (item.referencia && item.referencia.trim() !== ''
+                                      ? item.referencia
+                                      : (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) 
+                                          ? (item.metodo_pago === 'SALDO_PREVIO' ? 'Saldo Inicial' : 'Ajuste de Saldo') 
+                                          : 'Cobro Recibido'))}
                               </p>
                               {item.external_id && (
                                 <span className="bg-slate-50 border border-slate-200 text-slate-400 text-[7px] font-black px-1.5 py-0.5 uppercase tracking-tighter">Sincronizado</span>
                               )}
                             </div>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                              {new Date(item.fecha).toLocaleDateString()} • {item.tipo_comprobante || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? 'Ajuste Manual' : item.metodo_pago)}
+                              {new Date(item.fecha).toLocaleDateString()} • {item.tipo_comprobante || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? (item.tipo ? `Ajuste (${item.tipo})` : 'Ajuste Manual') : item.metodo_pago)}
                             </p>
                           </div>
                           <div className="flex items-center gap-6">
@@ -694,6 +796,17 @@ const ClientsPage = () => {
                               </p>
                               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">ARS</p>
                             </div>
+                            {(item.type === 'venta' || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) && Number(item.monto_ars) < 0)) && (
+                              <button
+                                type="button"
+                                onClick={() => quickPay(item)}
+                                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-sm shrink-0 cursor-pointer"
+                                title="Cobrar este comprobante"
+                              >
+                                <DollarSign size={13} />
+                                Cobrar
+                              </button>
+                            )}
                             {item.type === 'venta' && (
                               <button
                                 onClick={() => generateSalePDF({ ...item, client: selectedClient })}
@@ -773,26 +886,81 @@ const ClientsPage = () => {
                 <p className="text-lg font-black text-slate-900">${(-Number(selectedClient.saldo_interno || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Blanco</label>
-                <input
-                  type="text"
-                  value={balanceData.saldo_blanco === 0 ? '' : balanceData.saldo_blanco}
-                  onChange={e => setBalanceData({ ...balanceData, saldo_blanco: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
-                  placeholder="0.00"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              {/* Sector Blanco */}
+              <div className="bg-white p-5 border border-slate-200 space-y-4">
+                <div className="border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Sector Blanco (Oficial)</span>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Blanco</label>
+                  <input
+                    type="text"
+                    value={balanceData.saldo_blanco === 0 ? '' : balanceData.saldo_blanco}
+                    onChange={e => setBalanceData({ ...balanceData, saldo_blanco: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Número de Factura</label>
+                  <input
+                    type="text"
+                    value={balanceData.nro_factura}
+                    onChange={e => setBalanceData({ ...balanceData, nro_factura: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs uppercase"
+                    placeholder="Ej: 0001-00001234"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">N° de factura a cobrar o de la deuda generada</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fecha de la Factura</label>
+                  <input
+                    type="date"
+                    value={balanceData.fecha_factura}
+                    onChange={e => setBalanceData({ ...balanceData, fecha_factura: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Fecha en que fue emitida dicha factura</p>
+                </div>
               </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Interno</label>
-                <input
-                  type="text"
-                  value={balanceData.saldo_interno === 0 ? '' : balanceData.saldo_interno}
-                  onChange={e => setBalanceData({ ...balanceData, saldo_interno: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
-                  placeholder="0.00"
-                />
+
+              {/* Sector Interno */}
+              <div className="bg-white p-5 border border-slate-200 space-y-4">
+                <div className="border-b border-slate-100 pb-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sector Interno (Gestión)</span>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Interno</label>
+                  <input
+                    type="text"
+                    value={balanceData.saldo_interno === 0 ? '' : balanceData.saldo_interno}
+                    onChange={e => setBalanceData({ ...balanceData, saldo_interno: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">N° de Remito / Comprobante</label>
+                  <input
+                    type="text"
+                    value={balanceData.nro_remito}
+                    onChange={e => setBalanceData({ ...balanceData, nro_remito: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs uppercase"
+                    placeholder="Ej: R-00452"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">N° de remito, nota de entrega o presupuesto</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fecha del Comprobante</label>
+                  <input
+                    type="date"
+                    value={balanceData.fecha_remito}
+                    onChange={e => setBalanceData({ ...balanceData, fecha_remito: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Fecha en que fue emitido el remito o entrega</p>
+                </div>
               </div>
             </div>
             <p className="text-[10px] font-bold text-slate-500">Nota: El monto se SUMA a la deuda actual del cliente. Puede completar solo uno de los dos campos. Use un valor negativo para descontar deuda.</p>
@@ -831,6 +999,63 @@ const ClientsPage = () => {
                 </div>
               </div>
 
+              {/* Selector de comprobante específico */}
+              {(() => {
+                const pendingDebts = [
+                  ...(clientDetails?.sales || []).map((s: any) => ({
+                    id: `sale-${s.id}`,
+                    type: 'venta',
+                    label: s.nro_comprobante ? `${s.tipo_comprobante || 'Factura'} ${s.nro_comprobante}` : `Facturación #${String(s.id).padStart(5, '0')}`,
+                    monto: Number(s.total_real_ars || s.monto_ars || 0),
+                    tipo: Number(s.monto_facturado_ars) > 0 && Number(s.monto_no_facturado_ars) === 0 ? 'BLANCO' : (Number(s.monto_no_facturado_ars) > 0 && Number(s.monto_facturado_ars) === 0 ? 'INTERNO' : 'MIXTO'),
+                    fecha: s.fecha,
+                    raw: s
+                  })),
+                  ...(clientDetails?.payments || []).filter((p: any) => Number(p.monto_ars) < 0).map((p: any) => ({
+                    id: `payment-${p.id}`,
+                    type: 'deuda',
+                    label: p.referencia && p.referencia.trim() !== '' ? p.referencia : `Ajuste Deuda (${p.tipo})`,
+                    monto: Math.abs(Number(p.monto_ars)),
+                    tipo: p.tipo || 'MIXTO',
+                    fecha: p.fecha,
+                    raw: p
+                  }))
+                ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+                return pendingDebts.length > 0 ? (
+                  <div className="p-4 bg-white border border-slate-200 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1.5">
+                        <CheckCircle2 size={12} />
+                        Imputar a Factura / Remito Específico
+                      </label>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Opcional</span>
+                    </div>
+                    <select
+                      onChange={(e) => {
+                        if (!e.target.value) {
+                          setPaymentData(prev => ({ ...prev, monto: 0, referencia: '', imputacion: 'MIXTO' }));
+                          return;
+                        }
+                        const found = pendingDebts.find(d => d.id === e.target.value);
+                        if (found) {
+                          applyDebtToPayment({ ...found.raw, type: found.type });
+                        }
+                      }}
+                      defaultValue=""
+                      className="w-full bg-slate-50 border border-slate-200 px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"
+                    >
+                      <option value="">— Cobro Libre / Pago Global a Cuenta —</option>
+                      {pendingDebts.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.label} — ${d.monto.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} [{d.tipo}] ({new Date(d.fecha).toLocaleDateString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null;
+              })()}
+
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a Cobrar (ARS)</label>
                 <input
@@ -842,10 +1067,50 @@ const ClientsPage = () => {
                   placeholder="0.00"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Método</label><select value={paymentData.metodo} onChange={e => setPaymentData({ ...paymentData, metodo: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="CHEQUE">Cheque</option></select></div>
-                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imputación</label><select value={paymentData.imputacion} onChange={e => setPaymentData({ ...paymentData, imputacion: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-4 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"><option value="MIXTO">Mixto (Auto)</option><option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0}>Solo Blanco</option><option value="INTERNO" disabled={Number(selectedClient.saldo_interno) >= 0}>Solo Interno</option></select></div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Método de Pago</label>
+                  <select value={paymentData.metodo} onChange={e => setPaymentData({ ...paymentData, metodo: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-3.5 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs">
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                    <option value="CHEQUE">Cheque</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imputación</label>
+                  <select value={paymentData.imputacion} onChange={e => setPaymentData({ ...paymentData, imputacion: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-3.5 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs">
+                    <option value="MIXTO">Mixto (Auto)</option>
+                    <option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0 && paymentData.imputacion !== 'BLANCO'}>Solo Blanco</option>
+                    <option value="INTERNO" disabled={Number(selectedClient.saldo_interno) >= 0 && paymentData.imputacion !== 'INTERNO'}>Solo Interno</option>
+                  </select>
+                </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">N° Comprobante / Recibo / Ref</label>
+                  <input
+                    type="text"
+                    value={paymentData.referencia}
+                    onChange={e => setPaymentData({ ...paymentData, referencia: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                    placeholder="Ej: Transf. 98124 / Recibo 001"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Identificador del cobro o comprobante</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fecha del Cobro</label>
+                  <input
+                    type="date"
+                    value={paymentData.fecha}
+                    onChange={e => setPaymentData({ ...paymentData, fecha: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  />
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Fecha en que se acreditó el pago</p>
+                </div>
+              </div>
+
               <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">{paymentMutation.isPending ? 'Procesando...' : 'Confirmar Cobro'}</button>
               </form>
         </div>
