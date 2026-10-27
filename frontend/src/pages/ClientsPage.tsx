@@ -383,16 +383,18 @@ const ClientsPage = () => {
         isPending={paymentMutation.isPending}
       />
 
-      {/* Tabla Principal de Clientes */}
-      <ClientsTable
-        clients={clients}
-        searchTerm={searchTerm}
-        onSelectClient={handleOpenDetails}
-        onOpenPayment={handleOpenPayment}
-        onOpenBalance={handleOpenBalance}
-        onEditClient={handleOpenEdit}
-        onDeleteClient={(id) => setDeleteConfirm({ isOpen: true, clientId: id })}
-      />
+      {/* Tabla Principal de Clientes (Se oculta al abrir la ficha o menú de acciones) */}
+      {!anyModalActive && (
+        <ClientsTable
+          clients={clients}
+          searchTerm={searchTerm}
+          onSelectClient={handleOpenDetails}
+          onOpenPayment={handleOpenPayment}
+          onOpenBalance={handleOpenBalance}
+          onEditClient={handleOpenEdit}
+          onDeleteClient={(id) => setDeleteConfirm({ isOpen: true, clientId: id })}
+        />
+      )}
 
       {/* Modal Confirmación Eliminación */}
       <ConfirmModal

@@ -112,7 +112,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
           className="text-slate-300 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider border border-slate-700 px-4 py-2 hover:border-slate-500 flex items-center gap-1.5 cursor-pointer"
         >
           <X size={14} />
-          Cerrar
+          Cerrar y Volver
         </button>
       </div>
 
@@ -280,7 +280,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
             onClick={onClose}
             className="px-6 py-3 border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
           >
-            Cancelar
+            Cancelar y Volver
           </button>
           <button
             type="submit"

@@ -106,7 +106,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             className="text-slate-300 hover:text-white transition-colors text-xs font-bold uppercase tracking-wider border border-slate-700 px-4 py-2 hover:border-slate-500 flex items-center gap-1.5 cursor-pointer"
           >
             <X size={14} />
-            Cerrar
+            Cerrar y Volver
           </button>
         </div>
       </div>
@@ -645,6 +645,18 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               )}
             </div>
           )}
+
+          {/* Botón inferior para Cerrar y Volver */}
+          <div className="flex justify-end pt-6 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-slate-600 hover:text-slate-900 transition-colors text-xs font-black uppercase tracking-wider border border-slate-300 hover:border-slate-500 px-6 py-2.5 flex items-center gap-2 cursor-pointer bg-white shadow-xs"
+            >
+              <X size={15} />
+              Cerrar y Volver
+            </button>
+          </div>
         </div>
       </div>
     </div>
