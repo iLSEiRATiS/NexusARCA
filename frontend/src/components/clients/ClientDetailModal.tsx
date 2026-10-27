@@ -6,6 +6,8 @@ import {
   Clock, CheckCircle2, History, AlertCircle
 } from 'lucide-react';
 
+import { processClientLedger } from '../../utils/accountLedger';
+
 interface ClientDetailModalProps {
   isOpen: boolean;
   client: Client | null;
@@ -45,111 +47,10 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const saldoInternoNum = Number(client.saldo_interno || 0);
   const saldoDeudaTotal = Math.abs(Number(client.saldo_deuda || 0));
 
-  // Combinar ventas y cobros para historial cronológico completo
-  const transactions = useMemo(() => {
-    return [
-      ...(clientDetails?.sales || []).map((s: any) => ({ ...s, type: 'venta' })),
-      ...(clientDetails?.payments || []).map((p: any) => ({ ...p, type: 'cobro' })),
-    ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-  }, [clientDetails]);
-
-  // Separar en: Pendientes de Pago vs. Pagados
-  const { pendingDebts, paidDebts } = useMemo(() => {
-    // 1. Facturas y ajustes de deuda negativa (cargada)
-    const debtList = transactions.filter((item: any) => {
-      const isVenta = item.type === 'venta';
-      const isNegativeAdjustment = 
-        ['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) && Number(item.monto_ars) < 0;
-      return isVenta || isNegativeAdjustment;
-    });
-
-    // 2. Pagos / cobros recibidos positivos
-    const paymentList = transactions.filter((item: any) => {
-      return item.type === 'cobro' && Number(item.monto_ars) > 0;
-    });
-
-    const pending: any[] = [];
-    const paid: any[] = [];
-    const usedPaymentIds = new Set<number>();
-
-    debtList.forEach((debt: any) => {
-      const isVenta = debt.type === 'venta';
-      let matchedPayment: any = null;
-
-      // Buscar si algún cobro hace referencia explícita a este comprobante
-      for (const p of paymentList) {
-        if (usedPaymentIds.has(p.id)) continue;
-        const ref = (p.referencia || '').toLowerCase();
-
-        if (isVenta) {
-          const idStr = String(debt.id);
-          const padId = idStr.padStart(5, '0');
-          if (
-            ref.includes(`#${padId}`) || 
-            ref.includes(`#${idStr}`) || 
-            (debt.nro_comprobante && ref.includes(String(debt.nro_comprobante).toLowerCase()))
-          ) {
-            matchedPayment = p;
-            usedPaymentIds.add(p.id);
-            break;
-          }
-        } else {
-          // Ajuste de deuda (ej. "Factura N° 11112" o "Remito N° 45")
-          const debtRef = (debt.referencia || '').toLowerCase();
-          const numMatch = debtRef.match(/\d+/);
-          if (numMatch && numMatch[0].length >= 2 && ref.includes(numMatch[0])) {
-            matchedPayment = p;
-            usedPaymentIds.add(p.id);
-            break;
-          }
-          const cleanRef = debtRef.replace(/ajuste|saldo/gi, '').trim();
-          if (cleanRef.length >= 3 && ref.includes(cleanRef)) {
-            matchedPayment = p;
-            usedPaymentIds.add(p.id);
-            break;
-          }
-        }
-      }
-
-      // Si el cliente no debe nada (saldo_deuda >= 0) y hay cobros registrados, se considera saldada
-      const isDebtFree = Number(client.saldo_deuda || 0) >= 0;
-
-      if (matchedPayment) {
-        paid.push({
-          ...debt,
-          isPaid: true,
-          paymentInfo: matchedPayment
-        });
-      } else if (isDebtFree && paymentList.length > 0) {
-        paid.push({
-          ...debt,
-          isPaid: true,
-          paymentInfo: paymentList[0]
-        });
-      } else {
-        pending.push({
-          ...debt,
-          isPaid: false
-        });
-      }
-    });
-
-    // Agregar también en "Pagados" los cobros registrados que no se vincularon a una factura puntual
-    paymentList.forEach((p: any) => {
-      if (!usedPaymentIds.has(p.id)) {
-        paid.push({
-          ...p,
-          isStandalonePayment: true,
-          isPaid: true
-        });
-      }
-    });
-
-    return { 
-      pendingDebts: pending.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()), 
-      paidDebts: paid.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()) 
-    };
-  }, [transactions, client.saldo_deuda]);
+  // Procesar estado contable real: transacciones, pendientes y pagados
+  const { transactions, pendingDebts, paidDebts } = useMemo(() => {
+    return processClientLedger(client, clientDetails);
+  }, [client, clientDetails]);
 
   return (
     <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
@@ -386,9 +287,9 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         : (item.referencia && item.referencia.trim() !== ''
                             ? item.referencia
                             : (item.metodo_pago === 'SALDO_PREVIO' ? 'Saldo Inicial' : 'Ajuste de Deuda'));
-                      const montoNum = isVenta 
-                        ? Number(item.total_real_ars) 
-                        : Math.abs(Number(item.monto_ars));
+                      const montoNum = item.saldoPendiente !== undefined
+                        ? Number(item.saldoPendiente)
+                        : (isVenta ? Number(item.total_real_ars) : Math.abs(Number(item.monto_ars)));
 
                       return (
                         <div

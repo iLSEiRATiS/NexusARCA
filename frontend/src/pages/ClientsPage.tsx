@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientService, type Client } from '../services/clientService';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import { ClientBalanceModal } from '../components/clients/ClientBalanceModal';
 import { ClientPaymentModal } from '../components/clients/ClientPaymentModal';
 import { ClientDetailModal } from '../components/clients/ClientDetailModal';
 import { ClientsTable } from '../components/clients/ClientsTable';
+import { processClientLedger } from '../utils/accountLedger';
 
 const ClientsPage = () => {
   const queryClient = useQueryClient();
@@ -57,6 +58,16 @@ const ClientsPage = () => {
     },
     enabled: !!selectedClient?.id && isDetailsModalOpen,
   });
+
+  // Mantener selectedClient sincronizado con la lista fresca de clientes
+  useEffect(() => {
+    if (selectedClient && clients.length > 0) {
+      const refreshed = clients.find((c: Client) => c.id === selectedClient.id);
+      if (refreshed) {
+        setSelectedClient(refreshed);
+      }
+    }
+  }, [clients]);
 
   // ── Mutaciones ───────────────────────────────────────────────────────────
   const createMutation = useMutation({
@@ -116,6 +127,7 @@ const ClientsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
       setIsPaymentModalOpen(false);
+      setIsDetailsModalOpen(true);
       setPaymentData({
         monto: '',
         metodo: 'EFECTIVO',
@@ -282,27 +294,10 @@ const ClientsPage = () => {
     generateAccountStatementPDF(selectedClient, history);
   };
 
-  // Cálculo de deudas pendientes para el selector del modal de cobro
-  const pendingDebts = [
-    ...(clientDetails?.sales || []).map((s: any) => ({
-      id: `sale-${s.id}`,
-      type: 'venta',
-      label: s.nro_comprobante ? `${s.tipo_comprobante || 'Factura'} ${s.nro_comprobante}` : `Facturación #${String(s.id).padStart(5, '0')}`,
-      monto: Number(s.total_real_ars || s.monto_ars || 0),
-      tipo: Number(s.monto_facturado_ars) > 0 && Number(s.monto_no_facturado_ars) === 0 ? 'BLANCO' : (Number(s.monto_no_facturado_ars) > 0 && Number(s.monto_facturado_ars) === 0 ? 'INTERNO' : 'MIXTO'),
-      fecha: s.fecha,
-      raw: s,
-    })),
-    ...(clientDetails?.payments || []).filter((p: any) => Number(p.monto_ars) < 0).map((p: any) => ({
-      id: `payment-${p.id}`,
-      type: 'deuda',
-      label: p.referencia && p.referencia.trim() !== '' ? p.referencia : `Ajuste Deuda (${p.tipo})`,
-      monto: Math.abs(Number(p.monto_ars)),
-      tipo: p.tipo || 'MIXTO',
-      fecha: p.fecha,
-      raw: p,
-    })),
-  ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  // Cálculo unificado de comprobantes pendientes para el selector del modal de cobro
+  const { pendingDebts } = useMemo(() => {
+    return processClientLedger(selectedClient, clientDetails);
+  }, [selectedClient, clientDetails]);
 
   if (isLoading) {
     return (
