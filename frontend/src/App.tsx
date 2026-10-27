@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Toaster } from 'sonner';
+import { currencyService } from './services/currencyService';
 import Dashboard from './pages/Dashboard';
 import ClientsPage from './pages/ClientsPage';
 import NewSalePage from './pages/NewSalePage';
@@ -10,6 +11,17 @@ import QuotationsPage from './pages/QuotationsPage';
 import NewQuotationPage from './pages/NewQuotationPage';
 import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Calculator, 
+  Users, 
+  Settings, 
+  LogOut, 
+  Menu, 
+  X, 
+  RefreshCw 
+} from 'lucide-react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +38,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const NavLink = ({ to, children, onClick }: { to: string, children: React.ReactNode, onClick?: () => void }) => {
+interface NavLinkProps {
+  to: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  onClick?: () => void;
+}
+
+const NavLink = ({ to, icon, children, onClick }: NavLinkProps) => {
   const location = useLocation();
   const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
   
@@ -34,12 +53,41 @@ const NavLink = ({ to, children, onClick }: { to: string, children: React.ReactN
     <Link 
       to={to} 
       onClick={onClick}
-      className={`${
-        isActive ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-400 hover:text-slate-600'
-      } font-bold px-2 py-2 text-[13px] transition-all flex items-center gap-2 uppercase tracking-wider`}
+      className={`font-bold px-3 py-2 text-xs transition-all flex items-center gap-2 uppercase tracking-wider ${
+        isActive 
+          ? 'bg-slate-900 text-white shadow-sm' 
+          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+      }`}
     >
+      <span className={isActive ? 'text-blue-400' : 'text-slate-400'}>{icon}</span>
       {children}
     </Link>
+  );
+};
+
+// Indicador compacto del dólar BNA para el Navbar
+const HeaderDolarIndicator = () => {
+  const { data: dolar, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['dolar-bna'],
+    queryFn: currencyService.getDolarOficial,
+    refetchInterval: 1000 * 60 * 30, // cada 30 min
+  });
+
+  return (
+    <button 
+      type="button"
+      onClick={() => refetch()} 
+      disabled={isFetching}
+      className="hidden lg:flex items-center gap-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 transition-all cursor-pointer text-left"
+      title="Cotización oficial BNA (Clic para sincronizar)"
+    >
+      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">USD BNA:</span>
+      <span className="text-xs font-black text-slate-900">
+        {isLoading ? '...' : isError ? 'S/D' : `$${Number(dolar).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
+      </span>
+      <RefreshCw size={11} className={`text-slate-400 ${isFetching ? 'animate-spin' : ''}`} />
+    </button>
   );
 };
 
@@ -63,66 +111,110 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     console.error('Error parsing auth data', e);
   }
 
+  const userInitial = auth?.user?.nombre ? auth.user.nombre.charAt(0).toUpperCase() : 'U';
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
-      <nav className="border-b border-slate-200 px-6 md:px-10 py-6 flex justify-between items-center sticky top-0 z-50 bg-white">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="text-xl font-black tracking-tighter uppercase text-slate-900">Máscolo <span className="text-blue-600 font-light">Facturador</span></span>
+      {/* Top Navbar */}
+      <nav className="border-b border-slate-200 px-6 md:px-10 py-4 flex justify-between items-center sticky top-0 z-50 bg-white shadow-xs">
+        {/* Logo / Brand */}
+        <Link to="/" className="flex items-center gap-2.5 group">
+          <div className="w-8 h-8 bg-slate-900 text-white flex items-center justify-center font-black text-base tracking-tighter">
+            M
+          </div>
+          <div className="flex flex-col">
+            <span className="text-lg font-black tracking-tight uppercase text-slate-900 leading-none">
+              Máscolo <span className="text-blue-600 font-bold">Facturador</span>
+            </span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
+              ARCA &bull; Facturación Fiscal
+            </span>
+          </div>
         </Link>
 
-        {/* Desktop Nav */}
-        <div className="hidden md:flex gap-10">
-          <NavLink to="/">Inicio</NavLink>
-          <NavLink to="/facturacion">Facturación</NavLink>
-          <NavLink to="/cotizaciones">Presupuestos</NavLink>
-          <NavLink to="/clientes">Clientes</NavLink>
-          <NavLink to="/configuracion">⚙ Config</NavLink>
+        {/* Desktop Nav Links */}
+        <div className="hidden md:flex items-center gap-2">
+          <NavLink to="/" icon={<LayoutDashboard size={14} />}>Inicio</NavLink>
+          <NavLink to="/facturacion" icon={<FileText size={14} />}>Facturación</NavLink>
+          <NavLink to="/cotizaciones" icon={<Calculator size={14} />}>Presupuestos</NavLink>
+          <NavLink to="/clientes" icon={<Users size={14} />}>Clientes</NavLink>
+          <NavLink to="/configuracion" icon={<Settings size={14} />}>Config</NavLink>
         </div>
 
-        <div className="hidden md:flex items-center gap-6">
-          <span className="text-[11px] font-bold uppercase text-slate-400 tracking-widest">{auth?.user?.nombre || 'Usuario'}</span>
+        {/* Desktop Right Section: Dolar + User */}
+        <div className="hidden md:flex items-center gap-4">
+          <HeaderDolarIndicator />
+
+          <div className="h-5 w-px bg-slate-200"></div>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center text-xs font-black">
+              {userInitial}
+            </div>
+            <span className="text-xs font-bold uppercase text-slate-700 tracking-wider">
+              {auth?.user?.nombre || 'Usuario'}
+            </span>
+          </div>
+
           <button 
+            type="button"
             onClick={handleLogout}
-            className="text-[11px] font-bold uppercase border border-slate-900 px-4 py-2 hover:bg-slate-900 hover:text-white transition-all tracking-widest"
+            className="text-xs font-bold uppercase border border-slate-300 text-slate-600 px-3 py-1.5 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all tracking-wider flex items-center gap-1.5 cursor-pointer"
+            title="Cerrar Sesión"
           >
+            <LogOut size={13} />
             Salir
           </button>
         </div>
 
         {/* Mobile Nav Button */}
         <button 
+          type="button"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="md:hidden p-2 text-slate-900 text-xl"
+          className="md:hidden p-2 text-slate-900 text-lg border border-slate-200 cursor-pointer"
         >
-          {isMenuOpen ? '✕' : '☰'}
+          {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </nav>
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden border-b border-slate-200 bg-white p-6 flex flex-col gap-4 animate-fade-in shadow-lg">
-          <NavLink to="/" onClick={() => setIsMenuOpen(false)}>Inicio</NavLink>
-          <NavLink to="/facturacion" onClick={() => setIsMenuOpen(false)}>Facturación</NavLink>
-          <NavLink to="/cotizaciones" onClick={() => setIsMenuOpen(false)}>Presupuestos</NavLink>
-          <NavLink to="/clientes" onClick={() => setIsMenuOpen(false)}>Clientes</NavLink>
-          <NavLink to="/configuracion" onClick={() => setIsMenuOpen(false)}>⚙ Configuración</NavLink>
-          <button 
-            onClick={handleLogout}
-            className="text-left font-bold text-slate-400 px-2 py-2 text-sm uppercase tracking-widest"
-          >
-            Salir
-          </button>
+        <div className="md:hidden border-b border-slate-200 bg-white p-5 flex flex-col gap-2 animate-fade-in shadow-lg">
+          <NavLink to="/" icon={<LayoutDashboard size={16} />} onClick={() => setIsMenuOpen(false)}>Inicio</NavLink>
+          <NavLink to="/facturacion" icon={<FileText size={16} />} onClick={() => setIsMenuOpen(false)}>Facturación</NavLink>
+          <NavLink to="/cotizaciones" icon={<Calculator size={16} />} onClick={() => setIsMenuOpen(false)}>Presupuestos</NavLink>
+          <NavLink to="/clientes" icon={<Users size={16} />} onClick={() => setIsMenuOpen(false)}>Clientes</NavLink>
+          <NavLink to="/configuracion" icon={<Settings size={16} />} onClick={() => setIsMenuOpen(false)}>Configuración</NavLink>
+          <div className="pt-2 border-t border-slate-100 flex justify-between items-center mt-2">
+            <span className="text-xs font-bold uppercase text-slate-500 tracking-wider">
+              {auth?.user?.nombre || 'Usuario'}
+            </span>
+            <button 
+              type="button"
+              onClick={handleLogout}
+              className="font-bold text-red-600 text-xs uppercase tracking-wider flex items-center gap-1.5"
+            >
+              <LogOut size={13} />
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       )}
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-10">
-        <div className="bg-white border border-slate-200 p-6 md:p-10 shadow-sm min-h-[70vh]">
+      {/* Main Container */}
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 md:p-10">
+        <div className="bg-white border border-slate-200 p-6 md:p-10 shadow-xs min-h-[70vh]">
           {children}
         </div>
       </main>
 
-      <footer className="py-12 text-center border-t border-slate-200 bg-white">
-        <span className="text-slate-300 text-[10px] font-bold uppercase tracking-[0.4em]">Máscolo Químicos &bull; 2026</span>
+      {/* Footer */}
+      <footer className="py-8 text-center border-t border-slate-200 bg-white">
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
+          <span>Máscolo Químicos</span>
+          <span className="hidden sm:inline">&bull;</span>
+          <span>Sistema Facturador Fiscal ARCA 2026</span>
+        </div>
       </footer>
     </div>
   );
