@@ -2,7 +2,20 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { toast } from 'sonner';
-import { ShieldCheck, ShieldOff, Save, AlertTriangle, Building2, Receipt } from 'lucide-react';
+import { 
+  ShieldCheck, 
+  ShieldOff, 
+  Save, 
+  AlertTriangle, 
+  Building2, 
+  Receipt, 
+  FileKey, 
+  Upload, 
+  Loader2,
+  Calendar,
+  MapPin,
+  Clock
+} from 'lucide-react';
 
 interface SystemConfig {
   id: number;
@@ -33,6 +46,8 @@ const SettingsPage = () => {
   });
 
   const [form, setForm] = useState<Partial<SystemConfig>>({});
+  const [certFileName, setCertFileName] = useState<string>('');
+  const [keyFileName, setKeyFileName] = useState<string>('');
 
   useEffect(() => {
     if (config) setForm(config);
@@ -80,8 +95,11 @@ const SettingsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="p-10 text-xs font-bold uppercase tracking-widest text-slate-400 text-center">
-        Cargando configuración...
+      <div className="p-16 text-center">
+        <Loader2 className="animate-spin text-blue-600 inline-block mb-3" size={32} />
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+          Cargando configuración del emisor...
+        </p>
       </div>
     );
   }
@@ -89,86 +107,98 @@ const SettingsPage = () => {
   const isConfigured =
     form.razon_social !== 'EMISOR SIN CONFIGURAR' &&
     form.cuit_emisor !== '00-00000000-0' &&
-    form.domicilio_fiscal !== '';
+    Boolean(form.domicilio_fiscal);
 
   return (
-    <div className="space-y-12 animate-fade-in">
-
+    <div className="space-y-8 animate-fade-in max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-slate-900 pb-6 gap-4">
         <div>
-          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-slate-900">
-            Configuración
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-slate-900">
+            Configuración Fiscal
           </h1>
-          <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-1">
-            Datos del emisor y parámetros del sistema de facturación
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">
+            Datos del emisor, credenciales ARCA / AFIP y punto de venta
           </p>
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-3">
           {form.modo_produccion ? (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-300 px-4 py-2">
-              <ShieldCheck size={14} className="text-green-600" />
-              <span className="text-green-700 font-black text-[10px] uppercase tracking-widest">Modo Producción</span>
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-sm shadow-xs">
+              <ShieldCheck size={16} className="text-emerald-600" />
+              <div>
+                <p className="text-emerald-800 font-black text-[10px] uppercase tracking-wider leading-none">
+                  Modo Producción
+                </p>
+                <p className="text-emerald-600 font-semibold text-[8px] uppercase tracking-widest mt-0.5">
+                  Facturación real AFIP
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 px-4 py-2">
-              <ShieldOff size={14} className="text-amber-600" />
-              <span className="text-amber-700 font-black text-[10px] uppercase tracking-widest">Modo Homologación</span>
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3.5 py-2 rounded-sm shadow-xs">
+              <ShieldOff size={16} className="text-amber-600" />
+              <div>
+                <p className="text-amber-800 font-black text-[10px] uppercase tracking-wider leading-none">
+                  Modo Homologación
+                </p>
+                <p className="text-amber-600 font-semibold text-[8px] uppercase tracking-widest mt-0.5">
+                  Ambiente de pruebas
+                </p>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Advertencia si no está configurado */}
+      {/* Warning if not configured */}
       {!isConfigured && (
-        <div className="flex items-start gap-4 bg-amber-50 border border-amber-200 p-6">
-          <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-4 bg-amber-50 border border-amber-200 p-5 rounded-sm shadow-xs">
+          <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <p className="font-black text-amber-800 text-sm uppercase tracking-tight">
-              Datos del emisor sin configurar
+            <p className="font-black text-amber-900 text-xs uppercase tracking-wide">
+              Datos del emisor incompletos o sin configurar
             </p>
-            <p className="text-amber-700 text-xs font-bold mt-1 leading-relaxed">
-              Completá los datos a continuación para que aparezcan correctamente en las facturas generadas.
-              Pedile estos datos al contador de Máscolo Químicos.
+            <p className="text-amber-800 text-xs font-medium mt-1 leading-relaxed">
+              Complete los datos a continuación para que aparezcan correctamente en los comprobantes fiscales y remitos emitidos.
             </p>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* ── DATOS DEL EMISOR ──────────────────────────────── */}
-        <section className="space-y-8">
-          <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 flex items-center gap-2 pb-4 border-b border-slate-200">
-            <Building2 size={14} className="text-blue-600" />
-            Datos del Emisor (Máscolo Químicos)
+        <section className="bg-white border border-slate-200 p-6 sm:p-8 rounded-sm shadow-sm space-y-6">
+          <h2 className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200">
+            <Building2 size={16} className="text-blue-600" />
+            Datos de la Razón Social Emisora
           </h2>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Razón Social */}
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                Razón Social (exacta según AFIP)
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                Razón Social (exacta según constancia AFIP)
               </label>
               <input
                 type="text"
                 value={form.razon_social || ''}
                 onChange={e => set('razon_social', e.target.value)}
-                className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-bold text-slate-900 text-sm outline-none focus:border-blue-600 transition-all uppercase"
+                className="w-full bg-slate-50 border border-slate-200 rounded-sm px-3.5 py-2.5 font-bold text-slate-900 text-xs outline-none focus:border-blue-600 focus:bg-white transition-all uppercase"
                 placeholder="MÁSCOLO OSCAR CARMELO"
               />
             </div>
 
             {/* CUIT */}
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                CUIT del Titular (con guiones: XX-XXXXXXXX-X)
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                CUIT del Emisor (XX-XXXXXXXX-X)
               </label>
               <input
                 type="text"
                 value={form.cuit_emisor || ''}
                 onChange={e => set('cuit_emisor', e.target.value)}
-                className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-bold text-slate-900 text-sm outline-none focus:border-blue-600 transition-all tracking-widest"
+                className="w-full bg-slate-50 border border-slate-200 rounded-sm px-3.5 py-2.5 font-mono font-bold text-slate-900 text-xs outline-none focus:border-blue-600 focus:bg-white transition-all tracking-wider"
                 placeholder="20-12345678-9"
                 maxLength={13}
               />
@@ -176,27 +206,27 @@ const SettingsPage = () => {
 
             {/* Domicilio Fiscal */}
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                Domicilio Fiscal Completo (según AFIP)
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                <MapPin size={11} /> Domicilio Fiscal Completo
               </label>
               <input
                 type="text"
                 value={form.domicilio_fiscal || ''}
                 onChange={e => set('domicilio_fiscal', e.target.value)}
-                className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-bold text-slate-900 text-sm outline-none focus:border-blue-600 transition-all uppercase"
+                className="w-full bg-slate-50 border border-slate-200 rounded-sm px-3.5 py-2.5 font-bold text-slate-900 text-xs outline-none focus:border-blue-600 focus:bg-white transition-all uppercase"
                 placeholder="CALLE 1234, LOCALIDAD, PROVINCIA"
               />
             </div>
 
             {/* Condición IVA */}
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
                 Condición frente al IVA
               </label>
               <select
                 value={form.condicion_iva_emisor || 'Responsable Inscripto'}
                 onChange={e => set('condicion_iva_emisor', e.target.value)}
-                className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-bold text-slate-900 text-sm outline-none focus:border-blue-600 transition-all uppercase"
+                className="w-full bg-slate-50 border border-slate-200 rounded-sm px-3.5 py-2.5 font-bold text-slate-900 text-xs outline-none focus:border-blue-600 focus:bg-white transition-all cursor-pointer"
               >
                 <option value="Responsable Inscripto">Responsable Inscripto</option>
                 <option value="Monotributo">Monotributo</option>
@@ -206,14 +236,14 @@ const SettingsPage = () => {
 
             {/* Inicio de Actividades */}
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                Fecha de Inicio de Actividades (DD/MM/AAAA)
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                <Calendar size={11} /> Fecha de Inicio de Actividades (DD/MM/AAAA)
               </label>
               <input
                 type="text"
                 value={form.inicio_actividades || ''}
                 onChange={e => set('inicio_actividades', e.target.value)}
-                className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-bold text-slate-900 text-sm outline-none focus:border-blue-600 transition-all tracking-widest"
+                className="w-full bg-slate-50 border border-slate-200 rounded-sm px-3.5 py-2.5 font-mono font-bold text-slate-900 text-xs outline-none focus:border-blue-600 focus:bg-white transition-all tracking-wider"
                 placeholder="01/01/2000"
                 maxLength={10}
               />
@@ -221,179 +251,216 @@ const SettingsPage = () => {
           </div>
         </section>
 
-        {/* ── CONFIGURACIÓN ARCA ────────────────────────────── */}
-        <section className="space-y-8">
-          <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900 flex items-center gap-2 pb-4 border-b border-slate-200">
-            <Receipt size={14} className="text-blue-600" />
-            Parámetros ARCA / AFIP
+        {/* ── PARÁMETROS ARCA ────────────────────────────── */}
+        <section className="bg-white border border-slate-200 p-6 sm:p-8 rounded-sm shadow-sm space-y-6">
+          <h2 className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-200">
+            <Receipt size={16} className="text-blue-600" />
+            Parámetros de Facturación Electrónica ARCA
           </h2>
 
           <div className="space-y-6">
             {/* Punto de Venta */}
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                Número de Punto de Venta habilitado para Web Services
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                Punto de Venta Habilitado (Web Services)
               </label>
-              <input
-                type="number"
-                min={1}
-                max={9999}
-                value={form.punto_venta ?? 1}
-                onChange={e => set('punto_venta', parseInt(e.target.value) || 1)}
-                className="w-full bg-slate-50 border-b-2 border-slate-900 px-4 py-3 font-black text-slate-900 text-2xl outline-none focus:border-blue-600 transition-all tracking-widest"
-              />
-              <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase tracking-widest">
-                Verificar en ARCA → Administración de Puntos de Venta. Debe ser tipo "Facturación Electrónica".
+              <div className="relative w-40">
+                <input
+                  type="number"
+                  min={1}
+                  max={9999}
+                  value={form.punto_venta ?? 1}
+                  onChange={e => set('punto_venta', parseInt(e.target.value) || 1)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-sm px-3.5 py-2.5 font-mono font-black text-slate-900 text-xl outline-none focus:border-blue-600 focus:bg-white transition-all text-center"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold mt-1.5">
+                Debe coincidir con el punto de venta de tipo "Facturación Electrónica" en la web de AFIP.
               </p>
             </div>
 
             {/* Modo Producción / Homologación */}
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
-                Entorno de Operación
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">
+                Entorno de Operación AFIP
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <button
+                  type="button"
                   onClick={() => {
                     set('modo_produccion', false);
                     set('cert_file', null);
                     set('key_file', null);
+                    setCertFileName('');
+                    setKeyFileName('');
                   }}
-                  className={`group p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
+                  className={`p-4 rounded-sm border-2 transition-all text-left flex items-start gap-3 ${
                     !form.modo_produccion
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-slate-200 bg-white hover:border-amber-400'
+                      ? 'border-amber-500 bg-amber-50/70 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <ShieldOff size={24} className={`transition-colors ${!form.modo_produccion ? 'text-amber-500' : 'text-slate-300 group-hover:text-amber-400'}`} />
+                  <div className={`p-2 rounded ${!form.modo_produccion ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    <ShieldOff size={20} />
+                  </div>
                   <div>
-                    <p className={`font-black text-xs uppercase tracking-widest transition-colors ${!form.modo_produccion ? 'text-amber-700' : 'text-slate-400 group-hover:text-amber-600'}`}>
+                    <p className={`font-black text-xs uppercase tracking-tight ${!form.modo_produccion ? 'text-amber-900' : 'text-slate-800'}`}>
                       Homologación
                     </p>
-                    <p className={`text-[8px] font-bold mt-1 uppercase tracking-widest transition-colors ${!form.modo_produccion ? 'text-amber-600' : 'text-slate-300 group-hover:text-amber-500'}`}>
-                      Facturas de prueba
+                    <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wider mt-0.5">
+                      Pruebas sin valor fiscal
                     </p>
                   </div>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (window.confirm('⚠️ ¿Confirmar cambio a PRODUCCIÓN?\n\nA partir de este momento todas las facturas emitidas tendrán validez fiscal real ante AFIP/ARCA.\n\nAsegúrese de que los datos del emisor sean los correctos.')) {
                       set('modo_produccion', true);
                       set('cert_file', null);
                       set('key_file', null);
+                      setCertFileName('');
+                      setKeyFileName('');
                     }
                   }}
-                  className={`group p-6 border-2 transition-all text-center flex flex-col items-center gap-3 ${
+                  className={`p-4 rounded-sm border-2 transition-all text-left flex items-start gap-3 ${
                     form.modo_produccion
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-slate-200 bg-white hover:border-green-400'
+                      ? 'border-emerald-500 bg-emerald-50/70 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <ShieldCheck size={24} className={`transition-colors ${form.modo_produccion ? 'text-green-600' : 'text-slate-300 group-hover:text-green-500'}`} />
+                  <div className={`p-2 rounded ${form.modo_produccion ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    <ShieldCheck size={20} />
+                  </div>
                   <div>
-                    <p className={`font-black text-xs uppercase tracking-widest transition-colors ${form.modo_produccion ? 'text-green-800' : 'text-slate-400 group-hover:text-green-600'}`}>
+                    <p className={`font-black text-xs uppercase tracking-tight ${form.modo_produccion ? 'text-emerald-900' : 'text-slate-800'}`}>
                       Producción
                     </p>
-                    <p className={`text-[8px] font-bold mt-1 uppercase tracking-widest transition-colors ${form.modo_produccion ? 'text-green-600' : 'text-slate-300 group-hover:text-green-500'}`}>
-                      Facturas reales AFIP
+                    <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wider mt-0.5">
+                      Facturación oficial AFIP
                     </p>
                   </div>
                 </button>
               </div>
             </div>
 
-            {/* ── CARGA DE CERTIFICADOS ── */}
-            <div className="pt-6 border-t border-slate-200">
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
-                {form.modo_produccion ? 'Certificados de Producción ARCA' : 'Certificados de Homologación (Pruebas)'}
+            {/* Certificados */}
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                <FileKey size={12} className="text-blue-600" />
+                Certificados Digitales ({form.modo_produccion ? 'Producción' : 'Homologación'})
               </label>
               
-              <div key={form.modo_produccion ? 'prod' : 'test'} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 border border-slate-200 p-4">
-                  <p className="text-[10px] font-black uppercase text-slate-900 mb-2">Certificado (.crt)</p>
-                  <input 
-                    type="file" 
-                    accept=".crt"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => set('cert_file', evt.target?.result);
-                        reader.readAsText(file);
-                      }
-                    }}
-                    className="text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
-                  />
+              <div key={form.modo_produccion ? 'prod' : 'test'} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-sm">
+                  <p className="text-[10px] font-black uppercase text-slate-800 mb-1.5">Certificado (.crt)</p>
+                  <label className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-wider cursor-pointer transition-colors">
+                    <Upload size={10} /> {certFileName ? 'Reemplazar .crt' : 'Cargar archivo .crt'}
+                    <input 
+                      type="file" 
+                      accept=".crt"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setCertFileName(file.name);
+                          const reader = new FileReader();
+                          reader.onload = (evt) => set('cert_file', evt.target?.result);
+                          reader.readAsText(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {certFileName && (
+                    <p className="text-[9px] font-mono text-emerald-600 font-bold mt-1.5 truncate">
+                      ✓ {certFileName}
+                    </p>
+                  )}
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 p-4">
-                  <p className="text-[10px] font-black uppercase text-slate-900 mb-2">Llave Privada (.key)</p>
-                  <input 
-                    type="file" 
-                    accept=".key"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => set('key_file', evt.target?.result);
-                        reader.readAsText(file);
-                      }
-                    }}
-                    className="text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
-                  />
+                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-sm">
+                  <p className="text-[10px] font-black uppercase text-slate-800 mb-1.5">Llave Privada (.key)</p>
+                  <label className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-wider cursor-pointer transition-colors">
+                    <Upload size={10} /> {keyFileName ? 'Reemplazar .key' : 'Cargar archivo .key'}
+                    <input 
+                      type="file" 
+                      accept=".key"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setKeyFileName(file.name);
+                          const reader = new FileReader();
+                          reader.onload = (evt) => set('key_file', evt.target?.result);
+                          reader.readAsText(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {keyFileName && (
+                    <p className="text-[9px] font-mono text-emerald-600 font-bold mt-1.5 truncate">
+                      ✓ {keyFileName}
+                    </p>
+                  )}
                 </div>
               </div>
               
               {form.cert_file && form.key_file && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-blue-600" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-800">
-                    Archivos listos para subir al guardar configuración
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
+                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-800">
+                    Archivos .crt y .key cargados y listos para guardar en el servidor
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Última actualización */}
-            {config?.updatedAt && (
-              <div className="pt-4 border-t border-slate-100">
-                <p className="text-[9px] text-slate-300 font-bold uppercase tracking-widest">
-                  Última actualización: {new Date(config.updatedAt).toLocaleString('es-AR')}
+            {/* Preview Encabezado */}
+            {isConfigured && (
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-sm space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                  Vista Previa en Encabezado de Factura
+                </p>
+                <p className="font-black text-xs text-slate-900 uppercase">{form.razon_social}</p>
+                <p className="text-[10px] text-slate-600 font-mono">CUIT: {form.cuit_emisor}</p>
+                <p className="text-[10px] text-slate-600">{form.domicilio_fiscal}</p>
+                <p className="text-[10px] text-slate-600">
+                  {form.condicion_iva_emisor} · Inicio: {form.inicio_actividades} · Pto. Vta: {String(form.punto_venta ?? 1).padStart(4, '0')}
                 </p>
               </div>
             )}
-          </div>
 
-          {/* Preview de cómo quedará la factura */}
-          {isConfigured && (
-            <div className="bg-slate-50 border border-slate-200 p-6 mt-4">
-              <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">
-                Vista previa — Encabezado de Factura
-              </h3>
-              <div className="font-bold text-sm text-slate-900 uppercase">{form.razon_social}</div>
-              <div className="text-[10px] text-slate-500 font-bold mt-1">CUIT: {form.cuit_emisor}</div>
-              <div className="text-[10px] text-slate-500 font-bold">{form.domicilio_fiscal}</div>
-              <div className="text-[10px] text-slate-500 font-bold">
-                {form.condicion_iva_emisor} — Inicio: {form.inicio_actividades}
+            {/* Timestamp */}
+            {config?.updatedAt && (
+              <div className="pt-2 flex items-center gap-1.5 text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
+                <Clock size={10} />
+                <span>Última actualización: {new Date(config.updatedAt).toLocaleString('es-AR')}</span>
               </div>
-              <div className="text-[10px] text-slate-500 font-bold">
-                Pto. Venta: {String(form.punto_venta ?? 1).padStart(4, '0')}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </section>
       </div>
 
-      {/* BOTÓN GUARDAR */}
-      <div className="border-t-2 border-slate-900 pt-8 flex justify-end">
+      {/* Save Action Bar */}
+      <div className="border-t-2 border-slate-900 pt-6 flex justify-end">
         <button
+          type="button"
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
-          className="flex items-center gap-3 bg-slate-900 text-white px-10 py-4 font-black text-[11px] uppercase tracking-[0.3em] hover:bg-slate-800 transition-all disabled:bg-slate-200 disabled:text-slate-400 shadow-lg"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 font-black text-xs uppercase tracking-widest rounded-sm transition-all disabled:bg-slate-200 disabled:text-slate-400 shadow-lg shadow-blue-500/20"
         >
-          <Save size={14} />
-          {saveMutation.isPending ? 'Guardando...' : 'Guardar Configuración'}
+          {saveMutation.isPending ? (
+            <>
+              <Loader2 className="animate-spin" size={16} />
+              <span>Guardando Parámetros...</span>
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              <span>Guardar Configuración</span>
+            </>
+          )}
         </button>
       </div>
     </div>
