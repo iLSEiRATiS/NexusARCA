@@ -3,10 +3,34 @@ import type { Client } from '../../services/clientService';
 import { 
   X, Pencil, Download, DollarSign, PackageOpen, 
   FileSpreadsheet, Mail, Phone, MapPin, Building2, Hash,
-  Clock, CheckCircle2, History, AlertCircle
+  Clock, CheckCircle2, History, AlertCircle, ShieldCheck, FileText
 } from 'lucide-react';
 
-import { processClientLedger } from '../../utils/accountLedger';
+import { processClientLedger, getDocumentClassification, type DocumentClassification } from '../../utils/accountLedger';
+
+const renderCaracterBadge = (info: DocumentClassification) => {
+  if (info.caracter === 'FISCAL') {
+    return (
+      <span className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
+        <ShieldCheck size={11} className="text-blue-600" />
+        {info.caracterLabel}
+      </span>
+    );
+  }
+  if (info.caracter === 'INTERNO') {
+    return (
+      <span className="bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
+        <FileText size={11} className="text-purple-600" />
+        {info.caracterLabel}
+      </span>
+    );
+  }
+  return (
+    <span className="bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
+      {info.caracterLabel}
+    </span>
+  );
+};
 
 interface ClientDetailModalProps {
   isOpen: boolean;
@@ -285,34 +309,46 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                   ) : (
                     pendingDebts.map((item: any, idx: number) => {
                       const isVenta = item.type === 'venta';
-                      const title = isVenta
-                        ? `Facturación #${String(item.id).padStart(5, '0')}`
-                        : (item.referencia && item.referencia.trim() !== ''
-                            ? item.referencia
-                            : (item.metodo_pago === 'SALDO_PREVIO' ? 'Saldo Inicial' : 'Ajuste de Deuda'));
+                      const info: DocumentClassification = item.classification || getDocumentClassification(item);
                       const montoNum = item.saldoPendiente !== undefined
                         ? Number(item.saldoPendiente)
                         : (isVenta ? Number(item.total_real_ars) : Math.abs(Number(item.monto_ars)));
 
+                      const borderStyle = info.caracter === 'FISCAL'
+                        ? 'border-blue-200/90 hover:border-blue-500'
+                        : info.caracter === 'INTERNO'
+                        ? 'border-purple-200/90 hover:border-purple-500'
+                        : 'border-amber-200/80 hover:border-amber-500';
+
                       return (
                         <div
                           key={`pending-${idx}`}
-                          className="bg-white border border-amber-200/80 overflow-hidden hover:border-amber-500 transition-all shadow-xs"
+                          className={`bg-white border ${borderStyle} overflow-hidden transition-all shadow-xs`}
                         >
                           <div className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            {/* Lado izquierdo: Concepto y Estado Pendiente */}
+                            {/* Lado izquierdo: Concepto, Carácter y Estado Pendiente */}
                             <div className="text-center sm:text-left flex-1 min-w-0">
-                              <div className="flex items-center gap-2 justify-center sm:justify-start">
+                              <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                                 <p className="font-black text-slate-900 text-sm uppercase tracking-tight">
-                                  {title}
+                                  {info.title}
                                 </p>
+
+                                {/* Carácter: FISCAL ARCA vs INTERNO */}
+                                {renderCaracterBadge(info)}
+
+                                {/* CAE si corresponde */}
+                                {info.cae && (
+                                  <span className="bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[10px] font-bold px-2 py-0.5 tracking-tight rounded" title={`CAE: ${info.cae}`}>
+                                    CAE {info.cae}
+                                  </span>
+                                )}
+
                                 <span className="bg-amber-50 border border-amber-300 text-amber-800 text-[9px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
                                   <Clock size={10} /> Pendiente de Cobro
                                 </span>
                               </div>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
-                                {new Date(item.fecha).toLocaleDateString('es-AR')} •{' '}
-                                {item.tipo_comprobante || (item.tipo ? `Ajuste (${item.tipo})` : 'Deuda')}
+                                {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
                               </p>
                             </div>
 
@@ -398,12 +434,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                   ) : (
                     paidDebts.map((item: any, idx: number) => {
                       const isVenta = item.type === 'venta';
-                      const isStandalone = item.isStandalonePayment;
-                      const title = isVenta
-                        ? `Facturación #${String(item.id).padStart(5, '0')}`
-                        : (item.referencia && item.referencia.trim() !== ''
-                            ? item.referencia
-                            : (isStandalone ? 'Cobro Registrado' : 'Ajuste Liquidado'));
+                      const info: DocumentClassification = item.classification || getDocumentClassification(item);
                       const montoNum = isVenta 
                         ? Number(item.total_real_ars) 
                         : Math.abs(Number(item.monto_ars));
@@ -414,12 +445,23 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                           className="bg-white border border-emerald-200/80 overflow-hidden hover:border-emerald-500 transition-all shadow-xs"
                         >
                           <div className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            {/* Lado izquierdo: Concepto y Estado Pagado */}
+                            {/* Lado izquierdo: Concepto, Carácter y Estado Pagado */}
                             <div className="text-center sm:text-left flex-1 min-w-0">
-                              <div className="flex items-center gap-2 justify-center sm:justify-start">
+                              <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                                 <p className="font-black text-slate-900 text-sm uppercase tracking-tight">
-                                  {title}
+                                  {info.title}
                                 </p>
+
+                                {/* Carácter: FISCAL ARCA vs INTERNO */}
+                                {renderCaracterBadge(info)}
+
+                                {/* CAE si corresponde */}
+                                {info.cae && (
+                                  <span className="bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[10px] font-bold px-2 py-0.5 tracking-tight rounded" title={`CAE: ${info.cae}`}>
+                                    CAE {info.cae}
+                                  </span>
+                                )}
+
                                 <span className="bg-emerald-50 border border-emerald-300 text-emerald-800 text-[9px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
                                   <CheckCircle2 size={10} /> Pagado / Cancelado
                                 </span>
@@ -433,9 +475,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                   </>
                                 ) : (
                                   <>
-                                    Fecha: {new Date(item.fecha).toLocaleDateString('es-AR')} •{' '}
-                                    {item.metodo_pago ? `Cobro ${item.metodo_pago}` : (item.tipo_comprobante || 'Liquidado')}
-                                    {item.tipo ? ` (${item.tipo})` : ''}
+                                    Fecha: {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
                                   </>
                                 )}
                               </p>
@@ -481,13 +521,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                     transactions.map((item: any, idx: number) => {
                       const isVenta = item.type === 'venta';
                       const isDebt = isVenta || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) && Number(item.monto_ars) < 0);
-                      const title = isVenta
-                        ? `Facturación #${String(item.id).padStart(5, '0')}`
-                        : (item.referencia && item.referencia.trim() !== ''
-                            ? item.referencia
-                            : (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago)
-                                ? (item.metodo_pago === 'SALDO_PREVIO' ? 'Saldo Inicial' : 'Ajuste de Saldo')
-                                : 'Cobro Recibido'));
+                      const info: DocumentClassification = item.classification || getDocumentClassification(item);
 
                       return (
                         <div
@@ -495,12 +529,23 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                           className="bg-white border border-slate-200 overflow-hidden hover:border-blue-600 transition-all shadow-xs"
                         >
                           <div className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            {/* Lado izquierdo: Concepto y Fecha */}
+                            {/* Lado izquierdo: Concepto, Carácter y Fecha */}
                             <div className="text-center sm:text-left flex-1 min-w-0">
-                              <div className="flex items-center gap-2 justify-center sm:justify-start">
+                              <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                                 <p className="font-black text-slate-900 text-sm uppercase tracking-tight">
-                                  {title}
+                                  {info.title}
                                 </p>
+
+                                {/* Carácter: FISCAL ARCA vs INTERNO */}
+                                {renderCaracterBadge(info)}
+
+                                {/* CAE si corresponde */}
+                                {info.cae && (
+                                  <span className="bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[10px] font-bold px-2 py-0.5 tracking-tight rounded" title={`CAE: ${info.cae}`}>
+                                    CAE {info.cae}
+                                  </span>
+                                )}
+
                                 {item.external_id && (
                                   <span className="bg-slate-50 border border-slate-200 text-slate-400 text-[9px] font-black px-1.5 py-0.5 uppercase tracking-tighter">
                                     Sincronizado
@@ -508,11 +553,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 )}
                               </div>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
-                                {new Date(item.fecha).toLocaleDateString('es-AR')} •{' '}
-                                {item.tipo_comprobante ||
-                                  (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago)
-                                    ? item.tipo ? `Ajuste (${item.tipo})` : 'Ajuste Manual'
-                                    : item.metodo_pago)}
+                                {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
                               </p>
                             </div>
 

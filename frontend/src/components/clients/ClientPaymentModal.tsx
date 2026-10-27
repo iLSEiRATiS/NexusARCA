@@ -105,7 +105,7 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
               <option value="">— Cobro Libre / Pago Global a Cuenta —</option>
               {pendingDebts.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.label} — ${d.monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} [{d.tipo}] ({new Date(d.fecha).toLocaleDateString()})
+                  {d.label} — ${d.monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • {new Date(d.fecha).toLocaleDateString('es-AR')}
                 </option>
               ))}
             </select>

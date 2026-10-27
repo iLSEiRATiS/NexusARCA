@@ -12,7 +12,7 @@ import { ClientBalanceModal } from '../components/clients/ClientBalanceModal';
 import { ClientPaymentModal } from '../components/clients/ClientPaymentModal';
 import { ClientDetailModal } from '../components/clients/ClientDetailModal';
 import { ClientsTable } from '../components/clients/ClientsTable';
-import { processClientLedger } from '../utils/accountLedger';
+import { processClientLedger, getDocumentClassification } from '../utils/accountLedger';
 
 const ClientsPage = () => {
   const queryClient = useQueryClient();
@@ -224,36 +224,13 @@ const ClientsPage = () => {
 
   const applyDebtToPayment = (item: any) => {
     const isVenta = item.type === 'venta';
-    const rawMonto = isVenta
-      ? Number(item.total_real_ars || item.monto_ars || 0)
-      : Math.abs(Number(item.monto_ars || 0));
+    const rawMonto = item.saldoPendiente !== undefined
+      ? Number(item.saldoPendiente)
+      : (isVenta ? Number(item.total_real_ars || item.monto_ars || 0) : Math.abs(Number(item.monto_ars || 0)));
 
-    let imputacion = 'MIXTO';
-    if (isVenta) {
-      if (Number(item.monto_facturado_ars) > 0 && Number(item.monto_no_facturado_ars) === 0) {
-        imputacion = 'BLANCO';
-      } else if (Number(item.monto_no_facturado_ars) > 0 && Number(item.monto_facturado_ars) === 0) {
-        imputacion = 'INTERNO';
-      } else {
-        imputacion = 'MIXTO';
-      }
-    } else {
-      if (item.tipo === 'BLANCO') imputacion = 'BLANCO';
-      else if (item.tipo === 'INTERNO') imputacion = 'INTERNO';
-    }
-
-    let referencia = '';
-    if (isVenta) {
-      referencia = item.nro_comprobante
-        ? `Cobro ${item.tipo_comprobante || 'Factura'} ${item.nro_comprobante}`
-        : `Cobro Facturación #${String(item.id).padStart(5, '0')}`;
-    } else {
-      referencia = item.referencia
-        ? item.referencia.toLowerCase().startsWith('cobro')
-          ? item.referencia
-          : `Cobro ${item.referencia}`
-        : 'Cobro Ajuste';
-    }
+    const info = item.classification || getDocumentClassification(item);
+    const imputacion = info.caracter === 'FISCAL' ? 'BLANCO' : (info.caracter === 'INTERNO' ? 'INTERNO' : 'MIXTO');
+    const referencia = `Cobro ${info.title}`;
 
     setPaymentData({
       monto: rawMonto,
