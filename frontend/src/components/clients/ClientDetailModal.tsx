@@ -41,16 +41,19 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'pendientes' | 'pagados' | 'historial'>('pendientes');
 
+  // Procesar estado contable real: transacciones, pendientes y pagados (debe invocarse incondicionalmente por Reglas de Hooks)
+  const { transactions, pendingDebts, paidDebts } = useMemo(() => {
+    if (!isOpen || !client) {
+      return { transactions: [], pendingDebts: [], paidDebts: [] };
+    }
+    return processClientLedger(client, clientDetails);
+  }, [isOpen, client, clientDetails]);
+
   if (!isOpen || !client) return null;
 
   const saldoBlancoNum = Number(client.saldo_blanco || 0);
   const saldoInternoNum = Number(client.saldo_interno || 0);
   const saldoDeudaTotal = Math.abs(Number(client.saldo_deuda || 0));
-
-  // Procesar estado contable real: transacciones, pendientes y pagados
-  const { transactions, pendingDebts, paidDebts } = useMemo(() => {
-    return processClientLedger(client, clientDetails);
-  }, [client, clientDetails]);
 
   return (
     <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
