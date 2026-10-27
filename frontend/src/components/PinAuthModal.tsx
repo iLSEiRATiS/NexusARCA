@@ -68,7 +68,15 @@ export const PinAuthModal: React.FC = () => {
               maxLength={4}
               required
               value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                setPin(val);
+                if (val.length === 4) {
+                  setTimeout(() => {
+                    unlockWithPin(val);
+                  }, 80);
+                }
+              }}
               placeholder="••••"
               className="w-full text-center bg-white border-2 border-slate-300 focus:border-blue-600 text-3xl font-mono tracking-widest py-3 px-4 outline-none transition-all shadow-inner"
             />

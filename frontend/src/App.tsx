@@ -21,7 +21,6 @@ import {
   Menu, 
   X, 
   RefreshCw,
-  ShieldCheck,
   Lock
 } from 'lucide-react';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
@@ -95,42 +94,31 @@ const HeaderDolarIndicator = () => {
   );
 };
 
-// Indicador discreto del modo de privacidad para el Navbar
+// Indicador discreto del modo de privacidad para el Navbar (sólo visible cuando la gestión está activa)
 const PrivacyNavbarBadge = () => {
-  const { isManagementUnlocked, openPinModal, lockManagement } = usePrivacy();
+  const { isManagementUnlocked, lockManagement } = usePrivacy();
 
-  if (isManagementUnlocked) {
-    return (
-      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-emerald-800 animate-fade-in shadow-2xs">
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span>Gestión Activa</span>
-        <button
-          type="button"
-          onClick={lockManagement}
-          className="ml-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
-          title="Bloquear y volver a Modo Fiscal Oficial (Esc)"
-        >
-          <Lock size={12} />
-        </button>
-      </div>
-    );
+  if (!isManagementUnlocked) {
+    return null; // En Modo Fiscal Oficial no se muestra ningún botón (100% invisible)
   }
 
   return (
     <button
       type="button"
-      onClick={openPinModal}
-      className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-600 transition-all cursor-pointer"
-      title="Modo Fiscal Oficial protegido. Clic para autorizar gestión comercial (Ctrl+Shift+G)"
+      onClick={lockManagement}
+      className="flex items-center gap-1.5 bg-emerald-50 hover:bg-red-50 text-emerald-800 hover:text-red-700 border border-emerald-300 hover:border-red-300 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer animate-fade-in shadow-2xs group"
+      title="Gestión comercial activa. Clic (o 2 clics en el logo, o Esc) para volver al Modo Fiscal"
     >
-      <ShieldCheck size={14} className="text-blue-600" />
-      <span>Modo Fiscal</span>
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:bg-red-500 animate-pulse"></span>
+      <span>Gestión</span>
+      <Lock size={11} className="text-slate-400 group-hover:text-red-600 transition-colors" />
     </button>
   );
 };
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { handleSecretClick } = usePrivacy();
   const location = useLocation();
   const isLogin = location.pathname === '/login';
 
@@ -155,20 +143,24 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
       {/* Top Navbar */}
       <nav className="border-b border-slate-200 px-6 md:px-10 py-4 flex justify-between items-center sticky top-0 z-50 bg-white shadow-xs">
-        {/* Logo / Brand */}
-        <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 bg-slate-900 text-white flex items-center justify-center font-black text-base tracking-tighter">
+        {/* Logo / Brand con trigger secreto (3 clics: activar con clave 1991 / 2 clics: volver a fiscal) */}
+        <div className="flex items-center gap-2.5">
+          <div
+            onClick={handleSecretClick}
+            className="w-8 h-8 bg-slate-900 text-white flex items-center justify-center font-black text-base tracking-tighter select-none cursor-pointer hover:bg-slate-800 transition-colors"
+            title=""
+          >
             M
           </div>
-          <div className="flex flex-col">
-            <span className="text-lg font-black tracking-tight uppercase text-slate-900 leading-none">
-              Máscolo <span className="text-blue-600 font-bold">Facturador</span>
+          <Link to="/" className="flex flex-col group">
+            <span className="text-lg font-black tracking-tight uppercase text-slate-900 leading-none group-hover:text-blue-600 transition-colors">
+              Máscolo <span className="text-blue-600 font-bold group-hover:text-blue-700">Facturador</span>
             </span>
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
               ARCA &bull; Facturación Fiscal
             </span>
-          </div>
-        </Link>
+          </Link>
+        </div>
 
         {/* Desktop Nav Links */}
         <div className="hidden md:flex items-center gap-2">

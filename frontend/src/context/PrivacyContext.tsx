@@ -8,6 +8,7 @@ interface PrivacyContextType {
   lockManagement: () => void;
   openPinModal: () => void;
   closePinModal: () => void;
+  handleSecretClick: (e?: React.SyntheticEvent) => void;
 }
 
 const PrivacyContext = createContext<PrivacyContextType | undefined>(undefined);
@@ -21,6 +22,45 @@ export const PrivacyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+
+  // Manejo de clics secretos (3 clics para activar con clave / 2 clics para volver a fiscal)
+  const clickCountRef = React.useRef(0);
+  const clickTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleSecretClick = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    clickCountRef.current += 1;
+    const count = clickCountRef.current;
+
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+    }
+
+    if (!isManagementUnlocked) {
+      // Si está bloqueado y hace 3 clics rápidos -> abre modal de clave 1991
+      if (count >= 3) {
+        if (e) e.preventDefault();
+        clickCountRef.current = 0;
+        openPinModal();
+        return;
+      }
+    } else {
+      // Si está desbloqueado y hace 2 clics rápidos -> bloquea de inmediato a Modo Fiscal
+      if (count >= 2) {
+        if (e) e.preventDefault();
+        clickCountRef.current = 0;
+        lockManagement();
+        return;
+      }
+    }
+
+    // Ventana de 750ms entre clics
+    clickTimerRef.current = setTimeout(() => {
+      clickCountRef.current = 0;
+    }, 750);
+  };
 
   const unlockWithPin = (pin: string): boolean => {
     if (pin.trim() === SECRET_PIN) {
@@ -82,6 +122,7 @@ export const PrivacyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lockManagement,
         openPinModal,
         closePinModal,
+        handleSecretClick,
       }}
     >
       {children}
