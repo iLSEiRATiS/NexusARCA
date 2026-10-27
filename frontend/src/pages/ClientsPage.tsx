@@ -1,103 +1,50 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { clientService } from '../services/clientService';
-import api from '../services/api';
+import { clientService, type Client } from '../services/clientService';
 import { toast } from 'sonner';
 import { generateAccountStatementPDF, generateSalePDF } from '../services/pdfService';
 import ConfirmModal from '../components/ConfirmModal';
 import { TableSkeleton } from '../components/Skeletons';
-import { Download, PackageOpen, Pencil, DollarSign, CheckCircle2 } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
-import { parseArgNumber } from '../utils/format';
+import { ClientFormModal } from '../components/clients/ClientFormModal';
+import { ClientBalanceModal } from '../components/clients/ClientBalanceModal';
+import { ClientPaymentModal } from '../components/clients/ClientPaymentModal';
+import { ClientDetailModal } from '../components/clients/ClientDetailModal';
+import { ClientsTable } from '../components/clients/ClientsTable';
 
 const ClientsPage = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchBar] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Modales
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [selectedClientForEdit, setSelectedClientForEdit] = useState<any>(null);
-  const [balanceData, setBalanceData] = useState<{
-    saldo_blanco: string | number;
-    saldo_interno: string | number;
-    nro_factura: string;
-    fecha_factura: string;
-    nro_remito: string;
-    fecha_remito: string;
-  }>({
-    saldo_blanco: 0,
-    saldo_interno: 0,
-    nro_factura: '',
-    fecha_factura: new Date().toISOString().split('T')[0],
-    nro_remito: '',
-    fecha_remito: new Date().toISOString().split('T')[0]
-  });
+  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
 
-  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; clientId: number | null }>({
-    isOpen: false,
-    clientId: null
-  });
+  // Clientes seleccionados
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedClientForEdit, setSelectedClientForEdit] = useState<Client | null>(null);
 
-  const [formData, setFormData] = useState<{
-    razon_social: string;
-    cuit: string;
-    email: string;
-    direccion: string;
-    condicion_iva: string;
-    nro_iibb: string;
-    telefono: string;
-    porcentaje_facturacion: number;
-    saldo_blanco: number | string;
-    saldo_interno: number | string;
-  }>({
-    razon_social: '',
-    cuit: '',
-    email: '',
-    direccion: '',
-    condicion_iva: 'RESPONSABLE_INSCRIPTO',
-    nro_iibb: '',
-    telefono: '',
-    porcentaje_facturacion: 80,
-    saldo_blanco: 0,
-    saldo_interno: 0
-  });
-
-  const [editFormData, setEditFormData] = useState<{
-    razon_social: string;
-    cuit: string;
-    email: string;
-    direccion: string;
-    condicion_iva: string;
-    nro_iibb: string;
-    telefono: string;
-  }>({
-    razon_social: '',
-    cuit: '',
-    email: '',
-    direccion: '',
-    condicion_iva: 'RESPONSABLE_INSCRIPTO',
-    nro_iibb: '',
-    telefono: '',
-  });
-
-  const [paymentData, setPaymentData] = useState<{
-    monto: number | string;
-    metodo: string;
-    referencia: string;
-    imputacion: string;
-    fecha: string;
-  }>({
-    monto: 0,
+  // Estado para modal de cobro
+  const [paymentData, setPaymentData] = useState({
+    monto: '' as number | string,
     metodo: 'EFECTIVO',
     referencia: '',
     imputacion: 'MIXTO',
-    fecha: new Date().toISOString().split('T')[0]
+    fecha: new Date().toISOString().split('T')[0],
   });
 
-  const { data: clients, isLoading } = useQuery({
+  // Modal confirmación eliminar
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; clientId: number | null }>({
+    isOpen: false,
+    clientId: null,
+  });
+
+  // ── Queries ──────────────────────────────────────────────────────────────
+  const { data: clients = [], isLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: clientService.getAll,
   });
@@ -105,65 +52,37 @@ const ClientsPage = () => {
   const { data: clientDetails, isLoading: isLoadingDetails } = useQuery({
     queryKey: ['client', selectedClient?.id],
     queryFn: async () => {
-      const res = await clientService.getById(selectedClient.id);
-      return res;
+      if (!selectedClient?.id) return null;
+      return await clientService.getById(selectedClient.id);
     },
-    enabled: !!selectedClient && isDetailsModalOpen,
+    enabled: !!selectedClient?.id && isDetailsModalOpen,
   });
 
-  const filteredClients = clients?.filter((c: any) =>
-    c.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.cuit.includes(searchTerm)
-  );
-
+  // ── Mutaciones ───────────────────────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: (data: any) => {
-      const payload = {
-        ...data,
-        cuit: data.cuit ? String(data.cuit).replace(/[-\s.]/g, '') : '',
-        email: data.email ? data.email.trim() : null,
-        direccion: data.direccion ? data.direccion.trim() : null,
-        nro_iibb: data.nro_iibb ? data.nro_iibb.trim() : null,
-        telefono: data.telefono ? data.telefono.trim() : null,
-        // En el sistema la deuda se guarda en negativo (ventas restan, cobros suman)
-        saldo_blanco: -parseArgNumber(data.saldo_blanco),
-        saldo_interno: -parseArgNumber(data.saldo_interno)
-      };
-      return clientService.create(payload);
-    },
+    mutationFn: clientService.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      setIsModalOpen(false);
-      resetForm();
-      toast.success('Cliente registrado correctamente');
+      setIsCreateModalOpen(false);
+      toast.success('Cliente registrado exitosamente');
     },
     onError: (err: any) => {
       console.error('Error creating client:', err);
-      const msg = err.response?.data?.message || err.message || 'Error al registrar cliente. Verifique los datos.';
+      const msg = err.response?.data?.message || err.message || 'Error al registrar cliente';
       toast.error(msg);
-    }
+    },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => {
       if (!selectedClientForEdit?.id) throw new Error('No hay cliente seleccionado');
-      const payload = {
-        razon_social: data.razon_social ? data.razon_social.trim() : '',
-        cuit: data.cuit ? String(data.cuit).replace(/[-\s.]/g, '') : '',
-        email: data.email ? data.email.trim() : null,
-        direccion: data.direccion ? data.direccion.trim() : null,
-        condicion_iva: data.condicion_iva,
-        nro_iibb: data.nro_iibb ? data.nro_iibb.trim() : null,
-        telefono: data.telefono ? data.telefono.trim() : null,
-      };
-      return clientService.update(selectedClientForEdit.id, payload);
+      return clientService.update(selectedClientForEdit.id, data);
     },
     onSuccess: (updatedClient) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', selectedClientForEdit?.id] });
-      if (selectedClient && selectedClient.id === selectedClientForEdit?.id) {
+      if (selectedClient?.id === selectedClientForEdit?.id) {
         setSelectedClient((prev: any) => ({ ...prev, ...updatedClient }));
-        setIsDetailsModalOpen(true);
       }
       setIsEditModalOpen(false);
       setSelectedClientForEdit(null);
@@ -171,32 +90,44 @@ const ClientsPage = () => {
     },
     onError: (err: any) => {
       console.error('Error updating client:', err);
-      const msg = err.response?.data?.message || err.message || 'Error al actualizar cliente. Verifique los datos.';
+      const msg = err.response?.data?.message || err.message || 'Error al actualizar cliente';
       toast.error(msg);
-    }
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: clientService.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      toast.success('Cliente eliminado');
+      setDeleteConfirm({ isOpen: false, clientId: null });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Error al eliminar cliente');
+    },
   });
 
   const paymentMutation = useMutation({
     mutationFn: async (data: any) => {
       if (!selectedClient?.id) throw new Error('No hay cliente seleccionado');
-      return api.post(`/clients/${selectedClient.id}/payments`, data);
+      return clientService.registerPayment(selectedClient.id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
       setIsPaymentModalOpen(false);
       setPaymentData({
-        monto: 0,
+        monto: '',
         metodo: 'EFECTIVO',
         referencia: '',
         imputacion: 'MIXTO',
-        fecha: new Date().toISOString().split('T')[0]
+        fecha: new Date().toISOString().split('T')[0],
       });
-      toast.success('COBRO REGISTRADO EXITOSAMENTE');
+      toast.success('Cobro registrado exitosamente');
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || 'Error al registrar cobro');
-    }
+    },
   });
 
   const deletePaymentMutation = useMutation({
@@ -211,16 +142,7 @@ const ClientsPage = () => {
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || 'Error al deshacer movimiento');
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: clientService.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      toast.success('Cliente eliminado');
-      setDeleteConfirm({ isOpen: false, clientId: null });
-    }
+    },
   });
 
   const updateBalanceMutation = useMutation({
@@ -232,94 +154,68 @@ const ClientsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
       setSelectedClient((prev: any) => ({ ...prev, ...updatedClient }));
-      setIsEditBalanceModalOpen(false);
-      setBalanceData({
-        saldo_blanco: 0,
-        saldo_interno: 0,
-        nro_factura: '',
-        fecha_factura: new Date().toISOString().split('T')[0],
-        nro_remito: '',
-        fecha_remito: new Date().toISOString().split('T')[0]
-      });
+      setIsBalanceModalOpen(false);
       toast.success('Deuda cargada correctamente');
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || 'Error al actualizar saldos');
-    }
+    },
   });
 
-  const handleEditBalanceSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedClient) return;
-    // Montos ingresados = deuda a AGREGAR (positivo). Negativo = descontar deuda.
-    const addBlanco = parseArgNumber(balanceData.saldo_blanco);
-    const addInterno = parseArgNumber(balanceData.saldo_interno);
-    if (addBlanco === 0 && addInterno === 0) {
-      toast.error('Ingrese un monto en Blanco y/o Interno');
-      return;
-    }
-    // La deuda se guarda en negativo: nuevo saldo = saldo actual - monto agregado
-    updateBalanceMutation.mutate({
-      saldo_blanco: Number(selectedClient.saldo_blanco || 0) - addBlanco,
-      saldo_interno: Number(selectedClient.saldo_interno || 0) - addInterno,
-      nro_factura: balanceData.nro_factura.trim() || undefined,
-      fecha_factura: balanceData.fecha_factura || undefined,
-      nro_remito: balanceData.nro_remito.trim() || undefined,
-      fecha_remito: balanceData.fecha_remito || undefined
-    });
-  };
-
-  const openEditBalance = (client: any) => {
+  // ── Helpers de navegación y modales ──────────────────────────────────────
+  const handleOpenDetails = (client: Client) => {
     setSelectedClient(client);
-    setBalanceData({
-      saldo_blanco: 0,
-      saldo_interno: 0,
-      nro_factura: '',
-      fecha_factura: new Date().toISOString().split('T')[0],
-      nro_remito: '',
-      fecha_remito: new Date().toISOString().split('T')[0]
-    });
-    setIsDetailsModalOpen(false);
+    setIsDetailsModalOpen(true);
+    setIsCreateModalOpen(false);
+    setIsEditModalOpen(false);
     setIsPaymentModalOpen(false);
-    setIsEditBalanceModalOpen(true);
+    setIsBalanceModalOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const resetForm = () => {
-    setFormData({
-      razon_social: '',
-      cuit: '',
-      email: '',
-      direccion: '',
-      condicion_iva: 'RESPONSABLE_INSCRIPTO',
-      nro_iibb: '',
-      telefono: '',
-      porcentaje_facturacion: 80,
-      saldo_blanco: 0,
-      saldo_interno: 0
-    });
+  const handleOpenEdit = (client: Client) => {
+    setSelectedClientForEdit(client);
+    setIsEditModalOpen(true);
+    setIsDetailsModalOpen(false);
+    setIsCreateModalOpen(false);
+    setIsPaymentModalOpen(false);
+    setIsBalanceModalOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const openPaymentModal = (client: any) => {
+  const handleOpenPayment = (client: Client) => {
     setSelectedClient(client);
     setPaymentData({
-      monto: 0,
+      monto: '',
       metodo: 'EFECTIVO',
       referencia: '',
       imputacion: 'MIXTO',
-      fecha: new Date().toISOString().split('T')[0]
+      fecha: new Date().toISOString().split('T')[0],
     });
-    setIsDetailsModalOpen(false);
     setIsPaymentModalOpen(true);
+    setIsDetailsModalOpen(false);
+    setIsBalanceModalOpen(false);
+    setIsCreateModalOpen(false);
+    setIsEditModalOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenBalance = (client: Client) => {
+    setSelectedClient(client);
+    setIsBalanceModalOpen(true);
+    setIsDetailsModalOpen(false);
+    setIsPaymentModalOpen(false);
+    setIsCreateModalOpen(false);
+    setIsEditModalOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const applyDebtToPayment = (item: any) => {
     const isVenta = item.type === 'venta';
-    const rawMonto = isVenta 
-      ? Number(item.total_real_ars || item.monto_ars || 0) 
+    const rawMonto = isVenta
+      ? Number(item.total_real_ars || item.monto_ars || 0)
       : Math.abs(Number(item.monto_ars || 0));
-    
+
     let imputacion = 'MIXTO';
     if (isVenta) {
       if (Number(item.monto_facturado_ars) > 0 && Number(item.monto_no_facturado_ars) === 0) {
@@ -336,66 +232,36 @@ const ClientsPage = () => {
 
     let referencia = '';
     if (isVenta) {
-      referencia = item.nro_comprobante 
-        ? `Cobro ${item.tipo_comprobante || 'Factura'} ${item.nro_comprobante}` 
+      referencia = item.nro_comprobante
+        ? `Cobro ${item.tipo_comprobante || 'Factura'} ${item.nro_comprobante}`
         : `Cobro Facturación #${String(item.id).padStart(5, '0')}`;
     } else {
-      referencia = item.referencia 
-        ? (item.referencia.toLowerCase().startsWith('cobro') ? item.referencia : `Cobro ${item.referencia}`)
-        : `Cobro Ajuste`;
+      referencia = item.referencia
+        ? item.referencia.toLowerCase().startsWith('cobro')
+          ? item.referencia
+          : `Cobro ${item.referencia}`
+        : 'Cobro Ajuste';
     }
 
-    setPaymentData(prev => ({
-      ...prev,
+    setPaymentData({
       monto: rawMonto,
+      metodo: 'EFECTIVO',
       referencia: referencia,
       imputacion: imputacion,
-      fecha: new Date().toISOString().split('T')[0]
-    }));
+      fecha: new Date().toISOString().split('T')[0],
+    });
   };
 
-  const quickPay = (item: any) => {
+  const handleQuickPay = (item: any) => {
     applyDebtToPayment(item);
     setIsDetailsModalOpen(false);
     setIsPaymentModalOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const openEditModal = (client: any) => {
-    setSelectedClientForEdit(client);
-    setEditFormData({
-      razon_social: client.razon_social || '',
-      cuit: client.cuit || '',
-      email: client.email || '',
-      direccion: client.direccion || '',
-      condicion_iva: client.condicion_iva || 'RESPONSABLE_INSCRIPTO',
-      nro_iibb: client.nro_iibb || '',
-      telefono: client.telefono || '',
-    });
-    setIsDetailsModalOpen(false);
-    setIsPaymentModalOpen(false);
-    setIsEditBalanceModalOpen(false);
-    setIsEditModalOpen(true);
-  };
-
-  const openDetails = (client: any) => {
-    setSelectedClient(client);
-    setIsDetailsModalOpen(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    createMutation.mutate(formData);
-  };
-
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateMutation.mutate(editFormData);
-  };
-
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const monto = parseArgNumber(paymentData.monto);
+    const monto = Number(paymentData.monto);
     if (!selectedClient?.id) {
       toast.error('No hay cliente seleccionado');
       return;
@@ -407,716 +273,169 @@ const ClientsPage = () => {
     paymentMutation.mutate({ ...paymentData, monto });
   };
 
-  const handleDeleteClick = (id: number) => {
-    setDeleteConfirm({ isOpen: true, clientId: id });
-  };
-
-  const confirmDelete = () => {
-    if (deleteConfirm.clientId) {
-      deleteMutation.mutate(deleteConfirm.clientId);
-    }
-  };
-
   const handleExportStatement = () => {
     if (!selectedClient || !clientDetails) return;
     const history = [
       ...(clientDetails.sales || []).map((s: any) => ({ ...s, tipo: 'FACTURACIÓN' })),
-      ...(clientDetails.payments || []).map((p: any) => ({ ...p, tipo: 'COBRO' }))
+      ...(clientDetails.payments || []).map((p: any) => ({ ...p, tipo: 'COBRO' })),
     ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
     generateAccountStatementPDF(selectedClient, history);
   };
 
-  if (isLoading) return <div className="p-6 md:p-10"><TableSkeleton /></div>;
+  // Cálculo de deudas pendientes para el selector del modal de cobro
+  const pendingDebts = [
+    ...(clientDetails?.sales || []).map((s: any) => ({
+      id: `sale-${s.id}`,
+      type: 'venta',
+      label: s.nro_comprobante ? `${s.tipo_comprobante || 'Factura'} ${s.nro_comprobante}` : `Facturación #${String(s.id).padStart(5, '0')}`,
+      monto: Number(s.total_real_ars || s.monto_ars || 0),
+      tipo: Number(s.monto_facturado_ars) > 0 && Number(s.monto_no_facturado_ars) === 0 ? 'BLANCO' : (Number(s.monto_no_facturado_ars) > 0 && Number(s.monto_facturado_ars) === 0 ? 'INTERNO' : 'MIXTO'),
+      fecha: s.fecha,
+      raw: s,
+    })),
+    ...(clientDetails?.payments || []).filter((p: any) => Number(p.monto_ars) < 0).map((p: any) => ({
+      id: `payment-${p.id}`,
+      type: 'deuda',
+      label: p.referencia && p.referencia.trim() !== '' ? p.referencia : `Ajuste Deuda (${p.tipo})`,
+      monto: Math.abs(Number(p.monto_ars)),
+      tipo: p.tipo || 'MIXTO',
+      fecha: p.fecha,
+      raw: p,
+    })),
+  ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+  if (isLoading) {
+    return (
+      <div className="p-6 md:p-10">
+        <TableSkeleton />
+      </div>
+    );
+  }
+
+  const anyModalActive = isCreateModalOpen || isEditModalOpen || isDetailsModalOpen || isPaymentModalOpen || isBalanceModalOpen;
 
   return (
-    <div className="animate-fade-in space-y-10">
+    <div className="animate-fade-in space-y-8">
+      {/* Encabezado Principal */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b-2 border-slate-900 pb-6">
         <div>
-          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-1">Clientes</h1>
-          <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">Cuentas Corrientes y Directorio</p>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight uppercase mb-1">
+            Clientes y Cuentas Corrientes
+          </h1>
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">
+            Directorio, Saldos Fiscales y Control de Cobranzas
+          </p>
         </div>
-        {!isModalOpen && !isEditModalOpen && !isEditBalanceModalOpen && (
+
+        {!anyModalActive && (
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <div className="relative flex-1 sm:w-64">
+            <div className="relative flex-1 sm:w-72">
               <input
                 type="text"
-                placeholder="BUSCAR CLIENTE..."
+                placeholder="BUSCAR POR RAZÓN SOCIAL O CUIT..."
                 value={searchTerm}
                 onChange={(e) => setSearchBar(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-bold uppercase outline-none focus:border-blue-600 transition-all tracking-widest text-slate-900"
+                className="w-full bg-slate-50 border border-slate-200 px-4 py-3 pl-10 text-xs font-bold uppercase outline-none focus:border-blue-600 transition-all text-slate-900"
               />
+              <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
             </div>
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-blue-600 text-white px-8 py-3 font-black text-xs tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2 uppercase"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="bg-blue-600 text-white px-6 py-3 font-black text-xs tracking-wider hover:bg-blue-700 transition-all flex items-center justify-center gap-2 uppercase shadow-sm cursor-pointer"
             >
-              + Nuevo Cliente
+              <Plus size={16} />
+              Nuevo Cliente
             </button>
           </div>
         )}
       </div>
 
-      {isModalOpen && (
-        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
-          <div className="bg-slate-900 px-6 py-6 sm:px-8 sm:py-8 text-white flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-black uppercase tracking-widest">Nuevo Cliente</h2>
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Alta en Cartera</p>
-            </div>
-            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500">
-              Cerrar y Volver
-            </button>
-          </div>
+      {/* Modal: Alta de Cliente */}
+      <ClientFormModal
+        isOpen={isCreateModalOpen}
+        mode="create"
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={(data) => createMutation.mutate(data)}
+        isPending={createMutation.isPending}
+      />
 
-          <form onSubmit={handleSubmit} className="p-6 sm:p-10 bg-slate-50 flex flex-col gap-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Razón Social</label>
-                <input required type="text" value={formData.razon_social} onChange={e => setFormData({ ...formData, razon_social: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-sm transition-all" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CUIT</label>
-                <input required type="text" value={formData.cuit} onChange={e => setFormData({ ...formData, cuit: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Condición IVA</label>
-                <select value={formData.condicion_iva} onChange={e => setFormData({ ...formData, condicion_iva: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all uppercase">
-                  <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
-                  <option value="MONOTRIBUTO">Monotributo</option>
-                  <option value="EXENTO">Exento</option>
-                  <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono</label>
-                <input type="text" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Deuda Inicial Blanco</label>
-                <input type="text" value={formData.saldo_blanco === 0 ? '' : formData.saldo_blanco} onChange={e => setFormData({ ...formData, saldo_blanco: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Deuda Inicial Interno</label>
-                <input type="text" value={formData.saldo_interno === 0 ? '' : formData.saldo_interno} onChange={e => setFormData({ ...formData, saldo_interno: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nro. Ingresos Brutos (IIBB)</label>
-                <input type="text" value={formData.nro_iibb} onChange={e => setFormData({ ...formData, nro_iibb: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
-                <input type="text" value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Calle, Número, Localidad" />
-              </div>
-            </div>
-            <div className="mt-4 flex flex-col sm:flex-row gap-4 pt-8 border-t border-slate-200">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-1/3 py-4 font-bold text-[10px] uppercase text-slate-400 tracking-widest hover:text-slate-600 hover:bg-slate-200 transition-colors border border-transparent">
-                Cancelar
-              </button>
-              <button type="submit" disabled={createMutation.isPending} className="w-full sm:w-2/3 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50">
-                {createMutation.isPending ? 'Registrando...' : 'Confirmar Alta'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Modal: Edición de Cliente */}
+      <ClientFormModal
+        isOpen={isEditModalOpen}
+        mode="edit"
+        initialData={selectedClientForEdit}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedClientForEdit(null);
+        }}
+        onSubmit={(data) => updateMutation.mutate(data)}
+        isPending={updateMutation.isPending}
+      />
 
-      {isEditModalOpen && selectedClientForEdit && (
-        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
-          <div className="bg-slate-900 px-6 py-6 sm:px-8 sm:py-8 text-white flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-black uppercase tracking-widest">Modificar Cliente</h2>
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Actualizar datos de {selectedClientForEdit.razon_social}</p>
-            </div>
-            <button onClick={() => { setIsEditModalOpen(false); setSelectedClientForEdit(null); }} className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500">
-              Cerrar y Volver
-            </button>
-          </div>
+      {/* Modal: Ficha Detallada de Cuenta Corriente */}
+      <ClientDetailModal
+        isOpen={isDetailsModalOpen}
+        client={selectedClient}
+        clientDetails={clientDetails}
+        isLoadingDetails={isLoadingDetails}
+        onClose={() => setIsDetailsModalOpen(false)}
+        onEdit={(c) => handleOpenEdit(c)}
+        onOpenPayment={(c) => handleOpenPayment(c)}
+        onOpenBalance={(c) => handleOpenBalance(c)}
+        onQuickPay={handleQuickPay}
+        onDeletePayment={(id) => deletePaymentMutation.mutate(id)}
+        onDownloadSale={(s) => generateSalePDF(s)}
+        onExportStatement={handleExportStatement}
+        isDeletePending={deletePaymentMutation.isPending}
+      />
 
-          <form onSubmit={handleEditSubmit} className="p-6 sm:p-10 bg-slate-50 flex flex-col gap-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Razón Social *</label>
-                <input required type="text" value={editFormData.razon_social} onChange={e => setEditFormData({ ...editFormData, razon_social: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 uppercase focus:border-blue-600 outline-none text-sm transition-all" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CUIT o Documento *</label>
-                <input required type="text" value={editFormData.cuit} onChange={e => setEditFormData({ ...editFormData, cuit: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Condición IVA *</label>
-                <select value={editFormData.condicion_iva} onChange={e => setEditFormData({ ...editFormData, condicion_iva: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all uppercase">
-                  <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
-                  <option value="MONOTRIBUTO">Monotributo</option>
-                  <option value="EXENTO">Exento</option>
-                  <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono</label>
-                <input type="text" value={editFormData.telefono} onChange={e => setEditFormData({ ...editFormData, telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                <input type="email" value={editFormData.email} onChange={e => setEditFormData({ ...editFormData, email: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nro. Ingresos Brutos (IIBB)</label>
-                <input type="text" value={editFormData.nro_iibb} onChange={e => setEditFormData({ ...editFormData, nro_iibb: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Opcional" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección Fiscal</label>
-                <input type="text" value={editFormData.direccion} onChange={e => setEditFormData({ ...editFormData, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-4 font-bold text-slate-900 focus:border-blue-600 outline-none text-sm transition-all" placeholder="Calle, Número, Localidad" />
-              </div>
-            </div>
-            <div className="mt-4 flex flex-col sm:flex-row gap-4 pt-8 border-t border-slate-200">
-              <button type="button" onClick={() => { setIsEditModalOpen(false); setSelectedClientForEdit(null); }} className="w-full sm:w-1/3 py-4 font-bold text-[10px] uppercase text-slate-400 tracking-widest hover:text-slate-600 hover:bg-slate-200 transition-colors border border-transparent">
-                Cancelar
-              </button>
-              <button type="submit" disabled={updateMutation.isPending} className="w-full sm:w-2/3 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50">
-                {updateMutation.isPending ? 'Guardando Cambios...' : 'Guardar Cambios'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Modal: Cargar Deuda */}
+      <ClientBalanceModal
+        isOpen={isBalanceModalOpen}
+        client={selectedClient}
+        onClose={() => setIsBalanceModalOpen(false)}
+        onSubmit={(data) => updateBalanceMutation.mutate(data)}
+        isPending={updateBalanceMutation.isPending}
+      />
 
-      {!isModalOpen && !isEditModalOpen && !isEditBalanceModalOpen && (
-        <>
-        <div className="bg-white border border-slate-200 shadow-sm rounded-none overflow-hidden">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest">Razón Social / CUIT</th>
-                <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-center">Estado de Cuenta</th>
-                <th className="px-8 py-4 font-black text-[10px] uppercase tracking-widest text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredClients?.map((client: any) => {
-                const totalDebt = Number(client.saldo_deuda);
-                const hasDebt = totalDebt < 0;
+      {/* Modal: Registrar Cobro */}
+      <ClientPaymentModal
+        isOpen={isPaymentModalOpen}
+        client={selectedClient}
+        pendingDebts={pendingDebts}
+        paymentData={paymentData}
+        setPaymentData={setPaymentData}
+        onClose={() => setIsPaymentModalOpen(false)}
+        onSubmit={handlePaymentSubmit}
+        onSelectDebt={(debt) => applyDebtToPayment({ ...debt.raw, type: debt.type })}
+        isPending={paymentMutation.isPending}
+      />
 
-                return (
-                  <tr key={client.id} className="group hover:bg-slate-50 transition-all">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 ${totalDebt < -100000 ? 'bg-red-600 animate-pulse' : totalDebt < 0 ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
-                        <div className="font-black text-slate-900 text-lg uppercase cursor-pointer hover:text-blue-600 transition-colors" onClick={() => openDetails(client)}>
-                          {client.razon_social}
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 ml-5">
-                        CUIT: {client.cuit} • {client.condicion_iva}
-                      </div>
-                    </td>
-                    <td className="px-6 py-6">
-                      <div className="flex justify-center gap-2">
-                        <div className="px-3 py-1 border border-slate-100 text-center min-w-[100px] bg-white">
-                          <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Blanco</p>
-                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_blanco)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                        </div>
-                        <div className="px-3 py-1 border border-slate-100 text-center min-w-[100px] bg-white">
-                          <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Interno</p>
-                          <p className="text-[11px] font-black text-slate-900">${Math.abs(Number(client.saldo_interno)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                        </div>
-                        <div className={`px-3 py-1 border text-center min-w-[100px] ${hasDebt ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-900'}`}>
-                          <p className={`text-[7px] font-bold uppercase tracking-widest ${hasDebt ? 'text-slate-400' : 'text-slate-400'}`}>{hasDebt ? 'Deuda' : 'Saldo'}</p>
-                          <p className="text-[11px] font-black">${Math.abs(totalDebt).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => openEditModal(client)} className="border border-slate-200 text-slate-600 px-3 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-100 hover:text-blue-600 transition-all tracking-widest flex items-center gap-1.5">
-                          <Pencil size={11} />
-                          Editar
-                        </button>
-                        <button onClick={() => openDetails(client)} className="border border-slate-200 text-slate-600 px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-50 transition-all tracking-widest">Historial</button>
-                        <button onClick={() => openEditBalance(client)} className="border border-slate-900 text-slate-900 px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-900 hover:text-white transition-all tracking-widest">+ Deuda</button>
-                        <button onClick={() => openPaymentModal(client)} className="bg-slate-900 text-white px-4 py-1.5 font-bold text-[9px] uppercase hover:bg-slate-800 transition-all tracking-widest">Cobrar</button>
-                        <button onClick={() => handleDeleteClick(client.id)} className="text-slate-300 hover:text-red-600 transition-all px-2 py-1 font-bold text-lg">&times;</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      {/* Tabla Principal de Clientes */}
+      <ClientsTable
+        clients={clients}
+        searchTerm={searchTerm}
+        onSelectClient={handleOpenDetails}
+        onOpenPayment={handleOpenPayment}
+        onOpenBalance={handleOpenBalance}
+        onEditClient={handleOpenEdit}
+        onDeleteClient={(id) => setDeleteConfirm({ isOpen: true, clientId: id })}
+      />
 
-        {/* Mobile View */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {filteredClients?.map((client: any) => {
-            const totalDebt = Number(client.saldo_deuda);
-            const hasDebt = totalDebt < 0;
-            return (
-              <div key={client.id} className="p-5 space-y-4">
-                <div className="flex justify-between items-start">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-black text-slate-900 text-base uppercase truncate" onClick={() => openDetails(client)}>{client.razon_social}</div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">CUIT: {client.cuit}</div>
-                  </div>
-                  <div className={`shrink-0 px-2 py-1 border border-slate-900 ml-2 ${hasDebt ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}`}>
-                    <p className="text-[10px] font-black tracking-tighter">${Math.abs(totalDebt).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 border border-slate-100 text-center bg-slate-50"><p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-1">Blanco</p><p className="text-xs font-black text-slate-900">${Number(client.saldo_blanco).toLocaleString('es-AR')}</p></div>
-                  <div className="p-2 border border-slate-100 text-center bg-slate-50"><p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-1">Interno</p><p className="text-xs font-black text-slate-900">${Number(client.saldo_interno).toLocaleString('es-AR')}</p></div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => openEditModal(client)} className="flex-1 border border-slate-200 text-slate-600 py-2 font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-1 hover:bg-slate-50">
-                    <Pencil size={11} />
-                    Editar
-                  </button>
-                  <button onClick={() => openDetails(client)} className="flex-1 border border-slate-200 text-slate-600 py-2 font-black text-[9px] uppercase tracking-widest">Historial</button>
-                  <button onClick={() => openEditBalance(client)} className="flex-1 border border-slate-900 text-slate-900 py-2 font-black text-[9px] uppercase tracking-widest">+ Deuda</button>
-                  <button onClick={() => openPaymentModal(client)} className="flex-[1.5] bg-slate-900 text-white py-2 font-black text-[9px] uppercase tracking-widest">Cobrar</button>
-                  <button onClick={() => handleDeleteClick(client.id)} className="w-10 border border-slate-200 text-slate-400 flex items-center justify-center font-bold text-xl">&times;</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Details Modal */}
-      {isDetailsModalOpen && selectedClient && (
-        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
-            <div className="bg-slate-900 p-6 sm:p-8 text-white flex justify-between items-start border-b border-slate-800">
-              <div className="flex-1">
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-tight">{selectedClient.razon_social}</h2>
-                <div className="flex gap-4 mt-2">
-                  <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">CUIT: {selectedClient.cuit}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => openEditModal(selectedClient)} className="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-none font-black text-[10px] uppercase hover:bg-blue-700 transition-all tracking-widest shadow-md">
-                  <Pencil size={12} />
-                  Modificar Datos
-                </button>
-                <button onClick={handleExportStatement} className="hidden sm:flex items-center gap-2 bg-white text-slate-900 px-4 py-2 rounded-none font-black text-[10px] uppercase hover:bg-slate-100 transition-all tracking-widest">📄 Estado de Cuenta</button>
-                <button onClick={() => setIsDetailsModalOpen(false)} className="bg-red-600 hover:bg-red-700 text-white w-8 h-8 flex items-center justify-center font-black text-xl transition-colors" title="Cerrar">&times;</button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 sm:p-10 bg-slate-50">
-              <div className="sm:hidden mb-6 flex flex-col gap-2">
-                <button onClick={() => openEditModal(selectedClient)} className="w-full bg-blue-600 text-white py-3 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                  <Pencil size={13} />
-                  Modificar Datos
-                </button>
-                <button onClick={handleExportStatement} className="w-full bg-slate-900 text-white py-3 rounded-none font-black text-[10px] uppercase tracking-widest">
-                  📄 Descargar Estado de Cuenta
-                </button>
-              </div>
-              
-              {/* Información del Cliente */}
-              <div className="mb-6 bg-white border border-slate-200 shadow-sm p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Información del Cliente</h3>
-                  <button onClick={() => openEditModal(selectedClient)} className="text-blue-600 hover:text-blue-800 font-black text-[9px] uppercase tracking-widest flex items-center gap-1 transition-colors">
-                    <Pencil size={11} />
-                    Editar
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Email</p>
-                    <p className="text-xs font-black text-slate-900 truncate" title={selectedClient.email || 'S/D'}>{selectedClient.email || 'S/D'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Teléfono</p>
-                    <p className="text-xs font-black text-slate-900 uppercase">{selectedClient.telefono || 'S/D'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Condición IVA</p>
-                    <p className="text-xs font-black text-slate-900 uppercase">{selectedClient.condicion_iva ? selectedClient.condicion_iva.replace('_', ' ') : 'S/D'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nro. IIBB</p>
-                    <p className="text-xs font-black text-slate-900 uppercase">{selectedClient.nro_iibb || 'S/D'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Dirección</p>
-                    <p className="text-xs font-black text-slate-900 uppercase truncate" title={selectedClient.direccion || 'S/D'}>{selectedClient.direccion || 'S/D'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-                <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Blanco</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_blanco).toLocaleString('es-AR')}</p></div>
-                <div className="p-6 bg-white border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Interno</p><p className="text-2xl font-black text-slate-900">${Number(selectedClient.saldo_interno).toLocaleString('es-AR')}</p></div>
-                <div className="p-6 bg-blue-600 text-white flex flex-col justify-between shadow-lg shadow-blue-100">
-                  <div className="mb-6">
-                    <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total Adeudado</p>
-                    <p className="text-3xl font-black">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR')}</p>
-                  </div>
-                  <div className="flex flex-col gap-2 mt-auto">
-                    <button onClick={() => { setIsDetailsModalOpen(false); setIsPaymentModalOpen(true); }} className="w-full bg-white text-blue-600 py-3 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">Registrar Cobro</button>
-                    <button onClick={() => openEditBalance(selectedClient)} className="w-full border border-blue-400 text-white py-2.5 font-black text-[9px] uppercase tracking-widest hover:bg-blue-500 transition-all">Cargar Deuda</button>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-6">
-                <h3 className="text-xs font-black text-slate-900 mb-6 border-b border-slate-200 pb-2 uppercase tracking-[0.3em]">Actividad Reciente</h3>
-                {isLoadingDetails ? (<div className="text-center py-10 text-slate-300 font-bold uppercase text-[10px] tracking-[0.2em]">Cargando...</div>) : (
-                  <div className="space-y-4">
-                    {(!clientDetails?.sales?.length && !clientDetails?.payments?.length) && <p className="text-center py-10 text-slate-400 font-bold uppercase text-[10px] tracking-widest">Sin movimientos</p>}
-                    {[...(clientDetails?.sales || []).map((s: any) => ({ ...s, type: 'venta' })), ...(clientDetails?.payments || []).map((p: any) => ({ ...p, type: 'cobro' }))].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()).map((item: any, idx: number) => (
-                      <div key={idx} className="bg-white border border-slate-200 overflow-hidden hover:border-blue-600 transition-all shadow-sm">
-                        <div className="p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                          <div className="text-center sm:text-left">
-                            <div className="flex items-center gap-2 justify-center sm:justify-start">
-                              <p className="font-black text-slate-900 text-sm uppercase tracking-tight">
-                                {item.type === 'venta' 
-                                  ? `Facturación #${String(item.id).padStart(5, '0')}` 
-                                  : (item.referencia && item.referencia.trim() !== ''
-                                      ? item.referencia
-                                      : (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) 
-                                          ? (item.metodo_pago === 'SALDO_PREVIO' ? 'Saldo Inicial' : 'Ajuste de Saldo') 
-                                          : 'Cobro Recibido'))}
-                              </p>
-                              {item.external_id && (
-                                <span className="bg-slate-50 border border-slate-200 text-slate-400 text-[7px] font-black px-1.5 py-0.5 uppercase tracking-tighter">Sincronizado</span>
-                              )}
-                            </div>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                              {new Date(item.fecha).toLocaleDateString()} • {item.tipo_comprobante || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? (item.tipo ? `Ajuste (${item.tipo})` : 'Ajuste Manual') : item.metodo_pago)}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-6">
-                            <div className="text-right">
-                              <p className={`text-xl font-black ${item.type === 'venta' || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) && Number(item.monto_ars) < 0) ? 'text-slate-900' : 'text-blue-600'}`}>
-                                <span className="font-black tracking-tighter text-lg">{item.type === 'venta' ? `-$${Number(item.total_real_ars || item.monto_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) ? `${Number(item.monto_ars) < 0 ? '-' : '+'}$${Math.abs(Number(item.monto_ars)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : `+$${Number(item.monto_ars || item.total_real_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`)}</span>
-                              </p>
-                              <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">ARS</p>
-                            </div>
-                            {(item.type === 'venta' || (['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago) && Number(item.monto_ars) < 0)) && (
-                              <button
-                                type="button"
-                                onClick={() => quickPay(item)}
-                                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-sm shrink-0 cursor-pointer"
-                                title="Cobrar este comprobante"
-                              >
-                                <DollarSign size={13} />
-                                Cobrar
-                              </button>
-                            )}
-                            {item.type === 'venta' && (
-                              <button
-                                onClick={() => generateSalePDF({ ...item, client: selectedClient })}
-                                className="p-3 border border-slate-100 text-slate-300 hover:text-blue-600 hover:border-blue-600 transition-all"
-                                title="Descargar Comprobante"
-                              >
-                                <Download size={16} />
-                              </button>
-                            )}
-                            {item.type === 'cobro' && (
-                              <button
-                                onClick={() => {
-                                  if (window.confirm('¿Estás seguro de deshacer este movimiento?')) {
-                                    deletePaymentMutation.mutate(item.id);
-                                  }
-                                }}
-                                className="p-3 border border-slate-100 text-slate-300 hover:text-red-600 hover:border-red-600 transition-all text-sm font-black"
-                                title="Deshacer Movimiento"
-                                disabled={deletePaymentMutation.isPending}
-                              >
-                                &times;
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {item.type === 'venta' && item.items && item.items.length > 0 && (
-                          <div className="px-5 py-4 border-t border-slate-50 bg-slate-50/50">
-                            <div className="flex items-center gap-2 mb-3">
-                              <PackageOpen size={12} className="text-slate-300" />
-                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Artículos</p>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-                              {item.items.map((si: any, sIdx: number) => (
-                                <div key={sIdx} className="flex justify-between items-center py-1">
-                                  <span className="text-[10px] font-bold text-slate-600 uppercase truncate pr-4">{si.descripcion || si.product?.nombre}</span>
-                                  <span className="text-[10px] font-black text-slate-900 shrink-0">{si.cantidad} KG</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-      )}
-      </>
-      )}
-      {/* Edit Balance Modal */}
-      {isEditBalanceModalOpen && selectedClient && (
-        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
-          <div className="bg-slate-900 px-6 py-6 text-white flex justify-between items-start">
-            <div>
-              <h2 className="text-xl font-black uppercase tracking-widest">Cargar Deuda</h2>
-              <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">{selectedClient.razon_social}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsEditBalanceModalOpen(false)}
-              className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500"
-            >
-              Cerrar y Volver
-            </button>
-          </div>
-          <form onSubmit={handleEditBalanceSubmit} className="p-6 sm:p-10 space-y-6 bg-slate-50">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 bg-white border border-slate-200">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deuda actual Blanco</p>
-                <p className="text-lg font-black text-slate-900">${(-Number(selectedClient.saldo_blanco || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-              </div>
-              <div className="p-4 bg-white border border-slate-200">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deuda actual Interno</p>
-                <p className="text-lg font-black text-slate-900">${(-Number(selectedClient.saldo_interno || 0)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              {/* Sector Blanco */}
-              <div className="bg-white p-5 border border-slate-200 space-y-4">
-                <div className="border-b border-slate-100 pb-2">
-                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Sector Blanco (Oficial)</span>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Blanco</label>
-                  <input
-                    type="text"
-                    value={balanceData.saldo_blanco === 0 ? '' : balanceData.saldo_blanco}
-                    onChange={e => setBalanceData({ ...balanceData, saldo_blanco: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Número de Factura</label>
-                  <input
-                    type="text"
-                    value={balanceData.nro_factura}
-                    onChange={e => setBalanceData({ ...balanceData, nro_factura: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs uppercase"
-                    placeholder="Ej: 0001-00001234"
-                  />
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">N° de factura a cobrar o de la deuda generada</p>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fecha de la Factura</label>
-                  <input
-                    type="date"
-                    value={balanceData.fecha_factura}
-                    onChange={e => setBalanceData({ ...balanceData, fecha_factura: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
-                  />
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Fecha en que fue emitida dicha factura</p>
-                </div>
-              </div>
-
-              {/* Sector Interno */}
-              <div className="bg-white p-5 border border-slate-200 space-y-4">
-                <div className="border-b border-slate-100 pb-2">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sector Interno (Gestión)</span>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a sumar — Interno</label>
-                  <input
-                    type="text"
-                    value={balanceData.saldo_interno === 0 ? '' : balanceData.saldo_interno}
-                    onChange={e => setBalanceData({ ...balanceData, saldo_interno: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">N° de Remito / Comprobante</label>
-                  <input
-                    type="text"
-                    value={balanceData.nro_remito}
-                    onChange={e => setBalanceData({ ...balanceData, nro_remito: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs uppercase"
-                    placeholder="Ej: R-00452"
-                  />
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">N° de remito, nota de entrega o presupuesto</p>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fecha del Comprobante</label>
-                  <input
-                    type="date"
-                    value={balanceData.fecha_remito}
-                    onChange={e => setBalanceData({ ...balanceData, fecha_remito: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
-                  />
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Fecha en que fue emitido el remito o entrega</p>
-                </div>
-              </div>
-            </div>
-            <p className="text-[10px] font-bold text-slate-500">Nota: El monto se SUMA a la deuda actual del cliente. Puede completar solo uno de los dos campos. Use un valor negativo para descontar deuda.</p>
-            <button type="submit" disabled={updateBalanceMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">
-              {updateBalanceMutation.isPending ? 'Guardando...' : 'Confirmar Carga de Deuda'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Payment Modal */}
-      {isPaymentModalOpen && selectedClient && (
-        <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
-              <div className="bg-slate-900 px-6 py-6 text-white flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-black uppercase tracking-widest">Registrar Cobro</h2>
-                  <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em] mt-1">{selectedClient.razon_social}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsPaymentModalOpen(false)}
-                  className="text-slate-400 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-700 px-4 py-2 hover:border-slate-500"
-                >
-                  Cerrar y Volver
-                </button>
-              </div>
-              <form onSubmit={handlePaymentSubmit} className="p-6 sm:p-10 space-y-6 bg-slate-50">
-              <div className="p-4 bg-white border border-slate-200 flex justify-between items-center mb-4 shadow-sm">
-                <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deuda Total</p>
-                  <span className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_deuda)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Interno</p>
-                  <span className="text-xl font-black text-slate-900">${Math.abs(Number(selectedClient.saldo_interno)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                </div>
-              </div>
-
-              {/* Selector de comprobante específico */}
-              {(() => {
-                const pendingDebts = [
-                  ...(clientDetails?.sales || []).map((s: any) => ({
-                    id: `sale-${s.id}`,
-                    type: 'venta',
-                    label: s.nro_comprobante ? `${s.tipo_comprobante || 'Factura'} ${s.nro_comprobante}` : `Facturación #${String(s.id).padStart(5, '0')}`,
-                    monto: Number(s.total_real_ars || s.monto_ars || 0),
-                    tipo: Number(s.monto_facturado_ars) > 0 && Number(s.monto_no_facturado_ars) === 0 ? 'BLANCO' : (Number(s.monto_no_facturado_ars) > 0 && Number(s.monto_facturado_ars) === 0 ? 'INTERNO' : 'MIXTO'),
-                    fecha: s.fecha,
-                    raw: s
-                  })),
-                  ...(clientDetails?.payments || []).filter((p: any) => Number(p.monto_ars) < 0).map((p: any) => ({
-                    id: `payment-${p.id}`,
-                    type: 'deuda',
-                    label: p.referencia && p.referencia.trim() !== '' ? p.referencia : `Ajuste Deuda (${p.tipo})`,
-                    monto: Math.abs(Number(p.monto_ars)),
-                    tipo: p.tipo || 'MIXTO',
-                    fecha: p.fecha,
-                    raw: p
-                  }))
-                ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-
-                return pendingDebts.length > 0 ? (
-                  <div className="p-4 bg-white border border-slate-200 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1.5">
-                        <CheckCircle2 size={12} />
-                        Imputar a Factura / Remito Específico
-                      </label>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Opcional</span>
-                    </div>
-                    <select
-                      onChange={(e) => {
-                        if (!e.target.value) {
-                          setPaymentData(prev => ({ ...prev, monto: 0, referencia: '', imputacion: 'MIXTO' }));
-                          return;
-                        }
-                        const found = pendingDebts.find(d => d.id === e.target.value);
-                        if (found) {
-                          applyDebtToPayment({ ...found.raw, type: found.type });
-                        }
-                      }}
-                      defaultValue=""
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs"
-                    >
-                      <option value="">— Cobro Libre / Pago Global a Cuenta —</option>
-                      {pendingDebts.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.label} — ${d.monto.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} [{d.tipo}] ({new Date(d.fecha).toLocaleDateString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null;
-              })()}
-
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Monto a Cobrar (ARS)</label>
-                <input
-                  type="text"
-                  required
-                  value={paymentData.monto === 0 ? '' : paymentData.monto}
-                  onChange={e => setPaymentData({ ...paymentData, monto: e.target.value })}
-                  className="w-full bg-transparent border-b-2 border-slate-900 rounded-none px-2 py-4 font-black text-4xl text-slate-900 focus:border-blue-600 outline-none transition-all"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Método de Pago</label>
-                  <select value={paymentData.metodo} onChange={e => setPaymentData({ ...paymentData, metodo: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-3.5 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs">
-                    <option value="EFECTIVO">Efectivo</option>
-                    <option value="TRANSFERENCIA">Transferencia</option>
-                    <option value="CHEQUE">Cheque</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imputación</label>
-                  <select value={paymentData.imputacion} onChange={e => setPaymentData({ ...paymentData, imputacion: e.target.value })} className="w-full bg-white border border-slate-200 rounded-none px-3 py-3.5 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs">
-                    <option value="MIXTO">Mixto (Auto)</option>
-                    <option value="BLANCO" disabled={Number(selectedClient.saldo_blanco) >= 0 && paymentData.imputacion !== 'BLANCO'}>Solo Blanco</option>
-                    <option value="INTERNO" disabled={Number(selectedClient.saldo_interno) >= 0 && paymentData.imputacion !== 'INTERNO'}>Solo Interno</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">N° Comprobante / Recibo / Ref</label>
-                  <input
-                    type="text"
-                    value={paymentData.referencia}
-                    onChange={e => setPaymentData({ ...paymentData, referencia: e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
-                    placeholder="Ej: Transf. 98124 / Recibo 001"
-                  />
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Identificador del cobro o comprobante</p>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fecha del Cobro</label>
-                  <input
-                    type="date"
-                    value={paymentData.fecha}
-                    onChange={e => setPaymentData({ ...paymentData, fecha: e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
-                  />
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Fecha en que se acreditó el pago</p>
-                </div>
-              </div>
-
-              <button type="submit" disabled={paymentMutation.isPending} className="w-full mt-4 bg-blue-600 text-white py-4 font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed">{paymentMutation.isPending ? 'Procesando...' : 'Confirmar Cobro'}</button>
-              </form>
-        </div>
-      )}
-
-      <ConfirmModal isOpen={deleteConfirm.isOpen} title="¿ELIMINAR CLIENTE?" message="ESTA ACCIÓN ES IRREVERSIBLE Y ELIMINARÁ TODO EL HISTORIAL ASOCIADO AL CLIENTE. ¿ESTÁS SEGURO?" onConfirm={confirmDelete} onCancel={() => setDeleteConfirm({ isOpen: false, clientId: null })} confirmText="ELIMINAR PERMANENTEMENTE" variant="danger" />
+      {/* Modal Confirmación Eliminación */}
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        title="¿ELIMINAR CLIENTE?"
+        message="Esta acción es irreversible y eliminará todo el historial contable y de comprobantes asociado a este cliente. ¿Estás seguro de continuar?"
+        onConfirm={() => {
+          if (deleteConfirm.clientId) {
+            deleteMutation.mutate(deleteConfirm.clientId);
+          }
+        }}
+        onCancel={() => setDeleteConfirm({ isOpen: false, clientId: null })}
+        confirmText="ELIMINAR PERMANENTEMENTE"
+        variant="danger"
+      />
     </div>
   );
 };
