@@ -100,4 +100,24 @@ pm2 restart 1
 * **Convención de signo:** En el sistema la deuda se guarda en **negativo** (ventas restan, cobros suman). La UI ahora recibe montos de deuda en positivo y los convierte (tanto en "Deuda Inicial" del alta como en "Cargar Deuda").
 * **Nuevo flujo "Cargar Deuda":** Botón `+ Deuda` en cada fila (desktop y mobile) y en la ficha del cliente. El monto ingresado se **suma** a la deuda actual (Blanco y/o Interno); un valor negativo la descuenta. El backend registra el movimiento como `AJUSTE_SALDO` en el historial, deshacible.
 
+## 17. Modo Fiscal Oficial y Camuflaje Comercial Indetectable (Camino B)
+* **Protección de Privacidad por Defecto:** La aplicación arranca siempre en una vista 100% fiscal y oficial, segura ante inspecciones tributarias o presencia de terceros en mostrador. No existen botones visibles del estilo "Modo Fiscal" o "Modo Seguro" para evitar levantar sospechas de auditoría.
+* **Ocultamiento Total de Datos No Fiscales:**
+  * **Tabla de Clientes:** Se ocultan las columnas de "Remitos / Gestión" y "Deuda Total", mostrando únicamente Razón Social, CUIT, Condición IVA, Saldo Fiscal Oficial y Acciones. El botón "Cargar Deuda" queda oculto.
+  * **Ficha de Cuenta Corriente:** Se ocultan las tarjetas de "Remitos y Gestión Comercial" y "Total Adeudado". Todas las pestañas (Pendientes de Pago, Pagados, Historial Completo) filtran y muestran exclusivamente facturas autorizadas por ARCA con CAE (`Factura A`, `Factura B`, etc.).
+  * **Registrar Cobro:** Oculta referencias a saldos no fiscales y restringe la imputación contable únicamente a cobros fiscales oficiales (`BLANCO`).
+  * **Facturación y Dashboard:** Oculta remitos internos y calcula métricas de cartera basándose únicamente en la deuda fiscal real declarada.
+* **Mecanismo de Desbloqueo Secreto (3 Clics en Logo + Clave `1991`):**
+  * Se configuró un trigger invisible en el isotipo de la barra superior (el recuadro negro con la letra **`M`**).
+  * Al hacer **3 clics rápidos** (en menos de 750ms) sobre la `M`, se abre el modal de autorización gerencial (`PinAuthModal.tsx`).
+  * Al ingresar el PIN **`1991`** (se valida automáticamente al ingresar el 4to dígito o con Enter), se habilita el **Modo Gestión Comercial**, revelando saldos internos, remitos desprendidos, deuda total y opciones de carga de deuda.
+  * Se mantiene también el atajo de teclado `Ctrl + Shift + G` como método alternativo.
+* **Bloqueo Inmediato / Botón de Pánico (2 Clics o `Esc`):**
+  * Para volver de inmediato al Modo Fiscal Oficial basta con presionar la tecla **`Escape` (`Esc`)** en cualquier parte de la pantalla o hacer **2 clics rápidos** (doble clic) sobre el recuadro negro **`M`** del logo.
+  * Mientras la gestión comercial esté activa, se muestra una sutil pastilla `[🟢 Gestión 🔒]` que al clickearse también bloquea el sistema al instante.
+* **Notificaciones Ultra-Rápidas y Limpieza Inmediata:** La notificación de cambio de modo se configuró para desvanecerse en solo **1000 ms** (1 segundo) con llamada previa a `toast.dismiss()`, impidiendo que persistan avisos en pantalla.
+* **Generación de Remitos Comerciales con Prefijo `REM-`:** Se estandarizó la numeración de los remitos desprendidos generados en el backend a `REM-${saleId}` (manteniendo total retrocompatibilidad con los remitos antiguos `DIF-${saleId}`).
+* **Arquitectura No Destructiva para VPS:** Todas las mejoras se implementaron a nivel presentación y contexto en React (`PrivacyContext.tsx`), sin alterar esquemas ni nombres de columnas en la base de datos de producción (`saldo_interno`, `monto_no_facturado_ars`, etc.), asegurando un despliegue sin riesgo de caídas ni migraciones complejas.
+
+
 
