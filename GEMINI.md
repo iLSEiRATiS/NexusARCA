@@ -119,5 +119,52 @@ pm2 restart 1
 * **Generación de Remitos Comerciales con Prefijo `REM-`:** Se estandarizó la numeración de los remitos desprendidos generados en el backend a `REM-${saleId}` (manteniendo total retrocompatibilidad con los remitos antiguos `DIF-${saleId}`).
 * **Arquitectura No Destructiva para VPS:** Todas las mejoras se implementaron a nivel presentación y contexto en React (`PrivacyContext.tsx`), sin alterar esquemas ni nombres de columnas en la base de datos de producción (`saldo_interno`, `monto_no_facturado_ars`, etc.), asegurando un despliegue sin riesgo de caídas ni migraciones complejas.
 
+## 18. Restablecimiento de Facturación Mixta y Bifurcación Dual (Oficial ARCA + Remito)
+* **Corrección de `vto_cae` inválido:** Se corrigió el error en Prisma donde remitos u operaciones sin CAE generaban `new Date("Invalid Date")`, asegurando que `vto_cae` se guarde como `null` cuando no existe autorización fiscal.
+* **Bifurcación Completa (Split Dual):** Al emitir una factura oficial con una porción de cobro interno (ej. $1.000 neto + 21% IVA = $1.210 oficial, y $4.000 de cobro interno):
+  * Se genera la **Factura Electrónica Oficial ARCA** con su CAE, punto de venta y numeración oficial por los $1.210.
+  * Se desprende y genera automáticamente en paralelo el **Remito Interno** con prefijo `REM-` por los $4.000.
+  * Ambos comprobantes impactan de forma separada y trazable en la cuenta corriente del cliente.
 
+## 19. Cuenta Corriente Avanzada (Account Ledger) y Cobros Parciales
+* **Imputación Inteligente y FIFO (`accountLedger.ts`):** 
+  * Se procesa la cuenta corriente vinculando cobros a facturas mediante referencia explícita (ej. "Cobro Factura A N° 00000038") y luego por antigüedad (FIFO).
+  * Las facturas con pagos parciales permanecen en la pestaña **"Pendientes de Pago"** sin moverse prematuramente a "Pagados", mostrando un desglose exacto:
+    * **Original:** Importe emitido.
+    * **Cobrado:** Total acumulado de pagos imputados.
+    * **Resta de Deuda:** Saldo pendiente exacto a cancelar.
+  * Botón dinámico **"Cobrar Resto"** que pre-carga automáticamente el saldo remanente.
+* **Corrección de Zona Horaria Local:** Se implementó `getLocalDateString()` en `format.ts`, eliminando el desfasaje UTC que provocaba que pagos registrados a última hora se mostraran erróneamente con la fecha del día siguiente.
 
+## 20. Soporte Integral para Cobros con Cheque Físico y E-Cheq
+* **Modelo en Base de Datos:** Se incorporaron a la tabla `Payment` los campos:
+  * `nro_cheque` (String opcional)
+  * `fecha_vto_cheque` (DateTime opcional)
+  * `caja` (String opcional)
+* **Interfaz de Cobro (`ClientPaymentModal.tsx`):** Al seleccionar método **"Cheque Físico"** o **"Cheque Electrónico (E-Cheq)"**, se despliegan campos dedicados para número de cheque, fecha de vencimiento y caja destino.
+* **Trazabilidad Visual:** Tanto en la ficha de detalle como en el libro mayor contable se muestran badges distintivos color ámbar con el número de cheque, vencimiento y caja asignada.
+
+## 21. Parseo Numérico Inteligente Formato Argentino (`parseArgNumber`)
+* **Solución al conflicto de punto y coma:** En JavaScript nativo, `Number("10.000")` evalúa a `10` y `Number("9.990")` a `9.99`. Se creó e integró la función `parseArgNumber` en frontend (`frontend/src/utils/format.ts`) y backend (`backend/src/utils/format.ts`).
+* **Reglas de Parseo:**
+  * `10.000` ➔ `10000`
+  * `9.990` ➔ `9990`
+  * `10.000,00` ➔ `10000`
+  * `10000` ➔ `10000`
+  * `10,50` o `10.50` ➔ `10.5`
+  * Decimales pequeños como `0.500` se conservan correctamente como `0.5`.
+
+## 22. Descarga de Facturas en Historial y Remoción de Validez en Presupuestos
+* **Descarga en Historial Completo:** Se añadió el botón explícito **"Descargar Factura"** en cada ítem de la solapa de Historial Completo. Para cobros imputados a facturas, se añadió el botón **"Factura PDF"** para acceder al comprobante original directamente.
+* **Eliminación de "Validez de xx días":**
+  * Se removió la mención de validez en días del encabezado de los presupuestos PDF y se actualizó el disclaimer legal a *"Este presupuesto tiene carácter informativo y está sujeto a disponibilidad de stock"*.
+  * Se simplificó `QuotationsPage.tsx` renombrando la columna a **"ID / Fecha"** y quitando las etiquetas de validez.
+  * Se refactorizó `NewQuotationPage.tsx` eliminando el paso 3 de validez; ahora emite el presupuesto directamente en 2 pasos (*Cliente* ➔ *Artículos y Emisión*).
+
+## 23. Separación Estricta de Saldos (Eliminación de "Deuda Total") y Edición con Lápiz
+* **Eliminación de Deuda Total Combinada:** En la tabla de clientes ([ClientsTable.tsx](file:///c:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/frontend/src/components/clients/ClientsTable.tsx)) y en la ficha de cuenta corriente ([ClientDetailModal.tsx](file:///c:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/frontend/src/components/clients/ClientDetailModal.tsx)) se eliminó la columna y el concepto de "Deuda Total". Los saldos **Fiscal (ARCA)** e **Interno (Remitos / Gestión)** se presentan de manera estrictamente independiente.
+* **Lápiz para Modificar Saldo Pendiente:**
+  * Se añadió el ícono del lápiz (`Pencil`) al lado de cada importe de saldo en la tabla de clientes y en las tarjetas de saldo de la ficha de detalle.
+  * Se rediseñó el modal [ClientBalanceModal.tsx](file:///c:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/frontend/src/components/clients/ClientBalanceModal.tsx) permitiendo dos modalidades:
+    1. **Establecer Saldo Directo (Modo Lápiz):** Permite ingresar directamente el saldo pendiente final exacto deseado; el sistema calcula y asienta automáticamente el ajuste contable necesario.
+    2. **Sumar / Agregar Deuda:** Permite añadir deuda relativa vinculada a número de factura o remito.
