@@ -14,9 +14,10 @@ export const parseArgNumber = (val: string | number | undefined | null): number 
   if (strVal.includes('.') && !strVal.includes(',')) {
     // Check if it has multiple dots (e.g., 100.000.000), then it's thousands separator.
     if (strVal.split('.').length - 1 === 1) {
-      // Si tiene exactamente 3 dígitos después del punto, asumimos que es separador de miles (ej: 200.000)
-      // Si tiene 1 o 2 (ej: 100.50, 100.5), o más de 3, asumimos que es decimal usando el teclado numérico inglés.
-      if (!/\.\d{3}$/.test(strVal)) {
+      // Si empieza con '0.' o '-0.', es decimal pequeño (ej: 0.500)
+      // Si NO termina en exactamente 3 dígitos (ej: 100.50, 100.5), es decimal usando teclado inglés
+      // Si termina en 3 dígitos y no empieza con 0 (ej: 10.000, 9.990, 1.500), es separador de miles argentino
+      if (strVal.startsWith('0.') || strVal.startsWith('-0.') || !/\.\d{3}$/.test(strVal)) {
         const parsed = parseFloat(strVal);
         if (!isNaN(parsed)) return parsed;
       }
@@ -32,3 +33,15 @@ export const parseArgNumber = (val: string | number | undefined | null): number 
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : parsed;
 };
+
+/**
+ * Retorna la fecha local en formato YYYY-MM-DD para inputs de tipo date,
+ * evitando el desfase de zona horaria hacia el día siguiente que causa toISOString().
+ */
+export const getLocalDateString = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+

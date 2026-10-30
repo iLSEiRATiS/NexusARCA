@@ -3,7 +3,7 @@ import type { Client } from '../../services/clientService';
 import { 
   X, Pencil, Download, DollarSign, PackageOpen, 
   FileSpreadsheet, Mail, Phone, MapPin, Building2, Hash,
-  Clock, CheckCircle2, History, AlertCircle, ShieldCheck, FileText
+  Clock, CheckCircle2, History, AlertCircle, ShieldCheck, FileText, CreditCard
 } from 'lucide-react';
 
 import { processClientLedger, getDocumentClassification, type DocumentClassification } from '../../utils/accountLedger';
@@ -88,7 +88,6 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
   const saldoBlancoNum = Number(client.saldo_blanco || 0);
   const saldoInternoNum = Number(client.saldo_interno || 0);
-  const saldoDeudaTotal = Math.abs(Number(client.saldo_deuda || 0));
 
   return (
     <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
@@ -181,9 +180,20 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         <div className={`grid grid-cols-1 ${isManagementUnlocked ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-5`}>
           <div className="p-6 bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
             <div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                Saldo Blanco (Fiscal)
-              </span>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
+                  Saldo Fiscal (Oficial ARCA)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onOpenBalance(client)}
+                  className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-slate-100 flex items-center gap-1 text-[11px] font-bold cursor-pointer transition-colors"
+                  title="Modificar Saldo Fiscal"
+                >
+                  <Pencil size={12} />
+                  Modificar
+                </button>
+              </div>
               <p className="text-2xl font-black text-slate-900">
                 ${saldoBlancoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
@@ -197,9 +207,20 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           {isManagementUnlocked && (
             <div className="p-6 bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
               <div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                  Remitos y Gestión Comercial
-                </span>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">
+                    Saldo Interno (Remitos)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenBalance(client)}
+                    className="text-slate-400 hover:text-blue-600 p-1 rounded hover:bg-slate-100 flex items-center gap-1 text-[11px] font-bold cursor-pointer transition-colors"
+                    title="Modificar Saldo Interno"
+                  >
+                    <Pencil size={12} />
+                    Modificar
+                  </button>
+                </div>
                 <p className="text-2xl font-black text-slate-900">
                   ${saldoInternoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
@@ -213,10 +234,13 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           <div className="p-6 bg-blue-600 text-white flex flex-col justify-between shadow-lg shadow-blue-100">
             <div className="mb-4">
               <span className="text-xs font-bold text-blue-200 uppercase tracking-widest block mb-1">
-                {isManagementUnlocked ? 'Total Adeudado' : 'Deuda Fiscal Exigible'}
+                Gestión de Cuenta
               </span>
-              <p className="text-3xl font-black">
-                ${(isManagementUnlocked ? saldoDeudaTotal : Math.abs(saldoBlancoNum)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <p className="text-xl font-black uppercase tracking-tight">
+                Cobranzas y Saldos
+              </p>
+              <p className="text-xs text-blue-100 mt-0.5">
+                Saldos independientes por carácter
               </p>
             </div>
             <div className="flex flex-col gap-2 mt-auto">
@@ -231,9 +255,10 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenBalance(client)}
-                  className="w-full border border-blue-400 text-white py-2.5 font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition-all cursor-pointer"
+                  className="w-full border border-blue-400 text-white py-2.5 font-black text-xs uppercase tracking-widest hover:bg-blue-500 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  Cargar Deuda
+                  <Pencil size={13} />
+                  Modificar Saldo Pendiente
                 </button>
               )}
             </div>
@@ -330,11 +355,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                         ? Number(item.saldoPendiente)
                         : (isVenta ? Number(item.total_real_ars) : Math.abs(Number(item.monto_ars)));
 
-                      const borderStyle = info.caracter === 'FISCAL'
-                        ? 'border-blue-200/90 hover:border-blue-500'
-                        : info.caracter === 'INTERNO'
-                        ? 'border-purple-200/90 hover:border-purple-500'
-                        : 'border-amber-200/80 hover:border-amber-500';
+                      const isPartial = Boolean(item.isPartial);
+                      const borderStyle = isPartial
+                        ? 'border-amber-300 hover:border-amber-500'
+                        : (info.caracter === 'FISCAL'
+                            ? 'border-blue-200/90 hover:border-blue-500'
+                            : info.caracter === 'INTERNO'
+                            ? 'border-purple-200/90 hover:border-purple-500'
+                            : 'border-amber-200/80 hover:border-amber-500');
 
                       return (
                         <div
@@ -342,7 +370,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                           className={`bg-white border ${borderStyle} overflow-hidden transition-all shadow-xs`}
                         >
                           <div className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-                            {/* Lado izquierdo: Concepto, Carácter y Estado Pendiente */}
+                            {/* Lado izquierdo: Concepto, Carácter y Estado Pendiente / Parcial */}
                             <div className="text-center sm:text-left flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                                 <p className="font-black text-slate-900 text-sm uppercase tracking-tight">
@@ -359,13 +387,35 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                   </span>
                                 )}
 
-                                <span className="bg-amber-50 border border-amber-300 text-amber-800 text-[9px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
-                                  <Clock size={10} /> Pendiente de Cobro
-                                </span>
+                                {isPartial ? (
+                                  <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded shadow-xs">
+                                    <Clock size={10} /> Cobro Parcial
+                                  </span>
+                                ) : (
+                                  <span className="bg-amber-50 border border-amber-300 text-amber-800 text-[9px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
+                                    <Clock size={10} /> Pendiente de Cobro
+                                  </span>
+                                )}
                               </div>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
                                 {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
                               </p>
+
+                              {isPartial && (
+                                <div className="mt-2.5 flex flex-wrap items-center gap-2 bg-amber-50/80 border border-amber-200 rounded p-2 text-[11px]">
+                                  <span className="font-bold text-slate-600">
+                                    Original: <strong className="text-slate-900 font-mono font-black">${Number(item.totalOriginal || (isVenta ? item.total_real_ars : item.monto_ars)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                  </span>
+                                  <span className="text-amber-300 font-black">•</span>
+                                  <span className="font-bold text-emerald-700">
+                                    Cobrado: <strong className="font-mono font-black">+${Number(item.totalPagado || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                  </span>
+                                  <span className="text-amber-300 font-black">•</span>
+                                  <span className="font-bold text-red-600">
+                                    Resta: <strong className="font-mono font-black">-${montoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Lado derecho: Monto Adeudado y Botón Cobrar */}
@@ -374,7 +424,9 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 <p className="text-xl font-black text-red-600 font-mono tracking-tight">
                                   -${montoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">ARS PENDIENTE</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                  {isPartial ? 'RESTA DE DEUDA' : 'ARS PENDIENTE'}
+                                </p>
                               </div>
 
                               {/* Botón rápido Cobrar */}
@@ -382,10 +434,10 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 type="button"
                                 onClick={() => onQuickPay(item)}
                                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm shrink-0 cursor-pointer rounded-sm"
-                                title="Cobrar este comprobante"
+                                title={isPartial ? `Cobrar resto pendiente de $${montoNum.toLocaleString('es-AR')}` : "Cobrar este comprobante"}
                               >
                                 <DollarSign size={14} />
-                                Cobrar
+                                {isPartial ? 'Cobrar Resto' : 'Cobrar'}
                               </button>
 
                               {/* Descargar Comprobante si es venta */}
@@ -393,10 +445,11 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onDownloadSale({ ...item, client })}
-                                  className="p-2 border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-600 rounded transition-all cursor-pointer"
+                                  className="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer rounded-sm"
                                   title="Descargar Comprobante PDF"
                                 >
-                                  <Download size={14} />
+                                  <Download size={13} />
+                                  Descargar Factura
                                 </button>
                               )}
                             </div>
@@ -478,6 +531,20 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                   </span>
                                 )}
 
+                                {/* Datos de Cheque si corresponde */}
+                                {(item.nro_cheque || item.paymentInfo?.nro_cheque) && (
+                                  <span className="bg-amber-100 border border-amber-300 text-amber-900 font-mono text-[10px] font-black px-2 py-0.5 tracking-tight rounded flex items-center gap-1">
+                                    <CreditCard size={11} className="text-amber-700" />
+                                    Cheque N° {item.nro_cheque || item.paymentInfo?.nro_cheque}
+                                  </span>
+                                )}
+
+                                {(item.caja || item.paymentInfo?.caja) && (
+                                  <span className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                                    Caja: {item.caja || item.paymentInfo?.caja}
+                                  </span>
+                                )}
+
                                 <span className="bg-emerald-50 border border-emerald-300 text-emerald-800 text-[9px] font-black px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 rounded">
                                   <CheckCircle2 size={10} /> Pagado / Cancelado
                                 </span>
@@ -511,10 +578,11 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onDownloadSale({ ...item, client })}
-                                  className="p-2 border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-600 rounded transition-all cursor-pointer"
+                                  className="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer rounded-sm"
                                   title="Descargar Comprobante PDF"
                                 >
-                                  <Download size={14} />
+                                  <Download size={13} />
+                                  Descargar Factura
                                 </button>
                               )}
                             </div>
@@ -567,6 +635,20 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                     Sincronizado
                                   </span>
                                 )}
+
+                                {/* Datos de Cheque en historial si corresponde */}
+                                {item.nro_cheque && (
+                                  <span className="bg-amber-100 border border-amber-300 text-amber-900 font-mono text-[10px] font-black px-2 py-0.5 tracking-tight rounded flex items-center gap-1">
+                                    <CreditCard size={11} className="text-amber-700" />
+                                    Cheque N° {item.nro_cheque}
+                                  </span>
+                                )}
+
+                                {item.caja && (
+                                  <span className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                                    Caja: {item.caja}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
                                 {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
@@ -604,12 +686,37 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onDownloadSale({ ...item, client })}
-                                  className="p-2 border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-600 rounded transition-all cursor-pointer"
-                                  title="Descargar Comprobante PDF"
+                                  className="px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer rounded-sm"
+                                  title="Descargar Factura / Comprobante PDF"
                                 >
-                                  <Download size={14} />
+                                  <Download size={13} />
+                                  Descargar Factura
                                 </button>
                               )}
+
+                              {/* Si es cobro que imputa a una factura, permitir descargar dicha factura */}
+                              {!isVenta && (() => {
+                                const ref = (item.referencia || '').toLowerCase();
+                                const matchingSale = (clientDetails?.sales || []).find((s: any) => {
+                                  const nro = (s.nro_comprobante || '').toLowerCase();
+                                  if (nro && ref.includes(nro)) return true;
+                                  const idStr = String(s.id);
+                                  const padId = idStr.padStart(5, '0');
+                                  return ref.includes(`#${padId}`) || ref.includes(`#${idStr}`);
+                                });
+                                if (!matchingSale) return null;
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => onDownloadSale({ ...matchingSale, client })}
+                                    className="px-2.5 py-1.5 bg-slate-100 border border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer rounded-sm"
+                                    title="Descargar Factura Imputada"
+                                  >
+                                    <Download size={12} />
+                                    Factura PDF
+                                  </button>
+                                );
+                              })()}
 
                               {/* Deshacer Movimiento si es cobro */}
                               {!isVenta && (

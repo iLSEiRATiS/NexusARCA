@@ -77,9 +77,13 @@ export const ProcessBillingModal = ({
       });
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (resData: any) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success(billingParams.mode === 'ARCA' ? '✅ FACTURA AUTORIZADA EXITOSAMENTE' : 'CONVERTIDO A REMITO');
+      if (resData?.remito_interno) {
+        toast.info(`REMITO / GESTIÓN COMERCIAL N° ${resData.remito_interno.nro_comprobante} GENERADO POR $${Number(resData.remito_interno.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`);
+      }
       onSuccess?.();
       onClose();
     },

@@ -13,7 +13,11 @@ export const createSaleSchema = z.object({
       })
     ).min(1, 'La venta debe tener al menos un producto'),
     tipo_comprobante: z.string().default('Factura A'),
-  }).refine(data => data.client_id || data.cuit, {
+    monto_interno: z.number().optional(),
+    fecha_vto_pago: z.string().optional(),
+    percepciones_iibb_ars: z.number().optional(),
+    percepciones_iva_ars: z.number().optional(),
+  }).passthrough().refine(data => data.client_id || data.cuit, {
     message: "Debe proporcionar client_id o cuit"
   })
 });

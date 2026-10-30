@@ -6,8 +6,9 @@ import { AppError } from '../utils/AppError';
 export class SaleService {
   /**
    * Procesa la facturación de una venta ya creada (PENDIENTE → FACTURADO o REMITO).
-   * Si el usuario ajustó los precios a la baja, genera automáticamente un Remito
-   * por la diferencia entre el total original y el total facturado.
+   * Si se especificó cobro interno (monto_interno) o el usuario ajustó los precios a la baja,
+   * emite la Factura Oficial por la porción en blanco ante ARCA y genera automáticamente
+   * una Factura de Remito / Gestión Comercial por la porción en negro (interno).
    */
   static async processBilling(
     saleId: number, 
@@ -16,7 +17,8 @@ export class SaleService {
     customPrices?: Record<number, { price: number, currency: 'USD' | 'ARS' }>,
     cotizacion_usada: number = 1000,
     percepciones_iibb_ars: number = 0,
-    percepciones_iva_ars: number = 0
+    percepciones_iva_ars: number = 0,
+    monto_interno?: number
   ) {
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
@@ -27,52 +29,66 @@ export class SaleService {
     if (mode === 'ARCA' && sale.cae) throw new AppError('La venta ya posee CAE asignado', 400);
 
     return await prisma.$transaction(async (tx) => {
-      // Calcular total ORIGINAL (precios sin ajustar) para detectar diferencial
-      let total_original_ars = 0;
-
-      // Calcular ratio automatico si la venta tiene monto_interno pre-guardado y no hay customPrices manuales
-      const monto_interno_pregrabado = Number(sale.monto_no_facturado_ars || 0);
-      const total_original_estimado = sale.items.reduce((acc, item) => {
-        const n = Number(item.precio_unitario_ars) * Number(item.cantidad);
-        return acc + n + n * (Number(item.iva_tasa) / 100);
-      }, 0);
-      const hasCustomPrices = customPrices && Object.keys(customPrices).length > 0;
-      const autoRatio = (!hasCustomPrices && monto_interno_pregrabado > 0 && total_original_estimado > 0)
-        ? (total_original_estimado - monto_interno_pregrabado) / total_original_estimado
-        : 1;
-
-      // Calcular total con precios AJUSTADOS (lo que va a ARCA)
-      let total_real_ars = 0;
-      let subtotal_ars = 0;
-      let iva_ars = 0;
+      // 1. Calcular subtotal neto y total original (precios originales sin ajustar)
       let subtotal_original_ars = 0;
+      let total_original_ars = 0;
 
       for (const item of sale.items) {
         const precio_original_ars = Number(item.precio_unitario_ars);
+        const precio_original_usd = Number(item.precio_unitario_usd);
         (item as any).precio_original_ars_backup = precio_original_ars;
-        (item as any).precio_original_usd_backup = Number(item.precio_unitario_usd);
+        (item as any).precio_original_usd_backup = precio_original_usd;
+
         const cantidad_num = Number(item.cantidad);
-        const subtotal_original = precio_original_ars * cantidad_num;
-        const iva_original = subtotal_original * (Number(item.iva_tasa) / 100);
-        total_original_ars += (subtotal_original + iva_original);
-        subtotal_original_ars += subtotal_original;
+        const subtotal_item = precio_original_ars * cantidad_num;
+        const iva_item = subtotal_item * (Number(item.iva_tasa) / 100);
+
+        subtotal_original_ars += subtotal_item;
+        total_original_ars += (subtotal_item + iva_item);
+      }
+
+      // 2. Determinar monto interno a descontar del neto
+      const target_monto_interno = (monto_interno !== undefined && monto_interno >= 0)
+        ? Number(monto_interno)
+        : Number(sale.monto_no_facturado_ars || 0);
+
+      const hasCustomPrices = customPrices && Object.keys(customPrices).length > 0;
+      
+      // El monto interno se descuenta del NETO original:
+      // Ejemplo: subtotal_original_ars = 1000, target_monto_interno = 500
+      // neto_oficial_objetivo = 1000 - 500 = 500
+      // autoRatio = 500 / 1000 = 0.5
+      let autoRatio = 1;
+      if (!hasCustomPrices && target_monto_interno > 0 && subtotal_original_ars > 0) {
+        const neto_oficial_objetivo = Math.max(0, subtotal_original_ars - target_monto_interno);
+        autoRatio = neto_oficial_objetivo / subtotal_original_ars;
+      }
+
+      // 3. Calcular precios ajustados para la factura oficial (lo que va a ARCA)
+      let total_real_ars = 0;
+      let subtotal_ars = 0;
+      let iva_ars = 0;
+
+      for (const item of sale.items) {
+        const precio_original_ars = (item as any).precio_original_ars_backup;
+        const cantidad_num = Number(item.cantidad);
 
         let precio_unitario_ars = precio_original_ars;
-        let precio_unitario_usd = Number(item.precio_unitario_usd);
+        let precio_unitario_usd = (item as any).precio_original_usd_backup;
 
         if (hasCustomPrices && customPrices![item.id]) {
           const config = customPrices![item.id];
           if (config.currency === 'USD') {
-            precio_unitario_usd = config.price;
+            precio_unitario_usd = Number(config.price);
             precio_unitario_ars = precio_unitario_usd * cotizacion_usada;
           } else {
-            precio_unitario_ars = config.price;
+            precio_unitario_ars = Number(config.price);
             precio_unitario_usd = precio_unitario_ars / cotizacion_usada;
           }
         } else if (autoRatio < 1) {
-          // Aplica el ratio del cobro en negro pre-guardado proporcionalmente a cada item
+          // Aplica el ratio al neto
           precio_unitario_ars = precio_original_ars * autoRatio;
-          precio_unitario_usd = Number(item.precio_unitario_usd) * autoRatio;
+          precio_unitario_usd = (item as any).precio_original_usd_backup * autoRatio;
         }
 
         const subtotal_item = precio_unitario_ars * cantidad_num;
@@ -82,7 +98,6 @@ export class SaleService {
         subtotal_ars += subtotal_item;
         iva_ars += iva_item;
 
-        // Guardar iva_importe_ars en el item para usarlo en AfipService
         (item as any).iva_importe_ars = iva_item;
         (item as any).precio_unitario_ars = precio_unitario_ars;
 
@@ -106,6 +121,10 @@ export class SaleService {
         percepciones_iva_ars,
         cotizacion_dolar_usada: cotizacion_usada
       };
+
+      let remitoInterno: any = null;
+      const diferencial_neto = Math.max(0, subtotal_original_ars - subtotal_ars);
+      const tieneDiferencial = mode === 'ARCA' && diferencial_neto > 0.05;
 
       if (mode === 'ARCA') {
         let tipoComprobante = sale.tipo_comprobante;
@@ -138,6 +157,10 @@ export class SaleService {
         };
         const afipResult = await AfipService.createInvoice(saleForAfip as any);
         
+        if (!afipResult?.cae || !afipResult?.vto_cae) {
+          throw new AppError('No se obtuvo CAE de AFIP para autorizar el comprobante.', 400);
+        }
+
         updateData = {
           ...updateData,
           cae: afipResult.cae,
@@ -146,35 +169,34 @@ export class SaleService {
           estado_factura: 'FACTURADO',
           tipo_comprobante: tipoComprobante,
           monto_facturado_ars: total_real_ars,
-          monto_no_facturado_ars: 0,
-          porcentaje_split: 100
+          monto_no_facturado_ars: tieneDiferencial ? diferencial_neto : 0,
+          porcentaje_split: subtotal_original_ars > 0 ? (subtotal_ars / subtotal_original_ars) * 100 : 100
         };
 
-        // ── SPLIT AUTOMÁTICO: Crear Remito por el diferencial ──────────
-        const diferencial = total_original_ars - total_real_ars;
-        if (diferencial > 1) { // Umbral de $1 para evitar errores de redondeo
-          console.log(`[SaleService] Diferencial detectado: $${diferencial.toFixed(2)} → Creando Remito automático`);
+        // ── SPLIT AUTOMÁTICO: Crear Remito / Gestión Comercial por el diferencial en negro ──
+        if (tieneDiferencial) {
+          console.log(`[SaleService] Cobro Interno detectado: $${diferencial_neto.toFixed(2)} → Creando Remito / Gestión Comercial`);
           
-          const ratio_diferencial = diferencial / subtotal_original_ars;
+          const ratio_diferencial = diferencial_neto / subtotal_original_ars;
           const difItems = sale.items.map(item => ({
             descripcion: item.descripcion,
-            cantidad: item.cantidad,
+            cantidad: Number(item.cantidad),
             precio_unitario_ars: (item as any).precio_original_ars_backup * ratio_diferencial,
             precio_unitario_usd: (item as any).precio_original_usd_backup * ratio_diferencial,
             iva_tasa: 0,
             iva_importe_ars: 0
           }));
 
-          await tx.sale.create({
+          remitoInterno = await tx.sale.create({
             data: {
               client_id: sale.client_id,
               nro_comprobante: `REM-${saleId}`,
-              total_real_ars: diferencial,
+              total_real_ars: diferencial_neto,
               cotizacion_dolar_usada: cotizacion_usada,
               monto_facturado_ars: 0,
-              monto_no_facturado_ars: diferencial,
+              monto_no_facturado_ars: diferencial_neto,
               porcentaje_split: 0,
-              subtotal_ars: diferencial,
+              subtotal_ars: diferencial_neto,
               iva_ars: 0,
               tipo_comprobante: 'Remito',
               estado_factura: 'FACTURADO',
@@ -184,20 +206,9 @@ export class SaleService {
               }
             }
           });
-
-          // Impactar SOLO el saldo interno por el diferencial.
-          // El saldo_deuda se descuenta al final por el total_original_ars completo (una sola vez).
-          if (impactBalance) {
-            await tx.client.update({
-              where: { id: sale.client_id },
-              data: {
-                saldo_interno: { decrement: diferencial }
-              }
-            });
-          }
         }
       } else {
-        // Modo REMITO: todo va sin facturar
+        // Modo REMITO puro: todo va sin facturar
         updateData = {
           ...updateData,
           tipo_comprobante: 'Remito',
@@ -215,25 +226,42 @@ export class SaleService {
       });
 
       if (impactBalance) {
-        // saldo_blanco: solo la porción ARCA (total_real_ars, puede ser menor al original si hay split)
-        // saldo_interno: solo si es modo REMITO puro (el diferencial ya fue descontado arriba)
-        // saldo_deuda: siempre el total original completo (UNA sola vez, sin doble descuento)
-        await tx.client.update({
-          where: { id: updatedSale.client_id },
-          data: {
-            saldo_blanco: mode === 'ARCA' ? { decrement: total_real_ars } : undefined,
-            saldo_interno: mode === 'REMITO' ? { decrement: total_real_ars } : undefined,
-            saldo_deuda: { decrement: total_original_ars }
-          }
-        });
+        if (mode === 'ARCA') {
+          // saldo_blanco: solo la porción oficial ARCA (total_real_ars, ej: $605)
+          // saldo_interno: porción interna / remito (diferencial_neto, ej: $500)
+          // saldo_deuda: suma total real ($605 + $500 = $1105)
+          await tx.client.update({
+            where: { id: updatedSale.client_id },
+            data: {
+              saldo_blanco: { decrement: total_real_ars },
+              saldo_interno: tieneDiferencial ? { decrement: diferencial_neto } : undefined,
+              saldo_deuda: { decrement: total_real_ars + (tieneDiferencial ? diferencial_neto : 0) }
+            }
+          });
+        } else {
+          // Modo REMITO puro
+          await tx.client.update({
+            where: { id: updatedSale.client_id },
+            data: {
+              saldo_interno: { decrement: total_real_ars },
+              saldo_deuda: { decrement: total_real_ars }
+            }
+          });
+        }
       }
 
-      return updatedSale;
+      return {
+        ...updatedSale,
+        remito_interno: remitoInterno
+      };
     });
   }
 
   /**
-   * Crea una venta nueva en estado PENDIENTE con sus ítems.
+   * Crea una venta y la procesa de un solo tirón:
+   * - Si es Factura A o B: emite ante ARCA (obtiene CAE) y, si hay cobro interno,
+   *   crea simultáneamente el Remito Interno por el diferencial.
+   * - Si es Remito: emite el Remito directo sin pasar por ARCA.
    */
   static async create(data: {
     client_id?: number;
@@ -241,7 +269,9 @@ export class SaleService {
     items: { descripcion: string; cantidad: number; precio_unitario_usd: number; iva_tasa: number }[];
     tipo_comprobante: string;
     fecha_vto_pago?: string;
-    monto_interno?: number; // Monto explícito a cobrar en negro (si se pasa, override el porcentaje del cliente)
+    percepciones_iibb_ars?: number;
+    percepciones_iva_ars?: number;
+    monto_interno?: number; // Monto explícito a cobrar en negro (descontado del neto)
   }) {
     const { items, tipo_comprobante, fecha_vto_pago, monto_interno } = data;
     const cotizacion = await CurrencyService.getDolarOficial();
@@ -270,89 +300,95 @@ export class SaleService {
 
     const client_id = client.id;
 
-    return await prisma.$transaction(async (tx) => {
-      let total_real_ars = 0;
-      let total_subtotal_ars = 0;
-      let total_iva_ars = 0;
-      const saleItemsData = [];
+    let total_real_ars = 0;
+    let total_subtotal_ars = 0;
+    let total_iva_ars = 0;
+    const saleItemsData = [];
 
-      for (const item of items) {
-        const precioUnitarioArs = item.precio_unitario_usd * cotizacion;
-        
-        const neto_item = precioUnitarioArs * item.cantidad;
-        const iva_item = neto_item * (item.iva_tasa / 100);
-        
-        total_real_ars += (neto_item + iva_item);
-        total_subtotal_ars += neto_item;
-        total_iva_ars += iva_item;
+    for (const item of items) {
+      const precioUnitarioArs = item.precio_unitario_usd * cotizacion;
+      const neto_item = precioUnitarioArs * item.cantidad;
+      const iva_item = neto_item * (item.iva_tasa / 100);
+      
+      total_real_ars += (neto_item + iva_item);
+      total_subtotal_ars += neto_item;
+      total_iva_ars += iva_item;
 
-        saleItemsData.push({
-          descripcion: item.descripcion,
-          cantidad: item.cantidad,
-          precio_unitario_ars: precioUnitarioArs, 
-          precio_unitario_usd: item.precio_unitario_usd, 
-          iva_tasa: item.iva_tasa,
-          iva_importe_ars: iva_item
-        });
-      }
-
-      // Si se mandó un monto negro explícito desde el frontend, usarlo directamente.
-      // Si no, aplicar el porcentaje configurado en la ficha del cliente.
-      let monto_no_facturado_ars: number;
-      let monto_facturado_ars: number;
-      let porcentaje_split: number;
-
-      if (tipo_comprobante === 'Remito') {
-        monto_facturado_ars = 0;
-        monto_no_facturado_ars = total_real_ars;
-        porcentaje_split = 0;
-      } else if (monto_interno !== undefined && monto_interno >= 0) {
-        // El operador ingresó un monto negro explícito
-        console.log(`[SaleService] Utilizando monto_interno explícito: ${monto_interno}`);
-        monto_no_facturado_ars = Math.min(monto_interno, total_real_ars); // No puede ser mayor al total
-        monto_facturado_ars = total_real_ars - monto_no_facturado_ars;
-        porcentaje_split = total_real_ars > 0 ? (monto_facturado_ars / total_real_ars) * 100 : 100;
-      } else {
-        // Fallback al porcentaje configurado en la ficha del cliente
-        porcentaje_split = Number(client.porcentaje_facturacion ?? 100);
-        monto_facturado_ars = total_real_ars * (porcentaje_split / 100);
-        monto_no_facturado_ars = total_real_ars - monto_facturado_ars;
-      }
-      console.log(`[SaleService] monto_interno=${monto_interno}, total_real_ars=${total_real_ars}, monto_facturado=${monto_facturado_ars}, monto_no_facturado=${monto_no_facturado_ars}, split=${porcentaje_split}`);
-
-      const ratio_facturado = total_real_ars > 0 ? monto_facturado_ars / total_real_ars : 1;
-      const subtotal_ars = total_subtotal_ars * ratio_facturado;
-      const iva_ars = total_iva_ars * ratio_facturado;
-
-      const sale = await tx.sale.create({
-        data: {
-          client_id,
-          total_real_ars,
-          cotizacion_dolar_usada: cotizacion,
-          monto_facturado_ars,
-          monto_no_facturado_ars,
-          porcentaje_split,
-          subtotal_ars,
-          iva_ars,
-          tipo_comprobante,
-          fecha_vto_pago: fecha_vto_pago ? new Date(fecha_vto_pago) : undefined,
-          estado_factura: 'PENDIENTE',
-          items: {
-            create: saleItemsData
-          }
-        },
-        include: {
-          client: true,
-          items: true
-        }
+      saleItemsData.push({
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        precio_unitario_ars: precioUnitarioArs, 
+        precio_unitario_usd: item.precio_unitario_usd, 
+        iva_tasa: item.iva_tasa,
+        iva_importe_ars: iva_item
       });
+    }
 
-      // NOTA: El saldo del cliente NO se impacta al crear la venta en estado PENDIENTE.
-      // El descuento se realiza únicamente en processBilling() cuando la venta
-      // pasa a FACTURADO o REMITO. Así se evita el doble descuento.
+    let monto_no_facturado_ars: number;
+    let monto_facturado_ars: number;
+    let porcentaje_split: number;
 
-      return sale;
+    if (tipo_comprobante === 'Remito') {
+      monto_facturado_ars = 0;
+      monto_no_facturado_ars = total_real_ars;
+      porcentaje_split = 0;
+    } else if (monto_interno !== undefined && monto_interno >= 0) {
+      monto_no_facturado_ars = Math.min(Number(monto_interno), total_subtotal_ars);
+      const neto_facturado = Math.max(0, total_subtotal_ars - monto_no_facturado_ars);
+      porcentaje_split = total_subtotal_ars > 0 ? (neto_facturado / total_subtotal_ars) * 100 : 100;
+      monto_facturado_ars = total_real_ars - monto_no_facturado_ars;
+    } else {
+      porcentaje_split = Number(client.porcentaje_facturacion ?? 100);
+      monto_facturado_ars = total_real_ars * (porcentaje_split / 100);
+      monto_no_facturado_ars = total_real_ars - monto_facturado_ars;
+    }
+
+    console.log(`[SaleService.create] Creando venta inicial: total_subtotal=${total_subtotal_ars}, monto_interno=${monto_interno}, split=${porcentaje_split}`);
+
+    const initialSale = await prisma.sale.create({
+      data: {
+        client_id,
+        total_real_ars,
+        cotizacion_dolar_usada: cotizacion,
+        monto_facturado_ars,
+        monto_no_facturado_ars,
+        porcentaje_split,
+        subtotal_ars: total_subtotal_ars,
+        iva_ars: total_iva_ars,
+        tipo_comprobante,
+        fecha_vto_pago: fecha_vto_pago ? new Date(fecha_vto_pago) : undefined,
+        estado_factura: 'PENDIENTE',
+        items: {
+          create: saleItemsData
+        }
+      },
+      include: {
+        client: true,
+        items: true
+      }
     });
+
+    // Emisión inmediata de un tirón (ARCA o REMITO)
+    const billingMode = (tipo_comprobante === 'Remito') ? 'REMITO' : 'ARCA';
+    try {
+      const billedSale = await SaleService.processBilling(
+        initialSale.id,
+        billingMode,
+        true, // impactBalance
+        undefined, // customPrices
+        cotizacion,
+        Number(data.percepciones_iibb_ars || 0),
+        Number(data.percepciones_iva_ars || 0),
+        monto_interno
+      );
+      return billedSale;
+    } catch (billingError: any) {
+      console.error('[SaleService] Error en emisión de comprobante:', billingError);
+      // Eliminar el comprobante inicial para no dejar ventas huérfanas si AFIP rechaza
+      await prisma.saleItem.deleteMany({ where: { sale_id: initialSale.id } });
+      await prisma.sale.delete({ where: { id: initialSale.id } });
+      throw billingError;
+    }
   }
 
   /**

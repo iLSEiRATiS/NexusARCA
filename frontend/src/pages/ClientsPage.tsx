@@ -9,10 +9,11 @@ import { Plus, Search } from 'lucide-react';
 
 import { ClientFormModal } from '../components/clients/ClientFormModal';
 import { ClientBalanceModal } from '../components/clients/ClientBalanceModal';
-import { ClientPaymentModal } from '../components/clients/ClientPaymentModal';
+import { ClientPaymentModal, type PaymentDataState } from '../components/clients/ClientPaymentModal';
 import { ClientDetailModal } from '../components/clients/ClientDetailModal';
 import { ClientsTable } from '../components/clients/ClientsTable';
 import { processClientLedger, getDocumentClassification } from '../utils/accountLedger';
+import { getLocalDateString, parseArgNumber } from '../utils/format';
 import { usePrivacy } from '../context/PrivacyContext';
 
 const ClientsPage = () => {
@@ -32,12 +33,15 @@ const ClientsPage = () => {
   const [selectedClientForEdit, setSelectedClientForEdit] = useState<Client | null>(null);
 
   // Estado para modal de cobro
-  const [paymentData, setPaymentData] = useState({
+  const [paymentData, setPaymentData] = useState<PaymentDataState>({
     monto: '' as number | string,
     metodo: 'EFECTIVO',
     referencia: '',
     imputacion: 'MIXTO',
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getLocalDateString(),
+    nro_cheque: '',
+    fecha_vto_cheque: '',
+    caja: '',
   });
 
   // Modal confirmación eliminar
@@ -135,7 +139,10 @@ const ClientsPage = () => {
         metodo: 'EFECTIVO',
         referencia: '',
         imputacion: isManagementUnlocked ? 'MIXTO' : 'BLANCO',
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: getLocalDateString(),
+        nro_cheque: '',
+        fecha_vto_cheque: '',
+        caja: '',
       });
       toast.success('Cobro registrado exitosamente');
     },
@@ -204,7 +211,10 @@ const ClientsPage = () => {
       metodo: 'EFECTIVO',
       referencia: '',
       imputacion: isManagementUnlocked ? 'MIXTO' : 'BLANCO',
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getLocalDateString(),
+      nro_cheque: '',
+      fecha_vto_cheque: '',
+      caja: '',
     });
     setIsPaymentModalOpen(true);
     setIsDetailsModalOpen(false);
@@ -215,7 +225,6 @@ const ClientsPage = () => {
   };
 
   const handleOpenBalance = (client: Client) => {
-    if (!isManagementUnlocked) return;
     setSelectedClient(client);
     setIsBalanceModalOpen(true);
     setIsDetailsModalOpen(false);
@@ -244,7 +253,10 @@ const ClientsPage = () => {
       metodo: 'EFECTIVO',
       referencia: referencia,
       imputacion: imputacion,
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getLocalDateString(),
+      nro_cheque: '',
+      fecha_vto_cheque: '',
+      caja: '',
     });
   };
 
@@ -257,7 +269,7 @@ const ClientsPage = () => {
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const monto = Number(paymentData.monto);
+    const monto = parseArgNumber(paymentData.monto);
     if (!selectedClient?.id) {
       toast.error('No hay cliente seleccionado');
       return;

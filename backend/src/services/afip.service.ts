@@ -268,10 +268,29 @@ export class AfipService {
       const result = await this.afip.electronicBillingService.createVoucher(data);
       console.log('RAW AFIP RESULT:', JSON.stringify(result, null, 2));
 
-      // Si AFIP devuelve observaciones (rechazo lógico), extraer el mensaje
-      if (!result.cae && (result.observaciones || (result.response && result.response.Errors))) {
-         const errorMsgs = result.observaciones || result.response.Errors;
-         throw new AppError(`Rechazado por AFIP: ${JSON.stringify(errorMsgs)}`, 400);
+      // Si AFIP rechazó el comprobante o no devolvió CAE:
+      if (!result.cae) {
+        // 1. Observaciones en el detalle del comprobante (rechazo de AFIP)
+        const detResp = result.response?.FeDetResp?.FECAEDetResponse?.[0];
+        const detObs = detResp?.Observaciones?.Obs;
+        if (detObs) {
+          const obsList = Array.isArray(detObs) ? detObs : [detObs];
+          const msgs = obsList.map((o: any) => `${o.Code ? `[Código ${o.Code}] ` : ''}${o.Msg || JSON.stringify(o)}`.trim()).join(' | ');
+          throw new AppError(`Rechazado por AFIP: ${msgs}`, 400);
+        }
+
+        // 2. Errores generales en cabecera
+        if (result.response?.Errors?.Err) {
+          const errList = Array.isArray(result.response.Errors.Err) ? result.response.Errors.Err : [result.response.Errors.Err];
+          const msgs = errList.map((e: any) => `${e.Code ? `[Código ${e.Code}] ` : ''}${e.Msg || JSON.stringify(e)}`.trim()).join(' | ');
+          throw new AppError(`Rechazado por AFIP: ${msgs}`, 400);
+        }
+
+        if (result.observaciones) {
+          throw new AppError(`Rechazado por AFIP: ${JSON.stringify(result.observaciones)}`, 400);
+        }
+
+        throw new AppError('AFIP rechazó el comprobante y no devolvió número de CAE.', 400);
       }
 
       // Format YYYYMMDD to YYYY-MM-DD

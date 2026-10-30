@@ -1,14 +1,17 @@
 import React from 'react';
 import type { Client } from '../../services/clientService';
-import { DollarSign, X, CheckCircle2, Calendar, FileText } from 'lucide-react';
+import { DollarSign, X, CheckCircle2, Calendar, FileText, CreditCard, Briefcase } from 'lucide-react';
 import { usePrivacy } from '../../context/PrivacyContext';
 
-interface PaymentDataState {
+export interface PaymentDataState {
   monto: number | string;
   metodo: string;
   referencia: string;
   imputacion: string;
   fecha: string;
+  nro_cheque?: string;
+  fecha_vto_cheque?: string;
+  caja?: string;
 }
 
 interface ClientPaymentModalProps {
@@ -41,6 +44,8 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
   const deudaTotal = Math.abs(Number(client.saldo_deuda || 0));
   const deudaInterno = Math.abs(Number(client.saldo_interno || 0));
   const saldoFiscalPendiente = Math.abs(Number(client.saldo_blanco || 0));
+
+  const isCheque = paymentData.metodo === 'CHEQUE' || paymentData.metodo === 'CHEQUE_ELECTRONICO';
 
   // En Modo Fiscal Oficial, sólo se muestran deudas fiscales
   const visibleDebts = isManagementUnlocked
@@ -139,7 +144,7 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
         {/* Monto a cobrar */}
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-            Monto a Cobrar (ARS)
+            {isCheque ? 'Monto del Cheque / Cobro (ARS)' : 'Monto a Cobrar (ARS)'}
           </label>
           <input
             type="text"
@@ -159,12 +164,33 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
             </label>
             <select
               value={paymentData.metodo}
-              onChange={(e) => setPaymentData({ ...paymentData, metodo: e.target.value })}
+              onChange={(e) => {
+                const newMetodo = e.target.value;
+                setPaymentData((prev) => {
+                  let newCaja = prev.caja;
+                  let newVto = prev.fecha_vto_cheque;
+                  if (newMetodo === 'CHEQUE' && !newCaja) {
+                    newCaja = 'Cartera de Cheques';
+                  } else if (newMetodo === 'CHEQUE_ELECTRONICO' && (!newCaja || newCaja === 'Cartera de Cheques')) {
+                    newCaja = 'Custodia E-Cheq';
+                  }
+                  if ((newMetodo === 'CHEQUE' || newMetodo === 'CHEQUE_ELECTRONICO') && !newVto) {
+                    newVto = prev.fecha;
+                  }
+                  return {
+                    ...prev,
+                    metodo: newMetodo,
+                    caja: newCaja,
+                    fecha_vto_cheque: newVto,
+                  };
+                });
+              }}
               className="w-full bg-white border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs cursor-pointer"
             >
               <option value="EFECTIVO">Efectivo</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="CHEQUE">Cheque</option>
+              <option value="TRANSFERENCIA">Transferencia Bancaria</option>
+              <option value="CHEQUE">Cheque Físico</option>
+              <option value="CHEQUE_ELECTRONICO">Cheque Electrónico (E-Cheq)</option>
             </select>
           </div>
           <div>
@@ -197,36 +223,148 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
           </div>
         </div>
 
-        {/* N° Comprobante y Fecha */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <FileText size={13} className="text-slate-400" />
-              N° Comprobante / Recibo / Ref
-            </label>
-            <input
-              type="text"
-              value={paymentData.referencia}
-              onChange={(e) => setPaymentData({ ...paymentData, referencia: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
-              placeholder="Ej: Transf. 98124 / Recibo 001"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">Identificador de la transferencia, cheque o recibo</p>
+        {/* ── SECCIÓN ESPECÍFICA PARA CHEQUES (FÍSICO O ELECTRÓNICO) ── */}
+        {isCheque && (
+          <div className="p-5 bg-amber-50/80 border-2 border-amber-300 rounded-sm space-y-4 animate-fade-in shadow-xs">
+            <div className="flex items-center justify-between border-b border-amber-200 pb-2.5">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-2">
+                <CreditCard size={15} className="text-amber-700" />
+                {paymentData.metodo === 'CHEQUE_ELECTRONICO'
+                  ? 'Datos del Cheque Electrónico (E-Cheq)'
+                  : 'Datos del Cheque Físico'}
+              </span>
+              <span className="text-[10px] font-black text-amber-900 uppercase bg-amber-200 border border-amber-300 px-2 py-0.5 rounded">
+                Registro de Valores
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Número de Cheque */}
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <FileText size={13} className="text-amber-700" />
+                  Número de Cheque {paymentData.metodo === 'CHEQUE_ELECTRONICO' ? 'Electrónico' : ''} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required={isCheque}
+                  value={paymentData.nro_cheque || ''}
+                  onChange={(e) => setPaymentData({ ...paymentData, nro_cheque: e.target.value })}
+                  className="w-full bg-white border border-amber-300 focus:border-amber-600 rounded-none px-3 py-2.5 font-bold text-slate-900 outline-none text-xs"
+                  placeholder="Ej: 00489120"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Número identificatorio del cheque o E-Cheq</p>
+              </div>
+
+              {/* Fecha de Vencimiento / Cobro */}
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Calendar size={13} className="text-amber-700" />
+                  Fecha de Vencimiento / Cobro <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required={isCheque}
+                  value={paymentData.fecha_vto_cheque || ''}
+                  onChange={(e) => setPaymentData({ ...paymentData, fecha_vto_cheque: e.target.value })}
+                  className="w-full bg-white border border-amber-300 focus:border-amber-600 rounded-none px-3 py-2.5 font-bold text-slate-900 outline-none text-xs"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Fecha a partir de la cual el cheque es cobrable/depositado</p>
+              </div>
+
+              {/* Caja Destino */}
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Briefcase size={13} className="text-amber-700" />
+                  Caja Destino <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  list="cajas-cheques-list"
+                  required={isCheque}
+                  value={paymentData.caja || ''}
+                  onChange={(e) => setPaymentData({ ...paymentData, caja: e.target.value })}
+                  className="w-full bg-white border border-amber-300 focus:border-amber-600 rounded-none px-3 py-2.5 font-bold text-slate-900 outline-none text-xs"
+                  placeholder={paymentData.metodo === 'CHEQUE_ELECTRONICO' ? 'Ej: Custodia E-Cheq / Galicia' : 'Ej: Cartera de Cheques / Caja Principal'}
+                />
+                <datalist id="cajas-cheques-list">
+                  <option value="Cartera de Cheques" />
+                  <option value="Custodia E-Cheq" />
+                  <option value="Caja Principal" />
+                  <option value="Banco Galicia" />
+                  <option value="Banco Santander" />
+                  <option value="Banco Nación" />
+                  <option value="Caja Chica" />
+                </datalist>
+                <p className="text-[10px] text-slate-500 mt-1">Caja o custodia bancaria donde queda asentado el valor</p>
+              </div>
+
+              {/* Fecha de Recepción del Cheque */}
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Calendar size={13} className="text-amber-700" />
+                  Fecha de Recepción del Cheque
+                </label>
+                <input
+                  type="date"
+                  value={paymentData.fecha}
+                  onChange={(e) => setPaymentData({ ...paymentData, fecha: e.target.value })}
+                  className="w-full bg-white border border-amber-300 focus:border-amber-600 rounded-none px-3 py-2.5 font-bold text-slate-900 outline-none text-xs"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Fecha en la que ingresó el valor al negocio</p>
+              </div>
+            </div>
+
+            {/* Referencia o Concepto Adicional */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <FileText size={13} className="text-amber-700" />
+                Referencia / Concepto del Pago
+              </label>
+              <input
+                type="text"
+                value={paymentData.referencia}
+                onChange={(e) => setPaymentData({ ...paymentData, referencia: e.target.value })}
+                className="w-full bg-white border border-amber-300 focus:border-amber-600 rounded-none px-3 py-2.5 font-bold text-slate-900 outline-none text-xs"
+                placeholder="Ej: Cobro Factura A N° 00000036 / Entrega cliente"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">Comprobante o detalle de imputación del cobro</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <Calendar size={13} className="text-slate-400" />
-              Fecha del Cobro
-            </label>
-            <input
-              type="date"
-              value={paymentData.fecha}
-              onChange={(e) => setPaymentData({ ...paymentData, fecha: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">Fecha en que fue acreditado el pago</p>
+        )}
+
+        {/* ── CAMPOS ESTÁNDAR PARA EFECTIVO / TRANSFERENCIA ── */}
+        {!isCheque && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <FileText size={13} className="text-slate-400" />
+                N° Comprobante / Recibo / Ref
+              </label>
+              <input
+                type="text"
+                value={paymentData.referencia}
+                onChange={(e) => setPaymentData({ ...paymentData, referencia: e.target.value })}
+                className="w-full bg-white border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                placeholder="Ej: Transf. 98124 / Recibo 001"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Identificador de la transferencia, recibo o comprobante</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Calendar size={13} className="text-slate-400" />
+                Fecha del Cobro
+              </label>
+              <input
+                type="date"
+                value={paymentData.fecha}
+                onChange={(e) => setPaymentData({ ...paymentData, fecha: e.target.value })}
+                className="w-full bg-white border border-slate-200 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Fecha en que fue acreditado el pago</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Submit */}
         <button

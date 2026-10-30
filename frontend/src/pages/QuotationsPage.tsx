@@ -246,7 +246,7 @@ const QuotationsPage = () => {
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest">ID / Validez</th>
+                <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest">ID / Fecha</th>
                 <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest">Cliente</th>
                 <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-center">Total Estimado</th>
                 <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-center">Estado</th>
@@ -259,7 +259,7 @@ const QuotationsPage = () => {
                   <td className="px-6 py-5">
                     <div className="font-mono font-black text-slate-900 text-sm">#{String(q.id).padStart(5, '0')}</div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5 flex items-center gap-1">
-                      <Calendar size={10} /> {new Date(q.fecha).toLocaleDateString('es-AR')} · Validez {q.validez_dias}d
+                      <Calendar size={10} /> {new Date(q.fecha).toLocaleDateString('es-AR')}
                     </div>
                   </td>
                   <td className="px-6 py-5">
@@ -351,7 +351,7 @@ const QuotationsPage = () => {
                     {q.client?.razon_social}
                   </p>
                   <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                    {new Date(q.fecha).toLocaleDateString('es-AR')} · Validez {q.validez_dias} días
+                    {new Date(q.fecha).toLocaleDateString('es-AR')}
                   </p>
                 </div>
                 <div className="text-right">

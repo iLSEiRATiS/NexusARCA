@@ -83,13 +83,30 @@ const NewSalePage = () => {
 
   // Totals calculations
   const totalUsd = cart.reduce((acc, item) => acc + item.subtotal_usd, 0);
-  const totalArs = totalUsd * cotizacion;
+  const totalArs = totalUsd * cotizacion; // Subtotal neto original
   const totalIvaArs = cart.reduce((acc, item) => acc + (item.subtotal_usd * cotizacion * (parseArgNumber(item.iva_tasa) / 100)), 0);
-  const totalFactura = totalArs + totalIvaArs + parseArgNumber(percepcionIIBB) + parseArgNumber(percepcionIVA);
+  const percepcionesTotal = parseArgNumber(percepcionIIBB) + parseArgNumber(percepcionIVA);
+
+  // Cobro interno / Split calculation (descontado del subtotal neto original)
+  const cobroInternoNum = parseArgNumber(cobroInterno);
+  const tieneCobroInterno = cobroInternoNum > 0 && tipoComprobante !== 'Remito';
+
+  // Si hay cobro interno, se descuenta del NETO original
+  const netoInterno = tieneCobroInterno ? Math.min(cobroInternoNum, totalArs) : 0;
+  const netoOficial = tieneCobroInterno ? Math.max(0, totalArs - netoInterno) : totalArs;
+  const ratioOficial = (totalArs > 0 && tieneCobroInterno) ? (netoOficial / totalArs) : 1;
+  const ivaOficial = tipoComprobante === 'Remito' ? 0 : (totalIvaArs * ratioOficial);
+
+  // Factura Oficial ARCA (lo que va a AFIP y CAE)
+  const totalFacturaOficial = netoOficial + ivaOficial + percepcionesTotal;
+  // Factura Remito / Gestión Comercial (lo que queda interno sin IVA)
+  const totalRemitoInterno = netoInterno;
+  // Total real de la operación (suma de oficial + interno)
+  const totalOperacion = totalFacturaOficial + totalRemitoInterno;
 
   // Warning de tope para Consumidor Final sin identificar
   const isConsumidorFinalSinCuit = selectedClient?.condicion_iva === 'CONSUMIDOR_FINAL' && (!selectedClient.cuit || selectedClient.cuit === '0');
-  const superaTopeCF = isConsumidorFinalSinCuit && totalFactura >= 10000000;
+  const superaTopeCF = isConsumidorFinalSinCuit && totalFacturaOficial >= 10000000;
   const cuitNoRegistrado = clientCuit.length >= 5 && !selectedClient;
 
   const updateItem = (id: string, field: keyof CartItem, value: any) => {
@@ -176,18 +193,27 @@ const NewSalePage = () => {
     mutationFn: async (payload: any) => {
       return api.post('/sales', payload);
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
-      toast.success('OPERACIÓN REGISTRADA EXITOSAMENTE');
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      const sale = res.data;
+      if (sale.cae) {
+        toast.success(`FACTURA ${sale.tipo_comprobante} N° ${sale.nro_comprobante} AUTORIZADA POR ARCA (CAE: ${sale.cae})`, { duration: 6000 });
+      } else {
+        toast.success('OPERACIÓN REGISTRADA EXITOSAMENTE');
+      }
+      if (sale.remito_interno) {
+        toast.info(`REMITO / GESTIÓN COMERCIAL N° ${sale.remito_interno.nro_comprobante} GENERADO POR $${Number(sale.remito_interno.total_real_ars).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, { duration: 6000 });
+      }
       navigate('/facturacion');
     },
     onError: (err: any) => {
-      toast.error('ERROR: ' + (err.response?.data?.message || err.message));
+      toast.error('ERROR AL EMITIR: ' + (err.response?.data?.message || err.message), { duration: 8000 });
     }
   });
 
   const handleConfirmSale = () => {
-    if (window.confirm('¿CONFIRMAR REGISTRO DE OPERACIÓN?')) {
+    if (window.confirm('¿CONFIRMAR REGISTRO Y EMISIÓN DE OPERACIÓN?')) {
       const payload = {
         cuit: selectedClient ? selectedClient.cuit : clientCuit.replace(/[-\s.]/g, ''),
         client_id: selectedClient?.id,
@@ -383,21 +409,43 @@ const NewSalePage = () => {
                     <span className="text-slate-500">Subtotal Neto ARS</span>
                     <span className="font-mono text-slate-900">${totalArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
+                  {tieneCobroInterno && (
+                    <>
+                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50/80 px-2.5 py-1.5 rounded">
+                        <span>Cobro Interno (Remito)</span>
+                        <span className="font-mono">-${totalRemitoInterno.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50/80 px-2.5 py-1.5 rounded">
+                        <span>Neto Facturable ARCA</span>
+                        <span className="font-mono">${netoOficial.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider">
-                    <span className="text-slate-500">Total IVA ARS</span>
-                    <span className="font-mono text-slate-900">${totalIvaArs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-slate-500">Total IVA ARS {tieneCobroInterno ? '(Oficial)' : ''}</span>
+                    <span className="font-mono text-slate-900">${ivaOficial.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider">
                     <span className="text-slate-500">Percepciones</span>
-                    <span className="font-mono text-slate-900">${(parseArgNumber(percepcionIIBB) + parseArgNumber(percepcionIVA)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="font-mono text-slate-900">${percepcionesTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-200 flex justify-between items-center">
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-900">Total Factura</span>
-                  <span className="text-2xl font-black font-mono text-blue-600 tracking-tight">
-                    ${totalFactura.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+                <div className="pt-4 mt-4 border-t border-slate-200 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-900">
+                      {tieneCobroInterno ? 'Oficial ARCA c/IVA' : 'Total Factura'}
+                    </span>
+                    <span className="text-2xl font-black font-mono text-blue-600 tracking-tight">
+                      ${totalFacturaOficial.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  {tieneCobroInterno && (
+                    <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-slate-500 pt-1.5 border-t border-dashed border-slate-200">
+                      <span>Total Operación (+ Remito)</span>
+                      <span className="font-mono font-black text-slate-900">${totalOperacion.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
                 </div>
 
                 {superaTopeCF && (
@@ -468,13 +516,19 @@ const NewSalePage = () => {
                   />
                   <div className="mt-2.5 space-y-1">
                     <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider">
-                      <span className="text-slate-400">Oficial AFIP:</span>
-                      <span className="text-emerald-400 font-mono">${Math.max(0, totalArs - parseArgNumber(cobroInterno)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-slate-400">Oficial AFIP (c/IVA):</span>
+                      <span className="text-emerald-400 font-mono">${totalFacturaOficial.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider">
-                      <span className="text-slate-400">Interno:</span>
-                      <span className="text-amber-400 font-mono">${parseArgNumber(cobroInterno).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-slate-400">Remito Interno (s/IVA):</span>
+                      <span className="text-amber-400 font-mono">${totalRemitoInterno.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
+                    {tieneCobroInterno && (
+                      <div className="flex justify-between text-[9px] font-bold uppercase tracking-wider pt-1.5 border-t border-slate-800">
+                        <span className="text-slate-300">Total Operación:</span>
+                        <span className="text-white font-mono font-bold">${totalOperacion.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

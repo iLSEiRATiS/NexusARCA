@@ -129,15 +129,18 @@ model SaleItem {
 }
 
 model Payment {
-  id          Int        @id @default(autoincrement())
-  client      Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
-  client_id   Int
-  monto_ars   Decimal    
-  tipo        String     @default("MIXTO") 
-  metodo_pago String     @default("TRANSFERENCIA")
-  referencia  String?    
-  fecha       DateTime   @default(now())
-  createdAt   DateTime   @default(now())
+  id               Int        @id @default(autoincrement())
+  client           Client     @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  client_id        Int
+  monto_ars        Decimal    
+  tipo             String     @default("MIXTO") 
+  metodo_pago      String     @default("TRANSFERENCIA")
+  referencia       String?    
+  nro_cheque       String?
+  fecha_vto_cheque DateTime?
+  caja             String?
+  fecha            DateTime   @default(now())
+  createdAt        DateTime   @default(now())
 }
 
 

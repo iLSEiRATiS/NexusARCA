@@ -13,13 +13,13 @@ export class ClientService {
       where: { id },
       include: {
         sales: { 
-          take: 20, 
+          take: 100, 
           orderBy: { fecha: 'desc' },
           include: { 
             items: true
           }
         },
-        payments: { take: 20, orderBy: { fecha: 'desc' } }
+        payments: { take: 100, orderBy: { fecha: 'desc' } }
       }
     });
   }
@@ -194,7 +194,19 @@ export class ClientService {
     });
   }
 
-  static async registerPayment(clientId: number, montoArs: number, tipo: 'BLANCO' | 'INTERNO' | 'MIXTO' = 'MIXTO', metodo: string = 'TRANSFERENCIA', referencia: string = '', fecha?: Date | string) {
+  static async registerPayment(
+    clientId: number, 
+    montoArs: number, 
+    tipo: 'BLANCO' | 'INTERNO' | 'MIXTO' = 'MIXTO', 
+    metodo: string = 'TRANSFERENCIA', 
+    referencia: string = '', 
+    fecha?: Date | string,
+    extraData?: {
+      nro_cheque?: string;
+      fecha_vto_cheque?: Date | string;
+      caja?: string;
+    }
+  ) {
     if (isNaN(montoArs) || montoArs <= 0) {
       throw new AppError('El monto debe ser un número positivo', 400);
     }
@@ -204,6 +216,14 @@ export class ClientService {
       fechaPago = new Date(String(fecha).includes('T') ? String(fecha) : `${fecha}T12:00:00`);
       if (isNaN(fechaPago.getTime())) {
         fechaPago = new Date();
+      }
+    }
+
+    let vtoCheque: Date | null = null;
+    if (extraData?.fecha_vto_cheque) {
+      const parsedVto = new Date(String(extraData.fecha_vto_cheque).includes('T') ? String(extraData.fecha_vto_cheque) : `${extraData.fecha_vto_cheque}T12:00:00`);
+      if (!isNaN(parsedVto.getTime())) {
+        vtoCheque = parsedVto;
       }
     }
 
@@ -235,6 +255,25 @@ export class ClientService {
         }
       }
 
+      // Si es cheque y tiene datos, formatear referencia informativa
+      let refFinal = referencia ? referencia.trim() : '';
+      if (['CHEQUE', 'CHEQUE_ELECTRONICO'].includes(metodo)) {
+        const chequeLabel = metodo === 'CHEQUE_ELECTRONICO' ? 'E-Cheq' : 'Cheque';
+        const partes: string[] = [];
+        if (extraData?.nro_cheque) partes.push(`N° ${extraData.nro_cheque}`);
+        if (vtoCheque) partes.push(`Vto: ${vtoCheque.toLocaleDateString('es-AR')}`);
+        if (extraData?.caja) partes.push(`Caja: ${extraData.caja}`);
+        
+        if (partes.length > 0) {
+          const infoExtra = `[${chequeLabel} ${partes.join(' • ')}]`;
+          if (!refFinal) {
+            refFinal = infoExtra;
+          } else if (!refFinal.includes(extraData?.nro_cheque || '___')) {
+            refFinal = `${refFinal} ${infoExtra}`;
+          }
+        }
+      }
+
       // Crear el registro de pago
       const payment = await tx.payment.create({
         data: {
@@ -242,7 +281,10 @@ export class ClientService {
           monto_ars: montoArs,
           tipo: tipo,
           metodo_pago: metodo,
-          referencia: referencia,
+          referencia: refFinal,
+          nro_cheque: extraData?.nro_cheque || null,
+          fecha_vto_cheque: vtoCheque,
+          caja: extraData?.caja || null,
           fecha: fechaPago
         }
       });

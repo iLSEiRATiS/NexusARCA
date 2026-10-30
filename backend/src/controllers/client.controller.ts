@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { ClientService } from '../services/client.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../utils/AppError';
+import { parseArgNumber } from '../utils/format';
 
 export class ClientController {
   static getAll = asyncHandler(async (req: Request, res: Response) => {
@@ -51,19 +52,24 @@ export class ClientController {
 
   static registerPayment = asyncHandler(async (req: Request, res: Response) => {
     // Aceptamos tanto monto como monto_ars, e imputacion como tipo
-    const monto = req.body.monto || req.body.monto_ars;
+    const rawMonto = req.body.monto !== undefined ? req.body.monto : req.body.monto_ars;
+    const monto = parseArgNumber(rawMonto);
     const tipo = req.body.imputacion || req.body.tipo || 'MIXTO';
     const metodo = req.body.metodo || 'EFECTIVO';
     const referencia = req.body.referencia || '';
     const fecha = req.body.fecha || undefined;
+    const nro_cheque = req.body.nro_cheque || undefined;
+    const fecha_vto_cheque = req.body.fecha_vto_cheque || undefined;
+    const caja = req.body.caja || undefined;
     
     const payment = await ClientService.registerPayment(
       Number(req.params.id), 
-      Number(monto), 
+      monto, 
       tipo, 
       metodo,
       referencia,
-      fecha
+      fecha,
+      { nro_cheque, fecha_vto_cheque, caja }
     );
     res.status(201).json(payment);
   });

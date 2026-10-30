@@ -107,15 +107,34 @@ export function getDocumentClassification(item: any): DocumentClassification {
   // Cobro recibido
   const isBlanco = item.tipo === 'BLANCO';
   const isInterno = item.tipo === 'INTERNO';
-  const title = ref || `Cobro Recibido (${item.metodo_pago || 'Pago'})`;
+  const metodoRaw = item.metodo_pago || 'EFECTIVO';
+  const metodoLabel = metodoRaw === 'CHEQUE_ELECTRONICO'
+    ? 'Cheque Electrónico (E-Cheq)'
+    : metodoRaw === 'CHEQUE'
+    ? 'Cheque Físico'
+    : metodoRaw === 'TRANSFERENCIA'
+    ? 'Transferencia Bancaria'
+    : metodoRaw;
+
+  const title = ref || `Cobro Recibido (${metodoLabel})`;
+  let subtitle = `Cobro en ${metodoLabel}`;
+  if (item.nro_cheque) {
+    subtitle += ` • N° ${item.nro_cheque}`;
+  }
+  if (item.fecha_vto_cheque) {
+    subtitle += ` • Vto: ${new Date(item.fecha_vto_cheque).toLocaleDateString('es-AR')}`;
+  }
+  if (item.caja) {
+    subtitle += ` • Caja: ${item.caja}`;
+  }
 
   return {
     title,
     caracter: isBlanco ? 'FISCAL' : isInterno ? 'INTERNO' : 'MIXTO',
     caracterLabel: isBlanco ? 'FISCAL (BLANCO)' : isInterno ? 'INTERNO' : 'MIXTO',
-    subtitle: `Cobro en ${item.metodo_pago || 'Efectivo'}`,
+    subtitle,
     cae: null,
-    nroComprobante: null,
+    nroComprobante: item.nro_cheque ? `Cheque N° ${item.nro_cheque}` : null,
   };
 }
 
@@ -168,142 +187,227 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
     return item.type === 'cobro' && Number(item.monto_ars) > 0;
   });
 
-  const paidDebts: any[] = [];
-  const pendingDebts: any[] = [];
-  const usedPaymentIds = new Set<number>();
-  const unallocatedPayments: any[] = [];
-  const remainingDebts: any[] = [];
+  interface TrackedDebt {
+    rawItem: any;
+    isVenta: boolean;
+    totalOriginal: number;
+    saldoPendiente: number;
+    totalPagado: number;
+    pagosAplicados: Array<{ payment: any; monto: number }>;
+  }
 
-  // Paso 1: Matching directo por referencia (ej. "Cobro Factura A 00000024", "DIF-32", etc.)
-  debtList.forEach((debt) => {
-    const isVenta = debt.type === 'venta';
-    let matchedPayment: any = null;
-
-    for (const p of paymentList) {
-      if (usedPaymentIds.has(p.id)) continue;
-      const ref = (p.referencia || '').toLowerCase().trim();
-      if (!ref) continue;
-
-      if (isVenta) {
-        const idStr = String(debt.id);
-        const padId = idStr.padStart(5, '0');
-        const nroComp = debt.nro_comprobante ? String(debt.nro_comprobante).toLowerCase().trim() : '';
-
-        if (
-          ref.includes(`#${padId}`) ||
-          ref.includes(`#${idStr}`) ||
-          (nroComp && ref.includes(nroComp))
-        ) {
-          matchedPayment = p;
-          usedPaymentIds.add(p.id);
-          break;
-        }
-      } else {
-        const debtRef = (debt.referencia || '').toLowerCase().trim();
-        const numMatch = debtRef.match(/\d+/);
-
-        if (numMatch && numMatch[0].length >= 2 && ref.includes(numMatch[0])) {
-          matchedPayment = p;
-          usedPaymentIds.add(p.id);
-          break;
-        }
-
-        const cleanRef = debtRef.replace(/ajuste|saldo/gi, '').trim();
-        if (cleanRef.length >= 3 && ref.includes(cleanRef)) {
-          matchedPayment = p;
-          usedPaymentIds.add(p.id);
-          break;
-        }
-      }
-    }
-
-    if (matchedPayment) {
-      paidDebts.push({
-        ...debt,
-        isPaid: true,
-        paymentInfo: matchedPayment,
-        classification: debt.classification || getDocumentClassification(debt),
-      });
-    } else {
-      remainingDebts.push(debt);
-    }
+  const debts: TrackedDebt[] = debtList.map((item) => {
+    const isVenta = item.type === 'venta';
+    const totalOriginal = isVenta ? Number(item.total_real_ars) : Math.abs(Number(item.monto_ars));
+    return {
+      rawItem: item,
+      isVenta,
+      totalOriginal,
+      saldoPendiente: totalOriginal,
+      totalPagado: 0,
+      pagosAplicados: [],
+    };
   });
 
-  // Paso 2: Recolectar pagos que no fueron asignados por referencia específica
-  paymentList.forEach((p) => {
-    if (!usedPaymentIds.has(p.id)) {
-      unallocatedPayments.push({
-        ...p,
-        remainingMonto: Number(p.monto_ars),
-      });
-    }
-  });
+  interface TrackedPayment {
+    rawItem: any;
+    montoOriginal: number;
+    remainingMonto: number;
+    montoAsignado: number;
+  }
 
-  // Paso 3: Aplicación FIFO (los pagos cubren las deudas restantes más antiguas)
-  const debtsByAge = [...remainingDebts].sort(
-    (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
-  );
+  const payments: TrackedPayment[] = paymentList.map((item) => {
+    const montoOriginal = Number(item.monto_ars);
+    return {
+      rawItem: item,
+      montoOriginal,
+      remainingMonto: montoOriginal,
+      montoAsignado: 0,
+    };
+  });
 
   const isClientDebtFree = Number(client?.saldo_deuda || 0) >= 0;
 
-  debtsByAge.forEach((debt) => {
-    const isVenta = debt.type === 'venta';
-    const debtMonto = isVenta ? Number(debt.total_real_ars) : Math.abs(Number(debt.monto_ars));
-    let debtRemaining = debtMonto;
-    let lastPayingPayment: any = null;
+  if (isClientDebtFree) {
+    // Si la cartera del cliente no tiene deuda (saldo >= 0), todas las deudas históricas se consideran totalmente canceladas
+    debts.forEach((d) => {
+      d.saldoPendiente = 0;
+      d.totalPagado = d.totalOriginal;
+      if (payments.length > 0) {
+        d.pagosAplicados.push({ payment: payments[0].rawItem, monto: d.totalOriginal });
+      }
+    });
+    payments.forEach((p) => {
+      p.remainingMonto = 0;
+      p.montoAsignado = p.montoOriginal;
+    });
+  } else {
+    // Paso 1: Matching directo por referencia específica (ej. "Cobro Factura A N° 00000036", "#00036", etc.)
+    debts.forEach((d) => {
+      if (d.saldoPendiente <= 0.01) return;
 
-    if (isClientDebtFree) {
-      // Si el cliente no debe nada en su cuenta, todas las deudas históricas están saldadas
-      debtRemaining = 0;
-      lastPayingPayment = paymentList[0] || null;
-    } else {
-      for (const unalloc of unallocatedPayments) {
-        if (unalloc.remainingMonto <= 0) continue;
-        const deduction = Math.min(debtRemaining, unalloc.remainingMonto);
-        debtRemaining -= deduction;
-        unalloc.remainingMonto -= deduction;
-        lastPayingPayment = unalloc;
-        if (debtRemaining <= 0.01) break;
+      for (const p of payments) {
+        if (p.remainingMonto <= 0.01) continue;
+        const ref = (p.rawItem.referencia || '').toLowerCase().trim();
+        if (!ref) continue;
+
+        let isMatch = false;
+
+        if (d.isVenta) {
+          const idStr = String(d.rawItem.id);
+          const padId = idStr.padStart(5, '0');
+          const nroComp = d.rawItem.nro_comprobante ? String(d.rawItem.nro_comprobante).toLowerCase().trim() : '';
+          const cleanNroComp = nroComp.replace(/^0+/, '');
+
+          if (
+            ref.includes(`#${padId}`) ||
+            ref.includes(`#${idStr}`) ||
+            (nroComp && ref.includes(nroComp)) ||
+            (cleanNroComp && cleanNroComp.length >= 2 && ref.includes(cleanNroComp))
+          ) {
+            isMatch = true;
+          }
+        } else {
+          const debtRef = (d.rawItem.referencia || '').toLowerCase().trim();
+          const numMatch = debtRef.match(/\d+/);
+
+          if (numMatch && numMatch[0].length >= 2 && ref.includes(numMatch[0])) {
+            isMatch = true;
+          } else {
+            const cleanRef = debtRef.replace(/ajuste|saldo/gi, '').trim();
+            if (cleanRef.length >= 3 && ref.includes(cleanRef)) {
+              isMatch = true;
+            }
+          }
+        }
+
+        if (isMatch) {
+          const deduction = Math.min(d.saldoPendiente, p.remainingMonto);
+          if (deduction > 0.001) {
+            d.saldoPendiente -= deduction;
+            d.totalPagado += deduction;
+            p.remainingMonto -= deduction;
+            p.montoAsignado += deduction;
+            d.pagosAplicados.push({ payment: p.rawItem, monto: deduction });
+          }
+          if (d.saldoPendiente <= 0.01) {
+            d.saldoPendiente = 0;
+            break;
+          }
+        }
+      }
+    });
+
+    // Paso 2: Imputación FIFO con pagos que aún tienen remanente sobre las deudas más antiguas
+    const debtsSortedByAge = [...debts].sort(
+      (a, b) => new Date(a.rawItem.fecha).getTime() - new Date(b.rawItem.fecha).getTime()
+    );
+
+    const paymentsSortedByAge = [...payments].sort(
+      (a, b) => new Date(a.rawItem.fecha).getTime() - new Date(b.rawItem.fecha).getTime()
+    );
+
+    for (const p of paymentsSortedByAge) {
+      if (p.remainingMonto <= 0.01) continue;
+
+      for (const d of debtsSortedByAge) {
+        if (d.saldoPendiente <= 0.01) continue;
+
+        const deduction = Math.min(d.saldoPendiente, p.remainingMonto);
+        if (deduction > 0.001) {
+          d.saldoPendiente -= deduction;
+          d.totalPagado += deduction;
+          p.remainingMonto -= deduction;
+          p.montoAsignado += deduction;
+          d.pagosAplicados.push({ payment: p.rawItem, monto: deduction });
+        }
+
+        if (d.saldoPendiente <= 0.01) {
+          d.saldoPendiente = 0;
+        }
+
+        if (p.remainingMonto <= 0.01) {
+          p.remainingMonto = 0;
+          break;
+        }
       }
     }
+  }
 
-    const info = debt.classification || getDocumentClassification(debt);
+  // Paso 3: Clasificación estricta en Pagados vs Pendientes
+  const paidDebts: any[] = [];
+  const pendingDebts: any[] = [];
 
-    if (debtRemaining <= 0.01) {
+  debts.forEach((d) => {
+    const item = d.rawItem;
+    const info = item.classification || getDocumentClassification(item);
+
+    // Solo si el saldo pendiente es 0 (o menos de 5 centavos por redondeos) va a Pagados
+    if (d.saldoPendiente <= 0.05) {
       paidDebts.push({
-        ...debt,
+        ...item,
         isPaid: true,
-        paymentInfo: lastPayingPayment,
+        isPartial: false,
+        totalOriginal: d.totalOriginal,
+        totalPagado: d.totalPagado,
+        saldoPendiente: 0,
+        pagosAplicados: d.pagosAplicados,
+        paymentInfo: d.pagosAplicados[d.pagosAplicados.length - 1]?.payment || null,
         classification: info,
       });
     } else {
+      // Tiene saldo pendiente: PERMANECE EN PENDIENTES DE PAGO CON SUS DATOS COMPLETOS
+      const isPartial = d.totalPagado > 0.05;
       pendingDebts.push({
-        ...debt,
+        ...item,
         isPaid: false,
-        saldoPendiente: debtRemaining,
-        // Campos estandarizados para el modal de cobro y visualización
-        id: isVenta ? `sale-${debt.id}` : `payment-${debt.id}`,
-        rawId: debt.id,
-        label: `[${info.caracterLabel}] ${info.title}`,
+        isPartial: isPartial,
+        totalOriginal: d.totalOriginal,
+        totalPagado: d.totalPagado,
+        saldoPendiente: d.saldoPendiente,
+        pagosAplicados: d.pagosAplicados,
+        // Campos estandarizados para selector de cobro y visualización
+        id: d.isVenta ? `sale-${item.id}` : `payment-${item.id}`,
+        rawId: item.id,
+        label: isPartial
+          ? `[${info.caracterLabel}] ${info.title} (Resta: $${d.saldoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} de $${d.totalOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+          : `[${info.caracterLabel}] ${info.title}`,
         displayTitle: info.title,
         classification: info,
-        monto: debtRemaining,
-        tipo: isVenta
+        monto: d.saldoPendiente, // Resta exacta a cobrar
+        tipo: d.isVenta
           ? info.caracter === 'FISCAL' ? 'BLANCO' : info.caracter === 'INTERNO' ? 'INTERNO' : 'MIXTO'
-          : debt.tipo || 'MIXTO',
-        raw: debt,
+          : item.tipo || 'MIXTO',
+        raw: item,
       });
     }
   });
 
-  // Paso 4: Añadir pagos sueltos a "Pagados" para que el usuario pueda verlos
-  unallocatedPayments.forEach((p) => {
-    paidDebts.push({
-      ...p,
-      isStandalonePayment: true,
-      isPaid: true,
-      classification: p.classification || getDocumentClassification(p),
-    });
+  // Paso 4: Agregar cobros en Pagados
+  // Registramos cobros que no correspondan exclusivamente a comprobantes que ya figuran pagados
+  const fullyPaidSalePaymentIds = new Set<number>();
+  paidDebts.forEach((pd) => {
+    if (pd.type === 'venta' && pd.pagosAplicados) {
+      pd.pagosAplicados.forEach((pa: any) => {
+        if (pa.payment && pa.payment.id) {
+          fullyPaidSalePaymentIds.add(pa.payment.id);
+        }
+      });
+    }
+  });
+
+  payments.forEach((p) => {
+    // Si el cobro tiene saldo sin asignar o fue un cobro parcial, debe verse en la pestaña de Pagados
+    if (!fullyPaidSalePaymentIds.has(p.rawItem.id) || p.remainingMonto > 0.01) {
+      paidDebts.push({
+        ...p.rawItem,
+        isStandalonePayment: true,
+        isPaid: true,
+        montoAsignado: p.montoAsignado,
+        remainingMonto: p.remainingMonto,
+        classification: p.rawItem.classification || getDocumentClassification(p.rawItem),
+      });
+    }
   });
 
   return {

@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import api from './api';
+import { getLocalDateString } from '../utils/format';
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 interface EmisorConfig {
@@ -53,7 +54,7 @@ const CONDICION_IVA_LABELS: Record<string, string> = {
 // ─── GENERADOR DE QR AFIP ─────────────────────────────────────────────────────
 async function generateAfipQR(sale: any, emisor: EmisorConfig): Promise<string> {
   const cbte = CBTE_TIPO_MAP[sale.tipo_comprobante] || { numero: 6, letra: 'B' };
-  const fecha = new Date(sale.fecha || sale.createdAt).toISOString().split('T')[0];
+  const fecha = getLocalDateString(new Date(sale.fecha || sale.createdAt));
   const caeNum = sale.cae ? sale.cae.replace('NC:', '') : '00000000000000';
 
   const qrData = {
@@ -819,7 +820,6 @@ export const generateQuotationPDF = (quotation: any) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.text(`Fecha: ${new Date(quotation.fecha).toLocaleDateString('es-AR')}`, pW - 15, 28, { align: 'right' });
-    doc.text(`Validez: ${quotation.validez_dias} días`, pW - 15, 34, { align: 'right' });
 
     // Client Box
     const rY = 47;
@@ -905,7 +905,7 @@ export const generateQuotationPDF = (quotation: any) => {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(120);
-    doc.text('Este presupuesto tiene carácter informativo. Su validez está sujeta a los días indicados y a la disponibilidad de stock.', pW / 2, footerY + 6, { align: 'center' });
+    doc.text('Este presupuesto tiene carácter informativo y está sujeto a disponibilidad de stock.', pW / 2, footerY + 6, { align: 'center' });
     doc.text('El precio en ARS puede variar según la cotización del dólar al momento de facturación.', pW / 2, footerY + 11, { align: 'center' });
 
     doc.save(`Presupuesto_${String(quotation.id).padStart(6, '0')}.pdf`);

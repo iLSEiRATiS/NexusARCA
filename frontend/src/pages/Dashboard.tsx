@@ -12,6 +12,7 @@ import {
   ShieldCheck, ArrowUpRight, Calculator, Calendar 
 } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
+import { getLocalDateString } from '../utils/format';
 
 const Dashboard = () => {
   const { isManagementUnlocked } = usePrivacy();
@@ -85,11 +86,11 @@ const Dashboard = () => {
   const last7Days = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toISOString().split('T')[0];
+    return getLocalDateString(d);
   }).reverse();
 
   const salesChartData = last7Days.map(dateStr => {
-    const daySales = visibleSales.filter((s: any) => new Date(s.fecha).toISOString().split('T')[0] === dateStr);
+    const daySales = visibleSales.filter((s: any) => getLocalDateString(new Date(s.fecha)) === dateStr);
     const dayTotal = daySales.reduce((acc: number, s: any) => acc + Number(s.total_real_ars), 0);
     const parts = dateStr.split('-');
     return {

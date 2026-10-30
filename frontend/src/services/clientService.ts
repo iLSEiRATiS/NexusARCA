@@ -39,6 +39,9 @@ export interface PaymentPayload {
   referencia?: string;
   imputacion: string;
   fecha?: string;
+  nro_cheque?: string;
+  fecha_vto_cheque?: string;
+  caja?: string;
 }
 
 export const clientService = {

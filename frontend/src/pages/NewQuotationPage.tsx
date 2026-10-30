@@ -4,13 +4,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, 
-  ArrowRight, 
+  ArrowRight,
   Upload, 
   DollarSign, 
   Check, 
   User, 
   ShoppingCart, 
-  Clock, 
   Loader2,
   FileCheck2
 } from 'lucide-react';
@@ -25,10 +24,10 @@ const NewQuotationPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [validezDias, setValidezDias] = useState<number>(15);
+  const validezDias = 0;
 
   const { data: clients } = useQuery({ queryKey: ['clients'], queryFn: clientService.getAll });
   const { data: dolar } = useQuery({ queryKey: ['dolar'], queryFn: currencyService.getDolarOficial });
@@ -164,7 +163,7 @@ const NewQuotationPage = () => {
             Nueva Cotización
           </h1>
           <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">
-            Asistente en 3 pasos para la emisión de presupuestos comerciales
+            Asistente para la emisión de presupuestos comerciales
           </p>
         </div>
 
@@ -172,8 +171,7 @@ const NewQuotationPage = () => {
         <div className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2.5 rounded-sm shadow-sm">
           {[
             { num: 1, label: 'Cliente', icon: User },
-            { num: 2, label: 'Artículos', icon: ShoppingCart },
-            { num: 3, label: 'Validez', icon: Clock }
+            { num: 2, label: 'Artículos y Emisión', icon: ShoppingCart },
           ].map(({ num, label, icon: Icon }) => (
             <div key={num} className="flex items-center gap-2">
               <div 
@@ -188,7 +186,7 @@ const NewQuotationPage = () => {
                 {step > num ? <Check size={12} /> : <Icon size={12} />}
                 <span>{label}</span>
               </div>
-              {num < 3 && <div className="w-4 h-[1px] bg-slate-200"></div>}
+              {num < 2 && <div className="w-4 h-[1px] bg-slate-200"></div>}
             </div>
           ))}
         </div>
@@ -277,65 +275,15 @@ const NewQuotationPage = () => {
                 <button 
                   type="button"
                   onClick={() => setStep(1)} 
-                  className="px-6 py-3 font-bold text-xs uppercase text-slate-500 hover:text-slate-800 tracking-wider flex items-center gap-1.5 transition-colors"
+                  className="px-6 py-3 font-bold text-xs uppercase text-slate-500 hover:text-slate-800 tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <ArrowLeft size={14} /> Volver a Cliente
                 </button>
                 <button 
                   type="button"
-                  disabled={cart.length === 0} 
-                  onClick={() => setStep(3)} 
-                  className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 font-black text-xs uppercase tracking-widest rounded-sm transition-all disabled:bg-slate-200 disabled:text-slate-400 flex items-center gap-2 shadow-sm"
-                >
-                  <span>Definir Validez</span>
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: VALIDITY */}
-          {step === 3 && (
-            <div className="bg-white p-6 sm:p-8 border border-slate-200 rounded-sm shadow-sm animate-fade-in space-y-6">
-              <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <span className="w-5 h-5 bg-slate-900 text-white rounded flex items-center justify-center text-[10px] font-black">
-                  03
-                </span>
-                Condiciones de Validez y Cierre
-              </h2>
-
-              <div className="max-w-md space-y-3">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Vigencia de la Cotización (Días Corridos)
-                </label>
-                <div className="flex items-center gap-4">
-                  <input 
-                    type="number" 
-                    min="1" 
-                    max="90" 
-                    value={validezDias} 
-                    onChange={(e) => setValidezDias(Math.max(1, Number(e.target.value)))}
-                    className="bg-slate-50 border border-slate-200 rounded-sm px-4 py-3 font-mono font-black text-2xl text-slate-900 outline-none w-32 focus:border-blue-600 focus:bg-white transition-all text-center"
-                  />
-                  <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-                    Este plazo se reflejará explícitamente en el pie del presupuesto formal PDF.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-6 border-t border-slate-100 flex justify-between items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={() => setStep(2)} 
-                  className="px-6 py-3 font-bold text-xs uppercase text-slate-500 hover:text-slate-800 tracking-wider flex items-center gap-1.5 transition-colors"
-                >
-                  <ArrowLeft size={14} /> Volver a Artículos
-                </button>
-                <button 
-                  type="button"
                   onClick={() => createQuotationMutation.mutate()}
                   disabled={createQuotationMutation.isPending || cart.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 font-black text-xs uppercase tracking-widest rounded-sm transition-all disabled:bg-slate-200 disabled:text-slate-400 flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 font-black text-xs uppercase tracking-widest rounded-sm transition-all disabled:bg-slate-200 disabled:text-slate-400 flex items-center gap-2 shadow-lg shadow-blue-500/20 cursor-pointer"
                 >
                   {createQuotationMutation.isPending ? (
                     <>
