@@ -1,6 +1,6 @@
 export interface DocumentClassification {
   title: string;
-  caracter: 'FISCAL' | 'INTERNO' | 'MIXTO';
+  caracter: 'FISCAL' | 'INTERNO' | 'MIXTO' | 'FAVOR';
   caracterLabel: string;
   subtitle: string;
   cae?: string | null;
@@ -84,9 +84,24 @@ export function getDocumentClassification(item: any): DocumentClassification {
     };
   }
 
+
+    // Saldo a Favor
+  const isFavor = item.tipo === 'A_FAVOR' || item.metodo_pago === 'SALDO_A_FAVOR';
+  const ref = item.referencia && item.referencia.trim() !== '' ? item.referencia : '';
+
+  if (isFavor) {
+    return {
+      title: ref || 'Carga de Saldo a Favor',
+      caracter: 'FAVOR',
+      caracterLabel: 'A FAVOR',
+      subtitle: 'Crédito a Favor del Cliente',
+      cae: null,
+      nroComprobante: null,
+    };
+  }
+
   // Ajustes de saldo manuales
   const isAjuste = ['SALDO_PREVIO', 'AJUSTE_SALDO'].includes(item.metodo_pago);
-  const ref = item.referencia && item.referencia.trim() !== '' ? item.referencia : '';
 
   if (isAjuste) {
     const isBlanco = item.tipo === 'BLANCO';
@@ -145,8 +160,62 @@ export function getDocumentClassification(item: any): DocumentClassification {
  * - Historial Completo (todas las transacciones cronológicas)
  */
 export function processClientLedger(client: any, clientDetails: any): LedgerResult {
+  const getFallbackDebts = (c: any) => {
+    const list: any[] = [];
+    if (!c) return list;
+    const saldoBlancoNum = Math.abs(Number(c.saldo_blanco || 0));
+    const saldoInternoNum = Math.abs(Number(c.saldo_interno || 0));
+
+    if (saldoBlancoNum > 0.01) {
+      list.push({
+        id: `saldo-blanco-${c.id || 'general'}`,
+        rawId: c.id,
+        label: `[FISCAL (BLANCO)] Saldo Fiscal Pendiente`,
+        displayTitle: 'Saldo Fiscal Pendiente',
+        classification: {
+          title: 'Saldo Fiscal Pendiente',
+          caracter: 'FISCAL',
+          caracterLabel: 'FISCAL (BLANCO)',
+          subtitle: 'Saldo Oficial ARCA',
+          cae: null,
+          nroComprobante: null,
+        },
+        monto: saldoBlancoNum,
+        saldoPendiente: saldoBlancoNum,
+        tipo: 'BLANCO',
+        fecha: c.updated_at || new Date().toISOString(),
+        type: 'cobro',
+        raw: c,
+      });
+    }
+
+    if (saldoInternoNum > 0.01) {
+      list.push({
+        id: `saldo-interno-${c.id || 'general'}`,
+        rawId: c.id,
+        label: `[INTERNO] Saldo Remitos / Gestión Pendiente`,
+        displayTitle: 'Saldo Remitos / Gestión Pendiente',
+        classification: {
+          title: 'Saldo Remitos / Gestión Pendiente',
+          caracter: 'INTERNO',
+          caracterLabel: 'INTERNO',
+          subtitle: 'Saldo de Remitos y Gestión',
+          cae: null,
+          nroComprobante: null,
+        },
+        monto: saldoInternoNum,
+        saldoPendiente: saldoInternoNum,
+        tipo: 'INTERNO',
+        fecha: c.updated_at || new Date().toISOString(),
+        type: 'cobro',
+        raw: c,
+      });
+    }
+    return list;
+  };
+
   if (!clientDetails) {
-    return { transactions: [], pendingDebts: [], paidDebts: [] };
+    return { transactions: [], pendingDebts: getFallbackDebts(client), paidDebts: [] };
   }
 
   // 1. Unificar ventas y cobros para el historial cronológico con su clasificación
@@ -409,6 +478,62 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
       });
     }
   });
+
+  // Si no hay comprobantes fiscales en pendingDebts pero el cliente tiene saldo fiscal deudor:
+  const saldoBlancoNum = Math.abs(Number(client?.saldo_blanco || 0));
+  const hasFiscalInPending = pendingDebts.some(
+    (d) => d.classification?.caracter === 'FISCAL' || d.tipo === 'BLANCO'
+  );
+  if (!hasFiscalInPending && saldoBlancoNum > 0.01) {
+    pendingDebts.push({
+      id: `saldo-blanco-${client?.id || 'general'}`,
+      rawId: client?.id,
+      label: `[FISCAL (BLANCO)] Saldo Fiscal Pendiente`,
+      displayTitle: 'Saldo Fiscal Pendiente',
+      classification: {
+        title: 'Saldo Fiscal Pendiente',
+        caracter: 'FISCAL',
+        caracterLabel: 'FISCAL (BLANCO)',
+        subtitle: 'Saldo Oficial ARCA',
+        cae: null,
+        nroComprobante: null,
+      },
+      monto: saldoBlancoNum,
+      saldoPendiente: saldoBlancoNum,
+      tipo: 'BLANCO',
+      fecha: client?.updated_at || new Date().toISOString(),
+      type: 'cobro',
+      raw: client,
+    });
+  }
+
+  // Si no hay comprobantes internos en pendingDebts pero el cliente tiene saldo interno deudor:
+  const saldoInternoNum = Math.abs(Number(client?.saldo_interno || 0));
+  const hasInternoInPending = pendingDebts.some(
+    (d) => d.classification?.caracter === 'INTERNO' || d.tipo === 'INTERNO'
+  );
+  if (!hasInternoInPending && saldoInternoNum > 0.01) {
+    pendingDebts.push({
+      id: `saldo-interno-${client?.id || 'general'}`,
+      rawId: client?.id,
+      label: `[INTERNO] Saldo Remitos / Gestión Pendiente`,
+      displayTitle: 'Saldo Remitos / Gestión Pendiente',
+      classification: {
+        title: 'Saldo Remitos / Gestión Pendiente',
+        caracter: 'INTERNO',
+        caracterLabel: 'INTERNO',
+        subtitle: 'Saldo de Remitos y Gestión',
+        cae: null,
+        nroComprobante: null,
+      },
+      monto: saldoInternoNum,
+      saldoPendiente: saldoInternoNum,
+      tipo: 'INTERNO',
+      fecha: client?.updated_at || new Date().toISOString(),
+      type: 'cobro',
+      raw: client,
+    });
+  }
 
   return {
     transactions,

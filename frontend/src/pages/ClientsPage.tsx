@@ -11,6 +11,7 @@ import { ClientFormModal } from '../components/clients/ClientFormModal';
 import { ClientBalanceModal } from '../components/clients/ClientBalanceModal';
 import { ClientPaymentModal, type PaymentDataState } from '../components/clients/ClientPaymentModal';
 import { ClientDetailModal } from '../components/clients/ClientDetailModal';
+import { ClientCreditModal } from '../components/clients/ClientCreditModal';
 import { ClientsTable } from '../components/clients/ClientsTable';
 import { processClientLedger, getDocumentClassification } from '../utils/accountLedger';
 import { getLocalDateString, parseArgNumber } from '../utils/format';
@@ -27,6 +28,8 @@ const ClientsPage = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  const [selectedClientForCredit, setSelectedClientForCredit] = useState<Client | null>(null);
 
   // Clientes seleccionados
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -37,7 +40,7 @@ const ClientsPage = () => {
     monto: '' as number | string,
     metodo: 'EFECTIVO',
     referencia: '',
-    imputacion: 'MIXTO',
+    imputacion: 'BLANCO',
     fecha: getLocalDateString(),
     nro_cheque: '',
     fecha_vto_cheque: '',
@@ -62,7 +65,7 @@ const ClientsPage = () => {
       if (!selectedClient?.id) return null;
       return await clientService.getById(selectedClient.id);
     },
-    enabled: !!selectedClient?.id && isDetailsModalOpen,
+    enabled: !!selectedClient?.id,
   });
 
   // Mantener selectedClient sincronizado con la lista fresca de clientes
@@ -138,7 +141,7 @@ const ClientsPage = () => {
         monto: '',
         metodo: 'EFECTIVO',
         referencia: '',
-        imputacion: isManagementUnlocked ? 'MIXTO' : 'BLANCO',
+        imputacion: 'BLANCO',
         fecha: getLocalDateString(),
         nro_cheque: '',
         fecha_vto_cheque: '',
@@ -163,6 +166,23 @@ const ClientsPage = () => {
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || 'Error al deshacer movimiento');
+    },
+  });
+
+  const loadCreditMutation = useMutation({
+    mutationFn: async ({ clientId, data }: { clientId: number; data: any }) => {
+      return clientService.loadCredit(clientId, data);
+    },
+    onSuccess: (updatedClient) => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client', updatedClient.id] });
+      setSelectedClient((prev: any) => (prev?.id === updatedClient.id ? { ...prev, ...updatedClient } : prev));
+      setIsCreditModalOpen(false);
+      setSelectedClientForCredit(null);
+      toast.success('Saldo a favor actualizado correctamente');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || err.message || 'Error al actualizar el saldo a favor');
     },
   });
 
@@ -210,7 +230,7 @@ const ClientsPage = () => {
       monto: '',
       metodo: 'EFECTIVO',
       referencia: '',
-      imputacion: isManagementUnlocked ? 'MIXTO' : 'BLANCO',
+      imputacion: 'BLANCO',
       fecha: getLocalDateString(),
       nro_cheque: '',
       fecha_vto_cheque: '',
@@ -222,6 +242,11 @@ const ClientsPage = () => {
     setIsCreateModalOpen(false);
     setIsEditModalOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenCredit = (client: Client) => {
+    setSelectedClientForCredit(client);
+    setIsCreditModalOpen(true);
   };
 
   const handleOpenBalance = (client: Client) => {
@@ -245,7 +270,7 @@ const ClientsPage = () => {
       ? 'BLANCO' 
       : (info.caracter === 'INTERNO' 
           ? (isManagementUnlocked ? 'INTERNO' : 'BLANCO') 
-          : (isManagementUnlocked ? 'MIXTO' : 'BLANCO'));
+          : 'BLANCO');
     const referencia = `Cobro ${info.title}`;
 
     setPaymentData({
@@ -303,7 +328,7 @@ const ClientsPage = () => {
     );
   }
 
-  const anyModalActive = isCreateModalOpen || isEditModalOpen || isDetailsModalOpen || isPaymentModalOpen || isBalanceModalOpen;
+  const anyModalActive = isCreateModalOpen || isEditModalOpen || isDetailsModalOpen || isPaymentModalOpen || isBalanceModalOpen || isCreditModalOpen;
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -373,6 +398,7 @@ const ClientsPage = () => {
         onEdit={(c) => handleOpenEdit(c)}
         onOpenPayment={(c) => handleOpenPayment(c)}
         onOpenBalance={(c) => handleOpenBalance(c)}
+        onOpenCredit={(c) => handleOpenCredit(c)}
         onQuickPay={handleQuickPay}
         onDeletePayment={(id) => deletePaymentMutation.mutate(id)}
         onDownloadSale={(s) => generateSalePDF(s)}
@@ -389,6 +415,25 @@ const ClientsPage = () => {
         isPending={updateBalanceMutation.isPending}
       />
 
+      {/* Modal: Cargar Saldo a Favor */}
+      <ClientCreditModal
+        isOpen={isCreditModalOpen}
+        client={selectedClientForCredit}
+        onClose={() => {
+          setIsCreditModalOpen(false);
+          setSelectedClientForCredit(null);
+        }}
+        onSubmit={(data) => {
+          if (selectedClientForCredit) {
+            loadCreditMutation.mutate({
+              clientId: selectedClientForCredit.id,
+              data,
+            });
+          }
+        }}
+        isPending={loadCreditMutation.isPending}
+      />
+
       {/* Modal: Registrar Cobro */}
       <ClientPaymentModal
         isOpen={isPaymentModalOpen}
@@ -398,7 +443,7 @@ const ClientsPage = () => {
         setPaymentData={setPaymentData}
         onClose={() => setIsPaymentModalOpen(false)}
         onSubmit={handlePaymentSubmit}
-        onSelectDebt={(debt) => applyDebtToPayment({ ...debt.raw, type: debt.type })}
+        onSelectDebt={(debt) => applyDebtToPayment(debt)}
         isPending={paymentMutation.isPending}
       />
 
@@ -410,6 +455,7 @@ const ClientsPage = () => {
           onSelectClient={handleOpenDetails}
           onOpenPayment={handleOpenPayment}
           onOpenBalance={handleOpenBalance}
+        onOpenCredit={handleOpenCredit}
           onEditClient={handleOpenEdit}
           onDeleteClient={(id) => setDeleteConfirm({ isOpen: true, clientId: id })}
         />

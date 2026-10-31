@@ -15,6 +15,7 @@ export const createClientSchema = z.object({
     porcentaje_facturacion: z.number().min(0).max(100).optional(),
     saldo_blanco: z.number().optional(),
     saldo_interno: z.number().optional(),
+    saldo_a_favor: z.number().optional(),
   })
 });
 
@@ -34,9 +35,23 @@ export const updateClientSchema = z.object({
     saldo_blanco: z.number().optional(),
     saldo_interno: z.number().optional(),
     saldo_deuda: z.number().optional(),
+    saldo_a_favor: z.number().optional(),
+    motivo_saldo_a_favor: z.string().optional().nullable(),
+    fecha_saldo_a_favor: z.string().optional().nullable(),
+    metodo_saldo_a_favor: z.string().optional().nullable(),
     nro_factura: z.string().optional().nullable(),
     fecha_factura: z.string().optional().nullable(),
     nro_remito: z.string().optional().nullable(),
     fecha_remito: z.string().optional().nullable(),
+  })
+});
+
+export const loadCreditSchema = z.object({
+  body: z.object({
+    monto: z.union([z.number(), z.string()]),
+    motivo: z.string().optional().nullable(),
+    fecha: z.string().optional().nullable(),
+    metodo: z.string().optional().nullable(),
+    modo: z.enum(['add', 'direct']).optional().default('add'),
   })
 });

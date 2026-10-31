@@ -74,6 +74,18 @@ export class ClientController {
     res.status(201).json(payment);
   });
 
+  static loadCredit = asyncHandler(async (req: Request, res: Response) => {
+    const clientId = Number(req.params.id);
+    const rawMonto = req.body.monto !== undefined ? req.body.monto : req.body.monto_ars;
+    const motivo = req.body.motivo || req.body.referencia || '';
+    const fecha = req.body.fecha || undefined;
+    const metodo = req.body.metodo || 'SALDO_A_FAVOR';
+    const modo = req.body.modo || 'add';
+
+    const updated = await ClientService.loadCredit(clientId, rawMonto, motivo, fecha, metodo, modo);
+    res.json(updated);
+  });
+
   static syncAll = asyncHandler(async (req: Request, res: Response) => {
     const clients = await ClientService.getAll();
     for (const client of clients) {

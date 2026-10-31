@@ -1,5 +1,6 @@
 import prisma from '../config/prisma';
 import { AppError } from '../utils/AppError';
+import { parseArgNumber } from '../utils/format';
 
 export class ClientService {
   static async getAll() {
@@ -33,6 +34,9 @@ export class ClientService {
 
     if (payload.saldo_blanco !== undefined || payload.saldo_interno !== undefined) {
       payload.saldo_deuda = Number(payload.saldo_blanco || 0) + Number(payload.saldo_interno || 0);
+    }
+    if (payload.saldo_a_favor !== undefined) {
+      payload.saldo_a_favor = Number(payload.saldo_a_favor || 0);
     }
 
     // Convertir strings vacíos a null para campos opcionales
@@ -68,6 +72,19 @@ export class ClientService {
         }
       });
     }
+
+    if (payload.saldo_a_favor && Number(payload.saldo_a_favor) > 0) {
+      await prisma.payment.create({
+        data: {
+          client_id: client.id,
+          monto_ars: Number(payload.saldo_a_favor),
+          tipo: 'A_FAVOR',
+          metodo_pago: 'SALDO_A_FAVOR',
+          referencia: 'Carga de saldo inicial a favor'
+        }
+      });
+    }
+
     return client;
   }
 
@@ -77,7 +94,17 @@ export class ClientService {
       throw new AppError('Cliente no encontrado', 404);
     }
 
-    const { nro_factura, fecha_factura, nro_remito, fecha_remito, ...clientData } = data;
+    const { 
+      nro_factura, 
+      fecha_factura, 
+      nro_remito, 
+      fecha_remito, 
+      motivo_saldo_a_favor, 
+      fecha_saldo_a_favor, 
+      metodo_saldo_a_favor, 
+      ...clientData 
+    } = data;
+
     const payload: any = { ...clientData };
     if (payload.cuit) {
       payload.cuit = String(payload.cuit).replace(/[-\s.]/g, '');
@@ -86,6 +113,9 @@ export class ClientService {
     if (payload.direccion === '') payload.direccion = null;
     if (payload.nro_iibb === '') payload.nro_iibb = null;
     if (payload.telefono === '') payload.telefono = null;
+    if (payload.saldo_a_favor !== undefined) {
+      payload.saldo_a_favor = Number(payload.saldo_a_favor);
+    }
     if (payload.porcentaje_facturacion !== undefined) {
       payload.porcentaje_facturacion = Number(payload.porcentaje_facturacion);
     }
@@ -95,7 +125,7 @@ export class ClientService {
       data: payload
     });
     
-    // Si se modificaron los saldos, sincronizamos la deuda total
+    // Si se modificaron los saldos blanco o interno, sincronizamos la deuda total
     if (data.saldo_blanco !== undefined || data.saldo_interno !== undefined) {
       const oldBlanco = Number(currentClient?.saldo_blanco || 0);
       const oldInterno = Number(currentClient?.saldo_interno || 0);
@@ -172,7 +202,97 @@ export class ClientService {
       
       updated.saldo_deuda = total as any;
     }
+
+    // Si se modificó el saldo a favor
+    if (data.saldo_a_favor !== undefined) {
+      const oldFavor = Number(currentClient?.saldo_a_favor || 0);
+      const newFavor = Number(updated.saldo_a_favor);
+      const diffFavor = newFavor - oldFavor;
+
+      if (diffFavor !== 0) {
+        let fechaPagoFavor = new Date();
+        if (fecha_saldo_a_favor) {
+          fechaPagoFavor = new Date(String(fecha_saldo_a_favor).includes('T') ? String(fecha_saldo_a_favor) : `${fecha_saldo_a_favor}T12:00:00`);
+          if (isNaN(fechaPagoFavor.getTime())) {
+            fechaPagoFavor = new Date();
+          }
+        }
+
+        const refText = motivo_saldo_a_favor && String(motivo_saldo_a_favor).trim()
+          ? `Carga de Saldo a Favor: ${String(motivo_saldo_a_favor).trim()}`
+          : (diffFavor > 0 ? 'Carga de Saldo a Favor' : 'Ajuste de Saldo a Favor');
+
+        await prisma.payment.create({
+          data: {
+            client_id: id,
+            monto_ars: Math.abs(diffFavor),
+            tipo: 'A_FAVOR',
+            metodo_pago: metodo_saldo_a_favor || 'SALDO_A_FAVOR',
+            referencia: refText,
+            fecha: fechaPagoFavor
+          }
+        });
+      }
+    }
+
     return updated;
+  }
+
+  static async loadCredit(
+    clientId: number,
+    rawMonto: number | string,
+    motivo?: string,
+    fecha?: string | Date,
+    metodo: string = 'SALDO_A_FAVOR',
+    modo: 'add' | 'direct' = 'add'
+  ) {
+    const monto = parseArgNumber(rawMonto);
+    if (isNaN(monto) || monto < 0) {
+      throw new AppError('El monto debe ser un valor numérico válido mayor o igual a 0', 400);
+    }
+
+    let fechaMovimiento = new Date();
+    if (fecha) {
+      fechaMovimiento = new Date(String(fecha).includes('T') ? String(fecha) : `${fecha}T12:00:00`);
+      if (isNaN(fechaMovimiento.getTime())) {
+        fechaMovimiento = new Date();
+      }
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const client = await tx.client.findUnique({ where: { id: clientId } });
+      if (!client) throw new AppError('Cliente no encontrado', 404);
+
+      const currentFavor = Number(client.saldo_a_favor || 0);
+      const newFavor = modo === 'direct' ? monto : currentFavor + monto;
+      const diff = newFavor - currentFavor;
+
+      const updated = await tx.client.update({
+        where: { id: clientId },
+        data: {
+          saldo_a_favor: newFavor
+        }
+      });
+
+      if (diff !== 0) {
+        const refFinal = motivo && String(motivo).trim()
+          ? `Carga de Saldo a Favor: ${String(motivo).trim()}`
+          : (diff > 0 ? 'Carga de Saldo a Favor' : 'Ajuste de Saldo a Favor');
+
+        await tx.payment.create({
+          data: {
+            client_id: clientId,
+            monto_ars: Math.abs(diff),
+            tipo: 'A_FAVOR',
+            metodo_pago: metodo || 'SALDO_A_FAVOR',
+            referencia: refFinal,
+            fecha: fechaMovimiento
+          }
+        });
+      }
+
+      return updated;
+    });
   }
 
   static async delete(id: number) {

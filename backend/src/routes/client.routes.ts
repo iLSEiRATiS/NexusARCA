@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ClientController } from '../controllers/client.controller';
 import { validate } from '../middlewares/validate.middleware';
-import { createClientSchema, updateClientSchema } from '../schemas/client.schema';
+import { createClientSchema, updateClientSchema, loadCreditSchema } from '../schemas/client.schema';
 
 const router = Router();
 
@@ -12,6 +12,7 @@ router.patch('/:id', validate(updateClientSchema), ClientController.update);
 router.delete('/:id', ClientController.delete);
 
 router.post('/:id/payments', ClientController.registerPayment);
+router.post('/:id/credit', validate(loadCreditSchema), ClientController.loadCredit);
 router.delete('/:id/payments/:paymentId', ClientController.deletePayment);
 router.post('/sync-all', ClientController.syncAll);
 

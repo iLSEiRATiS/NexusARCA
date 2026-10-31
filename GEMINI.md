@@ -168,3 +168,57 @@ pm2 restart 1
   * Se rediseñó el modal [ClientBalanceModal.tsx](file:///c:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/frontend/src/components/clients/ClientBalanceModal.tsx) permitiendo dos modalidades:
     1. **Establecer Saldo Directo (Modo Lápiz):** Permite ingresar directamente el saldo pendiente final exacto deseado; el sistema calcula y asienta automáticamente el ajuste contable necesario.
     2. **Sumar / Agregar Deuda:** Permite añadir deuda relativa vinculada a número de factura o remito.
+
+## 24. Reordenamiento de Carga de Deuda y Gestión Integral de Saldo a Favor
+* **Reordenamiento de Campos en Carga de Deuda (`ClientBalanceModal.tsx`):**
+  * Tanto en el **Sector Blanco (Oficial ARCA)** como en el **Sector Interno (Gestión / Remitos)**, se ajustó el orden de carga para solicitar primero el número de comprobante, luego la fecha y finalmente el monto a sumar:
+    1. **Número de Factura** / **N° de Remito o Comprobante**
+    2. **Fecha de la Factura** / **Fecha del Comprobante**
+    3. **Monto a sumar (ARS)**
+* **Soporte Integral de Saldo a Favor en Base de Datos y Backend:**
+  * Se agregó la columna `saldo_a_favor Decimal @default(0)` al modelo `Client` en `prisma/schema.prisma` y se ejecutó `prisma db push` y `prisma generate`.
+  * Se crearon los schemas de validación `createClientSchema`, `updateClientSchema` y `loadCreditSchema` en `client.schema.ts`.
+  * En `client.service.ts` y `client.controller.ts`, se implementó el método `loadCredit` (con soporte para modo aditivo o directo) y la ruta `POST /api/clients/:id/credit`, registrando el contra-asiento o asiento en `Payment` con `tipo: 'A_FAVOR'` y `metodo_pago: 'SALDO_A_FAVOR'`.
+* **Columna de Saldo a Favor en Directorio de Clientes (`ClientsTable.tsx`):**
+  * Se incorporó la columna **"Saldo a Favor"** en la tabla principal de *"Clientes y Cuentas Corrientes - Directorio, Saldos Fiscales y Control de Cobranzas"*, mostrando el importe disponible en color esmeralda con botón rápido para acreditar saldo.
+  * Se integró también en la vista adaptativa para dispositivos móviles.
+* **Tarjeta y Modal de Carga de Saldo a Favor en Ficha de Cuenta Corriente (`ClientDetailModal.tsx` y `ClientCreditModal.tsx`):**
+  * Se añadió una tarjeta dedicada a **"Saldo a Favor"** en el desglose de cuenta corriente del cliente con su botón de acción rápida `+ Cargar Saldo`.
+  * Se sumó el botón *"Cargar Saldo a Favor"* dentro de la tarjeta de gestión de cuenta.
+  * Se creó el modal interactivo `ClientCreditModal.tsx` para permitir acreditar saldo a favor indicando monto, concepto/motivo, fecha y medio de acreditación, con soporte para sumar a saldo a favor o establecer saldo directo.
+* **Trazabilidad en Cuenta Corriente (`accountLedger.ts`):**
+  * Se incorporó la clasificación de carácter `FAVOR`, permitiendo que en la solapa de Historial Completo las cargas de crédito se visualicen con badges esmeralda `A FAVOR` y su concepto correspondiente.
+
+## 25. Reordenamiento de Campos en Registrar Cobro (`ClientPaymentModal.tsx`)
+* **Flujo Natural de Registro:** Se reestructuró el modal de cobranzas para que los campos sigan un orden ascendente a descendente lógico y ágil para el operador:
+  1. **N° Comprobante / Recibo / Ref:** Identificador del recibo, transferencia o comprobante de cobro.
+  2. **Fecha del Cobro:** Fecha en que fue acreditado o recibido el pago.
+  3. **Método de Pago e Imputación Contable:** Selección del medio de pago (Efectivo, Transferencia, Cheque) y asignación contable directa (Solo Fiscal Oficial ARCA o Solo Remitos / Gestión Comercial). Se removió la opción obsoleta MIXTO (AUTOMÁTICO) para garantizar imputaciones directas y exactas según la voluntad del operador.
+  4. **Datos Específicos de Cheques (si aplica):** Número de cheque, fecha de vencimiento y caja destino en el contenedor interactivo ámbar.
+  5. **Monto a Cobrar (ARS):** Campo de importe principal posicionado al final, previo al botón de confirmación de la cobranza.
+
+## 26. Selección Integrada de Deudas y Carga Manual en Cobranzas (`ClientPaymentModal.tsx`)
+* **Causa Raíz Solucionada en Directorio de Clientes:**
+  * Al ingresar a "Clientes y Cuentas Corrientes" y abrir "Registrar Cobro" directamente desde la tabla, la consulta `clientDetails` estaba condicionada a `isDetailsModalOpen`, por lo que no se descargaban las facturas ni movimientos del cliente y la lista de deudas quedaba vacía (`[]`).
+  * Se corrigió la condición en [`ClientsPage.tsx`](file:///C:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/frontend/src/pages/ClientsPage.tsx) para que se habilite siempre que exista un cliente seleccionado (`enabled: !!selectedClient?.id`).
+  * En [`accountLedger.ts`](file:///C:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/frontend/src/utils/accountLedger.ts), se incorporó la generación de deudas pendientes de respaldo (Saldo Fiscal Pendiente / Saldo Remitos Pendiente) cuando el cliente registra saldo deudor en su ficha, asegurando que el desplegable siempre ofrezca opciones de imputación aun si no hay facturas detalladas individuales.
+* **Integración Directa en "N° Comprobante / Recibo / Ref":**
+  * Se ubicó el menú desplegable de selección de facturas y deudas directamente visible dentro del campo `N° Comprobante / Recibo / Ref`, acompañado por el badge de deudas pendientes disponibles y el campo de texto manual editable.
+  * Se eliminaron botones o pestañas ocultas para que el desplegable esté siempre a la vista y accesible de forma inmediata.
+* **Auto-completado Inteligente al Seleccionar Factura:**
+  * Al elegir una factura, remito o saldo del menú desplegable:
+    1. Se autocompleta la referencia en el campo de texto (ej. `Cobro Factura A N° 0001-00001234`), permitiendo al usuario añadir texto adicional si lo desea.
+    2. Se completa automáticamente el **Monto a Cobrar (ARS)** con el importe adeudado.
+    3. Se auto-asigna la **Imputación Contable** (`Solo Fiscal` o `Solo Remitos`).
+* **Consistencia Jerárquica del Formulario:**
+  * La sección de referencia y fecha se mantiene siempre al inicio del formulario para todos los métodos de pago (Efectivo, Transferencia y Cheques).
+
+## 27. Saneamiento de Codificación UTF-8 y Formato de Comprobantes
+* **Corrección de Mojibake y Caracteres Corruptos (`NÂ°` -> `N°`):**
+  * Se eliminaron todos los artefactos de doble codificación UTF-8 / Windows-1252 en [`accountLedger.ts`](file:///C:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/frontend/src/utils/accountLedger.ts), corrigiendo la generación de títulos de comprobantes (`Remito Interno N° REM-XX`, `Factura A N° ...`, `Cheque N° ...`, `Nota de Crédito`, `Electrónica`, `Gestión`).
+  * Se convirtió [`backend/src/schemas/client.schema.ts`](file:///C:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/backend/src/schemas/client.schema.ts) a UTF-8 puro, eliminando caracteres no estándar en mensajes de validación Zod.
+  * Se auditó el 100% de la base de código (frontend, backend y base de datos) resultando en cero caracteres mal codificados restantes.
+* **Consistencia en Generación de PDFs de Facturas y Remitos (`pdfService.ts`):**
+  * **Remitos / Comprobantes Internos:** Se ajustó para mostrar el número de remito real asignado (`N° Remito: REM-XX` o `N° Remito: R-XXXX`) en el encabezado superior y en el nombre del archivo descargado en lugar de un ID interno simple.
+  * **Facturas Oficiales y Notas de Crédito:** Se garantiza el formateo estándar AFIP/ARCA a 8 dígitos para el número de comprobante (ej: `0006-00000036`), asegurando una presentación fiscal oficial.
+  * **Estado de Cuenta PDF:** Se estandarizó la presentación de saldos (Saldo Fiscal ARCA, Saldo Interno Remitos y Saldo a Favor) con 2 decimales y formato de moneda argentino.

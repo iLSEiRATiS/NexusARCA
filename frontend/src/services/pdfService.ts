@@ -102,9 +102,10 @@ const generateProformaPDF = (sale: any, _EMISOR: EmisorConfig) => {
   doc.setFont('helvetica', 'normal');
   doc.text('REMITO DE ENTREGA', 15, 31);
 
+  const nroRemito = sale.nro_comprobante ? String(sale.nro_comprobante) : `REM-${String(sale.id).padStart(5, '0')}`;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(`N° Interno: ${String(sale.id).padStart(6, '0')}`, pW - 15, 22, { align: 'right' });
+  doc.text(`N° Remito: ${nroRemito}`, pW - 15, 22, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text(`Fecha: ${new Date(sale.fecha || sale.createdAt).toLocaleDateString('es-AR')}`, pW - 15, 28, { align: 'right' });
@@ -216,7 +217,7 @@ const generateProformaPDF = (sale: any, _EMISOR: EmisorConfig) => {
   doc.setTextColor(160, 0, 0);
   doc.text('DOCUMENTO NO VÁLIDO COMO FACTURA', pW / 2, footerY + 8, { align: 'center' });
   
-  doc.save(`Remito_${String(sale.id).padStart(6, '0')}.pdf`);
+  doc.save(`Remito_${nroRemito.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`);
 };
 
 // ─── PDF DE FACTURA ELECTRÓNICA OFICIAL ──────────────────────────────────────
@@ -317,8 +318,14 @@ export const generateSalePDF = async (sale: any) => {
     doc.setTextColor(30, 30, 30);
     doc.text(cbte.descripcion, rightX, 20);
 
+    const formattedNro = sale.nro_comprobante
+      ? (/^\d+$/.test(String(sale.nro_comprobante).trim())
+          ? String(sale.nro_comprobante).trim().padStart(8, '0')
+          : String(sale.nro_comprobante).trim())
+      : 'PENDIENTE';
+
     const nroDisplay = sale.nro_comprobante
-      ? `${String(EMISOR.punto_venta).padStart(4, '0')}-${sale.nro_comprobante}`
+      ? `${String(EMISOR.punto_venta).padStart(4, '0')}-${formattedNro}`
       : 'PENDIENTE';
 
     doc.setFontSize(8);
@@ -636,8 +643,14 @@ export const generateCreditNotePDF = async (sale: any) => {
     doc.setTextColor(180, 0, 0);
     doc.text(cbte.descripcion, rightX, 20);
 
+    const formattedNC = sale.nro_comprobante_nc
+      ? (/^\d+$/.test(String(sale.nro_comprobante_nc).trim())
+          ? String(sale.nro_comprobante_nc).trim().padStart(8, '0')
+          : String(sale.nro_comprobante_nc).trim())
+      : 'PENDIENTE';
+
     const nroNC = sale.nro_comprobante_nc
-      ? `${String(EMISOR.punto_venta).padStart(4, '0')}-${sale.nro_comprobante_nc}`
+      ? `${String(EMISOR.punto_venta).padStart(4, '0')}-${formattedNC}`
       : 'PENDIENTE';
 
     doc.setFontSize(8);
@@ -650,7 +663,13 @@ export const generateCreditNotePDF = async (sale: any) => {
     doc.setFontSize(7.5);
     doc.setTextColor(0, 102, 0);
     doc.text(`CAE N°: ${sale.cae_nota_credito}`, rightX, 51);
-    doc.text(`Comprobante Original: ${String(EMISOR.punto_venta).padStart(4,'0')}-${sale.nro_comprobante || 'N/A'}`, rightX, 57);
+
+    const formattedOriginal = sale.nro_comprobante
+      ? (/^\d+$/.test(String(sale.nro_comprobante).trim())
+          ? String(sale.nro_comprobante).trim().padStart(8, '0')
+          : String(sale.nro_comprobante).trim())
+      : 'N/A';
+    doc.text(`Comprobante Original: ${String(EMISOR.punto_venta).padStart(4,'0')}-${formattedOriginal}`, rightX, 57);
 
     // ── DATOS DEL RECEPTOR ───────────────────────────────────────────────
     const rY = 72;
@@ -952,16 +971,17 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60, 60, 60);
-  doc.text('Saldo en Blanco:', pageWidth - 85, 65);
-  doc.text(`$${Number(client.saldo_blanco).toLocaleString('es-AR')}`, pageWidth - 15, 65, { align: 'right' });
+  doc.text('Saldo Fiscal (ARCA):', pageWidth - 85, 65);
+  doc.text(`$${Number(client.saldo_blanco || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - 15, 65, { align: 'right' });
 
-  doc.text('Saldo Gestión:', pageWidth - 85, 71);
-  doc.text(`$${Number(client.saldo_interno).toLocaleString('es-AR')}`, pageWidth - 15, 71, { align: 'right' });
+  doc.text('Saldo Interno (Remitos):', pageWidth - 85, 71);
+  doc.text(`$${Number(client.saldo_interno || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - 15, 71, { align: 'right' });
 
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('DEUDA TOTAL:', pageWidth - 85, 80);
-  doc.text(`$${Number(client.saldo_deuda).toLocaleString('es-AR')}`, pageWidth - 15, 80, { align: 'right' });
+  const favorAmt = Number(client.saldo_a_favor || 0);
+  if (favorAmt > 0) {
+    doc.text('Saldo a Favor:', pageWidth - 85, 77);
+    doc.text(`$${favorAmt.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - 15, 77, { align: 'right' });
+  }
 
   const tableData = transactions.map(t => {
     const isDebt = t.tipo === 'FACTURACIÓN' || (t.tipo === 'COBRO' && Number(t.monto_ars) < 0);

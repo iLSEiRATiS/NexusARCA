@@ -13,6 +13,7 @@ export interface Client {
   saldo_blanco: number | string;
   saldo_interno: number | string;
   saldo_deuda: number | string;
+  saldo_a_favor?: number | string;
   porcentaje_facturacion?: number | string;
   sales?: any[];
   payments?: any[];
@@ -31,6 +32,7 @@ export interface ClientFormData {
   porcentaje_facturacion?: number;
   saldo_blanco?: number | string;
   saldo_interno?: number | string;
+  saldo_a_favor?: number | string;
 }
 
 export interface PaymentPayload {
@@ -42,6 +44,14 @@ export interface PaymentPayload {
   nro_cheque?: string;
   fecha_vto_cheque?: string;
   caja?: string;
+}
+
+export interface LoadCreditPayload {
+  monto: number | string;
+  motivo?: string;
+  fecha?: string;
+  metodo?: string;
+  modo?: 'add' | 'direct';
 }
 
 export const clientService = {
@@ -69,9 +79,12 @@ export const clientService = {
     const response = await api.post(`/clients/${clientId}/payments`, data);
     return response.data;
   },
+  loadCredit: async (clientId: number, data: LoadCreditPayload): Promise<Client> => {
+    const response = await api.post(`/clients/${clientId}/credit`, data);
+    return response.data;
+  },
   deletePayment: async (clientId: number, paymentId: number): Promise<{ success: boolean }> => {
     const response = await api.delete(`/clients/${clientId}/payments/${paymentId}`);
     return response.data;
   }
 };
-

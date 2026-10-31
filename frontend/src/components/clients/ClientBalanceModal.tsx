@@ -266,18 +266,6 @@ export const ClientBalanceModal: React.FC<ClientBalanceModalProps> = ({
                 <span className="text-[11px] font-bold text-slate-400 uppercase">Fiscal / ARCA</span>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Monto a sumar — Blanco (ARS)
-                </label>
-                <input
-                  type="text"
-                  value={balanceData.saldo_blanco}
-                  onChange={(e) => setBalanceData({ ...balanceData, saldo_blanco: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
-                  placeholder="0.00"
-                />
-              </div>
-              <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <FileText size={13} className="text-slate-400" />
                   Número de Factura
@@ -302,6 +290,18 @@ export const ClientBalanceModal: React.FC<ClientBalanceModalProps> = ({
                   className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Monto a sumar — Blanco (ARS)
+                </label>
+                <input
+                  type="text"
+                  value={balanceData.saldo_blanco}
+                  onChange={(e) => setBalanceData({ ...balanceData, saldo_blanco: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
+                  placeholder="0.00"
+                />
+              </div>
             </div>
 
             {/* Sector Interno */}
@@ -310,18 +310,6 @@ export const ClientBalanceModal: React.FC<ClientBalanceModalProps> = ({
                 <div className="border-b border-slate-100 pb-2 flex justify-between items-center">
                   <span className="text-xs font-black text-slate-700 uppercase tracking-widest">Sector Interno (Gestión)</span>
                   <span className="text-[11px] font-bold text-slate-400 uppercase">Remitos / No Fiscal</span>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Monto a sumar — Interno (ARS)
-                  </label>
-                  <input
-                    type="text"
-                    value={balanceData.saldo_interno}
-                    onChange={(e) => setBalanceData({ ...balanceData, saldo_interno: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
-                    placeholder="0.00"
-                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -346,6 +334,18 @@ export const ClientBalanceModal: React.FC<ClientBalanceModalProps> = ({
                     value={balanceData.fecha_remito}
                     onChange={(e) => setBalanceData({ ...balanceData, fecha_remito: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 font-bold text-slate-900 focus:border-blue-600 outline-none text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Monto a sumar — Interno (ARS)
+                  </label>
+                  <input
+                    type="text"
+                    value={balanceData.saldo_interno}
+                    onChange={(e) => setBalanceData({ ...balanceData, saldo_interno: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none text-lg"
+                    placeholder="0.00"
                   />
                 </div>
               </div>

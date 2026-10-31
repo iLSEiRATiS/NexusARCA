@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { Client } from '../../services/clientService';
 import { 
-  X, Pencil, Download, DollarSign, PackageOpen, 
+  X, Pencil, Download, DollarSign, PackageOpen, Wallet, PlusCircle, 
   FileSpreadsheet, Mail, Phone, MapPin, Building2, Hash,
   Clock, CheckCircle2, History, AlertCircle, ShieldCheck, FileText, CreditCard
 } from 'lucide-react';
@@ -42,6 +42,7 @@ interface ClientDetailModalProps {
   onEdit: (client: Client) => void;
   onOpenPayment: (client: Client) => void;
   onOpenBalance: (client: Client) => void;
+  onOpenCredit: (client: Client) => void;
   onQuickPay: (item: any) => void;
   onDeletePayment: (paymentId: number) => void;
   onDownloadSale: (sale: any) => void;
@@ -58,6 +59,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   onEdit,
   onOpenPayment,
   onOpenBalance,
+  onOpenCredit,
   onQuickPay,
   onDeletePayment,
   onDownloadSale,
@@ -78,7 +80,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
     }
     // En Modo Fiscal Oficial, filtrar y mostrar únicamente movimientos de naturaleza fiscal
     return {
-      transactions: fullLedger.transactions.filter((t) => t.classification?.caracter === 'FISCAL'),
+      transactions: fullLedger.transactions.filter((t) => t.classification?.caracter === 'FISCAL' || t.classification?.caracter === 'FAVOR'),
       pendingDebts: fullLedger.pendingDebts.filter((d) => d.classification?.caracter === 'FISCAL'),
       paidDebts: fullLedger.paidDebts.filter((p) => p.classification?.caracter === 'FISCAL'),
     };
@@ -88,6 +90,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
   const saldoBlancoNum = Number(client.saldo_blanco || 0);
   const saldoInternoNum = Number(client.saldo_interno || 0);
+  const saldoAFavorNum = Math.max(0, Number(client.saldo_a_favor || 0));
 
   return (
     <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
@@ -230,6 +233,42 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               </p>
             </div>
           )}
+
+                    {/* Tarjeta de Saldo a Favor */}
+          <div className="p-6 bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block flex items-center gap-1">
+                  <Wallet size={13} />
+                  Saldo a Favor
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onOpenCredit(client)}
+                  className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-slate-100 flex items-center gap-1 text-[11px] font-bold cursor-pointer transition-colors"
+                  title="Cargar Saldo a Favor"
+                >
+                  <PlusCircle size={12} />
+                  Cargar
+                </button>
+              </div>
+              <p className="text-2xl font-black text-emerald-600">
+                ${saldoAFavorNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="flex justify-between items-center mt-3">
+              <p className="text-[11px] text-slate-400">
+                {saldoAFavorNum > 0 ? 'Crédito disponible para imputar' : 'Sin saldo a favor registrado'}
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpenCredit(client)}
+                className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 transition-all cursor-pointer flex items-center gap-1"
+              >
+                <PlusCircle size={11} /> Cargar Saldo
+              </button>
+            </div>
+          </div>
 
           <div className="p-6 bg-blue-600 text-white flex flex-col justify-between shadow-lg shadow-blue-100">
             <div className="mb-4">

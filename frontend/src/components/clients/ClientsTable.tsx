@@ -9,6 +9,7 @@ interface ClientsTableProps {
   onSelectClient: (client: Client) => void;
   onOpenPayment: (client: Client) => void;
   onOpenBalance: (client: Client) => void;
+  onOpenCredit: (client: Client) => void;
   onEditClient: (client: Client) => void;
   onDeleteClient: (id: number) => void;
 }
@@ -19,6 +20,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
   onSelectClient,
   onOpenPayment,
   onOpenBalance,
+  onOpenCredit,
   onEditClient,
   onDeleteClient,
 }) => {
@@ -70,6 +72,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               {isManagementUnlocked && (
                 <th className="py-4 px-4 text-right">Saldo Interno (Remitos)</th>
               )}
+              <th className="py-4 px-4 text-right">Saldo a Favor</th>
               <th className="py-4 px-6 text-center">Acciones</th>
             </tr>
           </thead>
@@ -77,6 +80,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
             {filteredClients.map((client) => {
               const blancoNum = Number(client.saldo_blanco || 0);
               const internoNum = Number(client.saldo_interno || 0);
+              const favorNum = Math.max(0, Number(client.saldo_a_favor || 0));
 
               return (
                 <tr
@@ -142,6 +146,23 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                     </td>
                   )}
 
+                  {/* Saldo a Favor */}
+                  <td className="py-4 px-4 text-right font-black" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span className={favorNum > 0 ? 'text-emerald-600 font-black' : 'text-slate-400 font-bold'}>
+                        ${favorNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenCredit(client)}
+                        className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+                        title="Cargar Saldo a Favor"
+                      >
+                        <PlusCircle size={12} />
+                      </button>
+                    </div>
+                  </td>
+
                   {/* Acciones */}
                   <td className="py-4 px-6" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-2">
@@ -200,6 +221,8 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
       {/* Vista Mobile (Tarjetas) */}
       <div className="lg:hidden divide-y divide-slate-100">
         {filteredClients.map((client) => {
+          const favorNum = Math.max(0, Number(client.saldo_a_favor || 0));
+
           return (
             <div
               key={client.id}
@@ -216,7 +239,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                 {getCondicionBadge(client.condicion_iva)}
               </div>
 
-              <div className={`grid ${isManagementUnlocked ? 'grid-cols-2' : 'grid-cols-1'} gap-3 p-3 bg-slate-50 border border-slate-100 text-xs`}>
+              <div className={`grid ${isManagementUnlocked ? 'grid-cols-3' : 'grid-cols-2'} gap-3 p-3 bg-slate-50 border border-slate-100 text-xs`}>
                 <div className="flex justify-between items-center">
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-bold">Saldo Fiscal</span>
@@ -247,9 +270,30 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                     </button>
                   </div>
                 )}
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-emerald-600 block text-[10px] uppercase font-bold">Saldo a Favor</span>
+                    <span className="font-bold text-emerald-700">${favorNum.toLocaleString('es-AR')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onOpenCredit(client)}
+                    className="p-1 text-emerald-600 hover:text-emerald-700"
+                    title="Cargar Saldo a Favor"
+                  >
+                    <PlusCircle size={12} />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-end gap-2 pt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => onOpenCredit(client)}
+                  className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs cursor-pointer hover:bg-emerald-100"
+                >
+                  <PlusCircle size={11} /> + A Favor
+                </button>
                 <button
                   type="button"
                   onClick={() => onOpenPayment(client)}
