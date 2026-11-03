@@ -34,6 +34,7 @@ const ClientsPage = () => {
   // Clientes seleccionados
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedClientForEdit, setSelectedClientForEdit] = useState<Client | null>(null);
+  const [creditModalMode, setCreditModalMode] = useState<'add' | 'impute'>('add');
 
   // Estado para modal de cobro
   const [paymentData, setPaymentData] = useState<PaymentDataState>({
@@ -173,13 +174,13 @@ const ClientsPage = () => {
     mutationFn: async ({ clientId, data }: { clientId: number; data: any }) => {
       return clientService.loadCredit(clientId, data);
     },
-    onSuccess: (updatedClient) => {
+    onSuccess: (updatedClient, variables) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', updatedClient.id] });
       setSelectedClient((prev: any) => (prev?.id === updatedClient.id ? { ...prev, ...updatedClient } : prev));
       setIsCreditModalOpen(false);
       setSelectedClientForCredit(null);
-      toast.success('Saldo a favor actualizado correctamente');
+      toast.success(variables.data.imputar_a_deuda ? 'Saldo a favor imputado a la factura exitosamente' : 'Saldo a favor cargado correctamente');
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || err.message || 'Error al actualizar el saldo a favor');
@@ -244,8 +245,10 @@ const ClientsPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleOpenCredit = (client: Client) => {
+  const handleOpenCredit = (client: Client, mode: 'add' | 'impute' = 'add') => {
+    setSelectedClient(client);
     setSelectedClientForCredit(client);
+    setCreditModalMode(mode);
     setIsCreditModalOpen(true);
   };
 
@@ -303,6 +306,18 @@ const ClientsPage = () => {
       toast.error('El monto debe ser un número mayor a 0');
       return;
     }
+
+    if (paymentData.metodo === 'SALDO_A_FAVOR') {
+      const isInterno = paymentData.imputacion === 'INTERNO';
+      const available = isInterno
+        ? Math.max(0, Number(selectedClient.saldo_a_favor_interno || 0))
+        : Math.max(0, Number(selectedClient.saldo_a_favor_blanco ?? selectedClient.saldo_a_favor ?? 0));
+      if (monto > available + 0.001) {
+        toast.error(`El monto ($${monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}) supera el saldo a favor ${isInterno ? 'interno' : 'fiscal'} disponible ($${available.toLocaleString('es-AR', { minimumFractionDigits: 2 })})`);
+        return;
+      }
+    }
+
     paymentMutation.mutate({ ...paymentData, monto });
   };
 
@@ -398,7 +413,7 @@ const ClientsPage = () => {
         onEdit={(c) => handleOpenEdit(c)}
         onOpenPayment={(c) => handleOpenPayment(c)}
         onOpenBalance={(c) => handleOpenBalance(c)}
-        onOpenCredit={(c) => handleOpenCredit(c)}
+        onOpenCredit={(c, mode) => handleOpenCredit(c, mode || 'add')}
         onQuickPay={handleQuickPay}
         onDeletePayment={(id) => deletePaymentMutation.mutate(id)}
         onDownloadSale={(s) => generateSalePDF(s)}
@@ -419,6 +434,8 @@ const ClientsPage = () => {
       <ClientCreditModal
         isOpen={isCreditModalOpen}
         client={selectedClientForCredit}
+        pendingDebts={pendingDebts}
+        initialMode={creditModalMode}
         onClose={() => {
           setIsCreditModalOpen(false);
           setSelectedClientForCredit(null);

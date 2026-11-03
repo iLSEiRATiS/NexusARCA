@@ -3,7 +3,7 @@ import type { Client } from '../../services/clientService';
 import { 
   X, Pencil, Download, DollarSign, PackageOpen, Wallet, PlusCircle, 
   FileSpreadsheet, Mail, Phone, MapPin, Building2, Hash,
-  Clock, CheckCircle2, History, AlertCircle, ShieldCheck, FileText, CreditCard
+  Clock, CheckCircle2, History, AlertCircle, ShieldCheck, FileText, CreditCard, ArrowDownLeft
 } from 'lucide-react';
 
 import { processClientLedger, getDocumentClassification, type DocumentClassification } from '../../utils/accountLedger';
@@ -42,7 +42,7 @@ interface ClientDetailModalProps {
   onEdit: (client: Client) => void;
   onOpenPayment: (client: Client) => void;
   onOpenBalance: (client: Client) => void;
-  onOpenCredit: (client: Client) => void;
+  onOpenCredit: (client: Client, mode?: 'add' | 'impute') => void;
   onQuickPay: (item: any) => void;
   onDeletePayment: (paymentId: number) => void;
   onDownloadSale: (sale: any) => void;
@@ -90,7 +90,9 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
   const saldoBlancoNum = Number(client.saldo_blanco || 0);
   const saldoInternoNum = Number(client.saldo_interno || 0);
-  const saldoAFavorNum = Math.max(0, Number(client.saldo_a_favor || 0));
+  const saldoAFavorFiscal = Math.max(0, Number(client.saldo_a_favor_blanco ?? client.saldo_a_favor ?? 0));
+  const saldoAFavorInterno = Math.max(0, Number(client.saldo_a_favor_interno || 0));
+  const saldoAFavorNum = saldoAFavorFiscal + saldoAFavorInterno;
 
   return (
     <div className="bg-white border border-slate-200 shadow-sm animate-fade-in">
@@ -240,7 +242,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               <div className="flex justify-between items-center mb-1">
                 <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block flex items-center gap-1">
                   <Wallet size={13} />
-                  Saldo a Favor
+                  Saldo a Favor Consolidado
                 </span>
                 <button
                   type="button"
@@ -255,17 +257,45 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               <p className="text-2xl font-black text-emerald-600">
                 ${saldoAFavorNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
+
+              {/* Desglose Fiscal vs Interno */}
+              <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                <div>
+                  <span className="text-slate-400 font-bold uppercase block text-[10px]">Fiscal (Oficial)</span>
+                  <span className="font-mono font-black text-slate-800">
+                    ${saldoAFavorFiscal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {isManagementUnlocked && (
+                  <div className="text-right">
+                    <span className="text-slate-400 font-bold uppercase block text-[10px]">Interno (Remitos)</span>
+                    <span className="font-mono font-black text-slate-800">
+                      ${saldoAFavorInterno.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex justify-between items-center mt-3">
-              <p className="text-[11px] text-slate-400">
-                {saldoAFavorNum > 0 ? 'Crédito disponible para imputar' : 'Sin saldo a favor registrado'}
-              </p>
+
+            <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-100">
+              {saldoAFavorNum > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenCredit(client, 'impute')}
+                  className="text-xs font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                  title="Imputar saldo a favor para saldar facturas pendientes"
+                >
+                  <ArrowDownLeft size={12} /> Imputar a Factura
+                </button>
+              ) : (
+                <span className="text-[11px] text-slate-400">Sin crédito disponible</span>
+              )}
               <button
                 type="button"
-                onClick={() => onOpenCredit(client)}
-                className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 transition-all cursor-pointer flex items-center gap-1"
+                onClick={() => onOpenCredit(client, 'add')}
+                className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 transition-all cursor-pointer flex items-center gap-1 ml-auto"
               >
-                <PlusCircle size={11} /> Cargar Saldo
+                <PlusCircle size={12} /> + Añadir Saldo
               </button>
             </div>
           </div>

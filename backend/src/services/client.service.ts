@@ -35,8 +35,18 @@ export class ClientService {
     if (payload.saldo_blanco !== undefined || payload.saldo_interno !== undefined) {
       payload.saldo_deuda = Number(payload.saldo_blanco || 0) + Number(payload.saldo_interno || 0);
     }
-    if (payload.saldo_a_favor !== undefined) {
+    
+    // Saldo a favor por sector o consolidado
+    const favorBlanco = Number(payload.saldo_a_favor_blanco || 0);
+    const favorInterno = Number(payload.saldo_a_favor_interno || 0);
+    if (payload.saldo_a_favor_blanco !== undefined || payload.saldo_a_favor_interno !== undefined) {
+      payload.saldo_a_favor_blanco = favorBlanco;
+      payload.saldo_a_favor_interno = favorInterno;
+      payload.saldo_a_favor = favorBlanco + favorInterno;
+    } else if (payload.saldo_a_favor !== undefined) {
       payload.saldo_a_favor = Number(payload.saldo_a_favor || 0);
+      payload.saldo_a_favor_blanco = payload.saldo_a_favor;
+      payload.saldo_a_favor_interno = 0;
     }
 
     // Convertir strings vacíos a null para campos opcionales
@@ -73,14 +83,26 @@ export class ClientService {
       });
     }
 
-    if (payload.saldo_a_favor && Number(payload.saldo_a_favor) > 0) {
+    if (payload.saldo_a_favor_blanco && Number(payload.saldo_a_favor_blanco) > 0) {
       await prisma.payment.create({
         data: {
           client_id: client.id,
-          monto_ars: Number(payload.saldo_a_favor),
+          monto_ars: Number(payload.saldo_a_favor_blanco),
           tipo: 'A_FAVOR',
           metodo_pago: 'SALDO_A_FAVOR',
-          referencia: 'Carga de saldo inicial a favor'
+          referencia: 'Carga inicial de saldo a favor fiscal'
+        }
+      });
+    }
+
+    if (payload.saldo_a_favor_interno && Number(payload.saldo_a_favor_interno) > 0) {
+      await prisma.payment.create({
+        data: {
+          client_id: client.id,
+          monto_ars: Number(payload.saldo_a_favor_interno),
+          tipo: 'A_FAVOR',
+          metodo_pago: 'SALDO_A_FAVOR',
+          referencia: 'Carga inicial de saldo a favor interno'
         }
       });
     }
@@ -203,8 +225,73 @@ export class ClientService {
       updated.saldo_deuda = total as any;
     }
 
-    // Si se modificó el saldo a favor
-    if (data.saldo_a_favor !== undefined) {
+    // Si se modificó el saldo a favor por sector o consolidado
+    if (data.saldo_a_favor_blanco !== undefined || data.saldo_a_favor_interno !== undefined) {
+      const oldBlancoFavor = Number(currentClient?.saldo_a_favor_blanco || 0);
+      const oldInternoFavor = Number(currentClient?.saldo_a_favor_interno || 0);
+      const newBlancoFavor = data.saldo_a_favor_blanco !== undefined ? Number(data.saldo_a_favor_blanco) : oldBlancoFavor;
+      const newInternoFavor = data.saldo_a_favor_interno !== undefined ? Number(data.saldo_a_favor_interno) : oldInternoFavor;
+      const diffBlanco = newBlancoFavor - oldBlancoFavor;
+      const diffInterno = newInternoFavor - oldInternoFavor;
+
+      payload.saldo_a_favor_blanco = newBlancoFavor;
+      payload.saldo_a_favor_interno = newInternoFavor;
+      payload.saldo_a_favor = newBlancoFavor + newInternoFavor;
+
+      let fechaPagoFavor = new Date();
+      if (fecha_saldo_a_favor) {
+        fechaPagoFavor = new Date(String(fecha_saldo_a_favor).includes('T') ? String(fecha_saldo_a_favor) : `${fecha_saldo_a_favor}T12:00:00`);
+        if (isNaN(fechaPagoFavor.getTime())) {
+          fechaPagoFavor = new Date();
+        }
+      }
+
+      if (diffBlanco !== 0) {
+        const refText = motivo_saldo_a_favor && String(motivo_saldo_a_favor).trim()
+          ? `Carga de Saldo a Favor [Fiscal]: ${String(motivo_saldo_a_favor).trim()}`
+          : (diffBlanco > 0 ? 'Carga de Saldo a Favor [Fiscal]' : 'Ajuste de Saldo a Favor [Fiscal]');
+
+        await prisma.payment.create({
+          data: {
+            client_id: id,
+            monto_ars: Math.abs(diffBlanco),
+            tipo: 'A_FAVOR',
+            metodo_pago: metodo_saldo_a_favor || 'SALDO_A_FAVOR',
+            referencia: refText,
+            fecha: fechaPagoFavor
+          }
+        });
+      }
+
+      if (diffInterno !== 0) {
+        const refText = motivo_saldo_a_favor && String(motivo_saldo_a_favor).trim()
+          ? `Carga de Saldo a Favor [Interno]: ${String(motivo_saldo_a_favor).trim()}`
+          : (diffInterno > 0 ? 'Carga de Saldo a Favor [Interno]' : 'Ajuste de Saldo a Favor [Interno]');
+
+        await prisma.payment.create({
+          data: {
+            client_id: id,
+            monto_ars: Math.abs(diffInterno),
+            tipo: 'A_FAVOR',
+            metodo_pago: metodo_saldo_a_favor || 'SALDO_A_FAVOR',
+            referencia: refText,
+            fecha: fechaPagoFavor
+          }
+        });
+      }
+
+      await prisma.client.update({
+        where: { id },
+        data: {
+          saldo_a_favor_blanco: newBlancoFavor,
+          saldo_a_favor_interno: newInternoFavor,
+          saldo_a_favor: newBlancoFavor + newInternoFavor
+        }
+      });
+      updated.saldo_a_favor = (newBlancoFavor + newInternoFavor) as any;
+      updated.saldo_a_favor_blanco = newBlancoFavor as any;
+      updated.saldo_a_favor_interno = newInternoFavor as any;
+    } else if (data.saldo_a_favor !== undefined) {
       const oldFavor = Number(currentClient?.saldo_a_favor || 0);
       const newFavor = Number(updated.saldo_a_favor);
       const diffFavor = newFavor - oldFavor;
@@ -241,14 +328,21 @@ export class ClientService {
   static async loadCredit(
     clientId: number,
     rawMonto: number | string,
+    tipo: 'BLANCO' | 'INTERNO' = 'BLANCO',
     motivo?: string,
     fecha?: string | Date,
     metodo: string = 'SALDO_A_FAVOR',
-    modo: 'add' | 'direct' = 'add'
+    modo: 'add' | 'direct' = 'add',
+    applyDebtData?: {
+      imputar_a_deuda?: boolean;
+      deuda_referencia?: string;
+      deuda_id?: string | number;
+      deuda_monto?: number;
+    }
   ) {
     const monto = parseArgNumber(rawMonto);
-    if (isNaN(monto) || monto < 0) {
-      throw new AppError('El monto debe ser un valor numérico válido mayor o igual a 0', 400);
+    if (isNaN(monto) || (modo === 'add' && monto <= 0) || (modo === 'direct' && monto < 0)) {
+      throw new AppError('El monto debe ser un valor numérico válido mayor a 0', 400);
     }
 
     let fechaMovimiento = new Date();
@@ -263,21 +357,100 @@ export class ClientService {
       const client = await tx.client.findUnique({ where: { id: clientId } });
       if (!client) throw new AppError('Cliente no encontrado', 404);
 
-      const currentFavor = Number(client.saldo_a_favor || 0);
-      const newFavor = modo === 'direct' ? monto : currentFavor + monto;
-      const diff = newFavor - currentFavor;
+      let currentBlanco = Number(client.saldo_blanco);
+      let currentInterno = Number(client.saldo_interno);
+      let currentFavorBlanco = Number(client.saldo_a_favor_blanco || 0);
+      let currentFavorInterno = Number(client.saldo_a_favor_interno || 0);
+
+      const sectorLabel = tipo === 'BLANCO' ? 'Fiscal' : 'Interno';
+
+      // CASO 1: Imputar a una factura o deuda existente usando el saldo a favor disponible
+      if (applyDebtData?.imputar_a_deuda && applyDebtData.deuda_referencia) {
+        const availableFavor = tipo === 'BLANCO' ? currentFavorBlanco : currentFavorInterno;
+        if (availableFavor <= 0.001) {
+          throw new AppError(`El cliente no cuenta con saldo a favor ${sectorLabel} disponible para imputar.`, 400);
+        }
+
+        const debtTargetMonto = applyDebtData.deuda_monto !== undefined && applyDebtData.deuda_monto > 0
+          ? applyDebtData.deuda_monto
+          : monto;
+
+        // El monto a imputar no puede superar el crédito disponible ni lo solicitado
+        const requestedMonto = Math.min(monto, debtTargetMonto);
+        if (requestedMonto > availableFavor + 0.01) {
+          throw new AppError(`El monto a imputar ($${requestedMonto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}) supera el saldo a favor ${sectorLabel} disponible ($${availableFavor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}).`, 400);
+        }
+
+        const aImputar = Math.min(requestedMonto, availableFavor);
+
+        // Deducir del crédito disponible del sector y amortizar la deuda
+        if (tipo === 'BLANCO') {
+          currentFavorBlanco = Math.max(0, currentFavorBlanco - aImputar);
+          currentBlanco += aImputar; // reduce deuda negativa
+        } else {
+          currentFavorInterno = Math.max(0, currentFavorInterno - aImputar);
+          currentInterno += aImputar; // reduce deuda negativa
+        }
+
+        // Crear pago de cancelación de la deuda con método SALDO_A_FAVOR
+        const refDebt = applyDebtData.deuda_referencia.trim();
+        const debtPaymentRef = refDebt.includes('Saldo a Favor') ? refDebt : `${refDebt} (Saldo a Favor)`;
+        await tx.payment.create({
+          data: {
+            client_id: clientId,
+            monto_ars: aImputar,
+            tipo: tipo,
+            metodo_pago: 'SALDO_A_FAVOR',
+            referencia: debtPaymentRef,
+            fecha: fechaMovimiento
+          }
+        });
+
+        const newTotalDeuda = currentBlanco + currentInterno;
+        const newTotalFavor = currentFavorBlanco + currentFavorInterno;
+
+        const updated = await tx.client.update({
+          where: { id: clientId },
+          data: {
+            saldo_blanco: currentBlanco,
+            saldo_interno: currentInterno,
+            saldo_deuda: newTotalDeuda,
+            saldo_a_favor_blanco: currentFavorBlanco,
+            saldo_a_favor_interno: currentFavorInterno,
+            saldo_a_favor: newTotalFavor
+          }
+        });
+
+        return updated;
+      }
+
+      // CASO 2: Carga pura de saldo a favor (queda acreditado en la cuenta)
+      let diff = 0;
+      if (tipo === 'BLANCO') {
+        const newBlanco = modo === 'direct' ? monto : currentFavorBlanco + monto;
+        diff = newBlanco - currentFavorBlanco;
+        currentFavorBlanco = newBlanco;
+      } else {
+        const newInterno = modo === 'direct' ? monto : currentFavorInterno + monto;
+        diff = newInterno - currentFavorInterno;
+        currentFavorInterno = newInterno;
+      }
+
+      const newTotalFavor = currentFavorBlanco + currentFavorInterno;
 
       const updated = await tx.client.update({
         where: { id: clientId },
         data: {
-          saldo_a_favor: newFavor
+          saldo_a_favor_blanco: currentFavorBlanco,
+          saldo_a_favor_interno: currentFavorInterno,
+          saldo_a_favor: newTotalFavor
         }
       });
 
       if (diff !== 0) {
         const refFinal = motivo && String(motivo).trim()
-          ? `Carga de Saldo a Favor: ${String(motivo).trim()}`
-          : (diff > 0 ? 'Carga de Saldo a Favor' : 'Ajuste de Saldo a Favor');
+          ? `Carga de Saldo a Favor [${sectorLabel}]: ${String(motivo).trim()}`
+          : (diff > 0 ? `Carga de Saldo a Favor [${sectorLabel}]` : `Ajuste de Saldo a Favor [${sectorLabel}]`);
 
         await tx.payment.create({
           data: {
@@ -292,6 +465,19 @@ export class ClientService {
       }
 
       return updated;
+    });
+  }
+
+  static async imputeCredit(
+    clientId: number,
+    rawMonto: number | string,
+    tipo: 'BLANCO' | 'INTERNO' = 'BLANCO',
+    referencia: string = '',
+    fecha?: string | Date
+  ) {
+    return await ClientService.loadCredit(clientId, rawMonto, tipo, '', fecha, 'SALDO_A_FAVOR', 'add', {
+      imputar_a_deuda: true,
+      deuda_referencia: referencia
     });
   }
 
@@ -317,7 +503,7 @@ export class ClientService {
   static async registerPayment(
     clientId: number, 
     montoArs: number, 
-    tipo: 'BLANCO' | 'INTERNO' | 'MIXTO' = 'MIXTO', 
+    tipo: 'BLANCO' | 'INTERNO' | 'MIXTO' = 'BLANCO', 
     metodo: string = 'TRANSFERENCIA', 
     referencia: string = '', 
     fecha?: Date | string,
@@ -353,25 +539,65 @@ export class ClientService {
 
       let newSaldoBlanco = Number(client.saldo_blanco);
       let newSaldoInterno = Number(client.saldo_interno);
+      let newFavorBlanco = Number(client.saldo_a_favor_blanco || 0);
+      let newFavorInterno = Number(client.saldo_a_favor_interno || 0);
 
-      if (tipo === 'BLANCO') {
-        newSaldoBlanco += montoArs; // Sumar para reducir deuda negativa
-      } else if (tipo === 'INTERNO') {
-        newSaldoInterno += montoArs;
-      } else {
-        // MIXTO: Salda primero Interno, remanente a Blanco
-        let restante = montoArs;
-        
-        // Si el saldo negro es negativo (deuda), lo reducimos sumando
-        if (newSaldoInterno < 0) {
-          const aSaldarInterno = Math.min(restante, Math.abs(newSaldoInterno));
-          newSaldoInterno += aSaldarInterno;
-          restante -= aSaldarInterno;
+      // Si el método de pago es SALDO_A_FAVOR, deducir del saldo a favor del sector
+      if (metodo === 'SALDO_A_FAVOR') {
+        if (tipo === 'BLANCO') {
+          if (newFavorBlanco < (montoArs - 0.001)) {
+            throw new AppError(`Saldo a favor fiscal insuficiente. Disponible: $${newFavorBlanco.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 400);
+          }
+          newFavorBlanco -= montoArs;
+          newSaldoBlanco += montoArs;
+        } else if (tipo === 'INTERNO') {
+          if (newFavorInterno < (montoArs - 0.001)) {
+            throw new AppError(`Saldo a favor interno insuficiente. Disponible: $${newFavorInterno.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 400);
+          }
+          newFavorInterno -= montoArs;
+          newSaldoInterno += montoArs;
+        } else {
+          // MIXTO
+          const totalFavor = newFavorBlanco + newFavorInterno;
+          if (totalFavor < (montoArs - 0.001)) {
+            throw new AppError(`Saldo a favor insuficiente. Disponible: $${totalFavor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`, 400);
+          }
+          let restante = montoArs;
+          if (newFavorInterno > 0) {
+            const deductInterno = Math.min(restante, newFavorInterno);
+            newFavorInterno -= deductInterno;
+            restante -= deductInterno;
+          }
+          if (restante > 0) {
+            newFavorBlanco -= restante;
+          }
+
+          let restanteDeuda = montoArs;
+          if (newSaldoInterno < 0) {
+            const aSaldarInterno = Math.min(restanteDeuda, Math.abs(newSaldoInterno));
+            newSaldoInterno += aSaldarInterno;
+            restanteDeuda -= aSaldarInterno;
+          }
+          if (restanteDeuda > 0) {
+            newSaldoBlanco += restanteDeuda;
+          }
         }
-        
-        // Si sobra dinero del cobro, lo aplicamos al blanco
-        if (restante > 0) {
-          newSaldoBlanco += restante;
+      } else {
+        // Métodos de cobro convencionales (Efectivo, Transferencia, Cheque, etc.)
+        if (tipo === 'BLANCO') {
+          newSaldoBlanco += montoArs;
+        } else if (tipo === 'INTERNO') {
+          newSaldoInterno += montoArs;
+        } else {
+          let restante = montoArs;
+          if (newSaldoInterno < 0) {
+            const aSaldarInterno = Math.min(restante, Math.abs(newSaldoInterno));
+            newSaldoInterno += aSaldarInterno;
+            restante -= aSaldarInterno;
+          }
+          if (restante > 0) {
+            newSaldoBlanco += restante;
+          }
         }
       }
 
@@ -401,7 +627,7 @@ export class ClientService {
           monto_ars: montoArs,
           tipo: tipo,
           metodo_pago: metodo,
-          referencia: refFinal,
+          referencia: refFinal || (metodo === 'SALDO_A_FAVOR' ? 'Pago con Saldo a Favor' : ''),
           nro_cheque: extraData?.nro_cheque || null,
           fecha_vto_cheque: vtoCheque,
           caja: extraData?.caja || null,
@@ -409,14 +635,18 @@ export class ClientService {
         }
       });
 
-      // Sincronizar deuda total
+      // Sincronizar deuda total y saldo a favor total
       const newDeuda = newSaldoBlanco + newSaldoInterno;
+      const newTotalFavor = newFavorBlanco + newFavorInterno;
       await tx.client.update({
         where: { id: clientId },
         data: {
           saldo_blanco: newSaldoBlanco,
           saldo_interno: newSaldoInterno,
-          saldo_deuda: newDeuda
+          saldo_deuda: newDeuda,
+          saldo_a_favor_blanco: newFavorBlanco,
+          saldo_a_favor_interno: newFavorInterno,
+          saldo_a_favor: newTotalFavor
         }
       });
 
@@ -436,23 +666,58 @@ export class ClientService {
 
       let newSaldoBlanco = Number(client.saldo_blanco);
       let newSaldoInterno = Number(client.saldo_interno);
+      let newFavorBlanco = Number(client.saldo_a_favor_blanco || 0);
+      let newFavorInterno = Number(client.saldo_a_favor_interno || 0);
       const monto = Number(payment.monto_ars);
 
-      if (payment.tipo === 'BLANCO') {
-        newSaldoBlanco -= monto;
+      if (payment.tipo === 'A_FAVOR') {
+        // Se borra una carga pura de saldo a favor
+        const refLower = (payment.referencia || '').toLowerCase();
+        if (refLower.includes('fiscal') || refLower.includes('blanco')) {
+          newFavorBlanco = Math.max(0, newFavorBlanco - monto);
+        } else if (refLower.includes('interno')) {
+          newFavorInterno = Math.max(0, newFavorInterno - monto);
+        } else {
+          // Si no especifica, deducir de blanco o proporcional
+          if (newFavorBlanco >= monto) {
+            newFavorBlanco -= monto;
+          } else {
+            const rem = monto - newFavorBlanco;
+            newFavorBlanco = 0;
+            newFavorInterno = Math.max(0, newFavorInterno - rem);
+          }
+        }
       } else {
-        newSaldoInterno -= monto;
+        // Se borra un pago que redujo la deuda
+        if (payment.tipo === 'BLANCO') {
+          newSaldoBlanco -= monto;
+        } else {
+          newSaldoInterno -= monto;
+        }
+
+        // Si fue pagado con SALDO_A_FAVOR, restaurar el crédito al cliente
+        if (payment.metodo_pago === 'SALDO_A_FAVOR') {
+          if (payment.tipo === 'BLANCO') {
+            newFavorBlanco += monto;
+          } else {
+            newFavorInterno += monto;
+          }
+        }
       }
 
       await tx.payment.delete({ where: { id: paymentId } });
       
       const newDeuda = newSaldoBlanco + newSaldoInterno;
+      const newTotalFavor = newFavorBlanco + newFavorInterno;
       await tx.client.update({
         where: { id: clientId },
         data: {
           saldo_blanco: newSaldoBlanco,
           saldo_interno: newSaldoInterno,
-          saldo_deuda: newDeuda
+          saldo_deuda: newDeuda,
+          saldo_a_favor_blanco: newFavorBlanco,
+          saldo_a_favor_interno: newFavorInterno,
+          saldo_a_favor: newTotalFavor
         }
       });
 

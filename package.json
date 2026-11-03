@@ -1,0 +1,14 @@
+{
+  "name": "nexus-arca",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NexusARCA - Sistema de Facturación y Cuenta Corriente con ARCA / AFIP",
+  "scripts": {
+    "test": "npx --yes tsx tests/run_all.ts",
+    "test:ledger": "npx --yes tsx tests/test_ledger.ts",
+    "test:backend": "npx --yes tsx tests/test_backend_services.ts",
+    "test:api": "npx --yes tsx tests/test_api_endpoints.ts",
+    "test:format": "npx --yes tsx tests/test_format.ts",
+    "test:pdf": "npx --yes tsx tests/test_pdf.ts"
+  }
+}

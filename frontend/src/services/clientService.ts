@@ -14,6 +14,8 @@ export interface Client {
   saldo_interno: number | string;
   saldo_deuda: number | string;
   saldo_a_favor?: number | string;
+  saldo_a_favor_blanco?: number | string;
+  saldo_a_favor_interno?: number | string;
   porcentaje_facturacion?: number | string;
   sales?: any[];
   payments?: any[];
@@ -33,6 +35,8 @@ export interface ClientFormData {
   saldo_blanco?: number | string;
   saldo_interno?: number | string;
   saldo_a_favor?: number | string;
+  saldo_a_favor_blanco?: number | string;
+  saldo_a_favor_interno?: number | string;
 }
 
 export interface PaymentPayload {
@@ -48,10 +52,15 @@ export interface PaymentPayload {
 
 export interface LoadCreditPayload {
   monto: number | string;
+  tipo?: 'BLANCO' | 'INTERNO';
   motivo?: string;
   fecha?: string;
   metodo?: string;
   modo?: 'add' | 'direct';
+  imputar_a_deuda?: boolean;
+  deuda_referencia?: string;
+  deuda_id?: string | number;
+  deuda_monto?: number;
 }
 
 export const clientService = {
@@ -81,6 +90,10 @@ export const clientService = {
   },
   loadCredit: async (clientId: number, data: LoadCreditPayload): Promise<Client> => {
     const response = await api.post(`/clients/${clientId}/credit`, data);
+    return response.data;
+  },
+  imputeCredit: async (clientId: number, data: { monto: number | string; tipo: 'BLANCO' | 'INTERNO'; referencia: string; fecha?: string }): Promise<any> => {
+    const response = await api.post(`/clients/${clientId}/impute-credit`, data);
     return response.data;
   },
   deletePayment: async (clientId: number, paymentId: number): Promise<{ success: boolean }> => {

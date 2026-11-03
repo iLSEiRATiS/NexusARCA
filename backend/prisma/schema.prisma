@@ -48,6 +48,8 @@ model Client {
   saldo_interno           Decimal      @default(0) @map("saldo_negro")
   saldo_deuda             Decimal      @default(0)
   saldo_a_favor           Decimal      @default(0) 
+  saldo_a_favor_blanco    Decimal      @default(0)
+  saldo_a_favor_interno   Decimal      @default(0) 
   
   porcentaje_facturacion  Decimal      @default(100.00) 
   sales                   Sale[]

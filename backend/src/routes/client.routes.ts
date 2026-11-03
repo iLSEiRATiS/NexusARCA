@@ -13,6 +13,7 @@ router.delete('/:id', ClientController.delete);
 
 router.post('/:id/payments', ClientController.registerPayment);
 router.post('/:id/credit', validate(loadCreditSchema), ClientController.loadCredit);
+router.post('/:id/impute-credit', ClientController.imputeCredit);
 router.delete('/:id/payments/:paymentId', ClientController.deletePayment);
 router.post('/sync-all', ClientController.syncAll);
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { Client } from '../../services/clientService';
-import { DollarSign, X, Calendar, FileText, CreditCard, Briefcase } from 'lucide-react';
+import { DollarSign, X, Calendar, FileText, CreditCard, Briefcase, Wallet } from 'lucide-react';
 import { usePrivacy } from '../../context/PrivacyContext';
+import { parseArgNumber } from '../../utils/format';
 
 export interface PaymentDataState {
   monto: number | string;
@@ -39,10 +40,22 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
 }) => {
   const { isManagementUnlocked } = usePrivacy();
 
-  // En Modo Fiscal Oficial, sólo se muestran deudas fiscales
-  const visibleDebts = isManagementUnlocked
+  const rawBlanco = Number(client?.saldo_blanco || 0);
+  const rawInterno = Number(client?.saldo_interno || 0);
+  const saldoFiscalPendiente = rawBlanco < -0.05 ? Math.abs(rawBlanco) : 0;
+  const deudaInterno = rawInterno < -0.05 ? Math.abs(rawInterno) : 0;
+  const deudaTotal = saldoFiscalPendiente + deudaInterno;
+
+  // En Modo Fiscal Oficial, sólo se muestran deudas fiscales. Filtrar deudas que tengan saldo adeudado y no estén saldadas.
+  const visibleDebts = (isManagementUnlocked
     ? pendingDebts
-    : pendingDebts.filter((d) => d.classification?.caracter === 'FISCAL' || d.tipo === 'BLANCO');
+    : pendingDebts.filter((d) => d.classification?.caracter === 'FISCAL' || d.tipo === 'BLANCO')
+  ).filter((d) => {
+    const isFiscal = d.tipo === 'BLANCO' || d.classification?.caracter === 'FISCAL';
+    const sectorDebt = isFiscal ? saldoFiscalPendiente : deudaInterno;
+    const saldo = Number(d.saldoPendiente ?? d.monto ?? 0);
+    return sectorDebt > 0.05 && saldo > 0.05 && !d.isPaid;
+  });
 
   const [selectedDebtId, setSelectedDebtId] = useState<string>('');
 
@@ -67,9 +80,9 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
 
   if (!isOpen || !client) return null;
 
-  const deudaTotal = Math.abs(Number(client.saldo_deuda || 0));
-  const deudaInterno = Math.abs(Number(client.saldo_interno || 0));
-  const saldoFiscalPendiente = Math.abs(Number(client.saldo_blanco || 0));
+  const saldoFiscalFavor = Math.max(0, Number(client.saldo_a_favor_blanco ?? client.saldo_a_favor ?? 0));
+  const saldoInternoFavor = Math.max(0, Number(client.saldo_a_favor_interno || 0));
+  const availableFavor = paymentData.imputacion === 'INTERNO' ? saldoInternoFavor : saldoFiscalFavor;
 
   const isCheque = paymentData.metodo === 'CHEQUE' || paymentData.metodo === 'CHEQUE_ELECTRONICO';
 
@@ -158,6 +171,11 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
                     const found = visibleDebts.find((d) => d.id === val);
                     if (found) {
                       onSelectDebt(found);
+                      if (paymentData.metodo === 'SALDO_A_FAVOR') {
+                        const rawDebtMonto = found.saldoPendiente !== undefined ? Number(found.saldoPendiente) : Number(found.monto || 0);
+                        const cap = Math.min(rawDebtMonto, availableFavor);
+                        setPaymentData((prev) => ({ ...prev, monto: cap > 0 ? cap : '' }));
+                      }
                     }
                   }}
                   className="w-full bg-blue-50/70 border-2 border-blue-500 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-700 outline-none uppercase text-xs cursor-pointer shadow-xs"
@@ -229,11 +247,18 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
                   if ((newMetodo === 'CHEQUE' || newMetodo === 'CHEQUE_ELECTRONICO') && !newVto) {
                     newVto = prev.fecha;
                   }
+                  let newMonto = prev.monto;
+                  if (newMetodo === 'SALDO_A_FAVOR') {
+                    const currentMontoNum = parseArgNumber(prev.monto);
+                    const cap = currentMontoNum > 0 ? Math.min(currentMontoNum, availableFavor) : availableFavor;
+                    newMonto = cap > 0 ? cap : '';
+                  }
                   return {
                     ...prev,
                     metodo: newMetodo,
                     caja: newCaja,
                     fecha_vto_cheque: newVto,
+                    monto: newMonto,
                   };
                 });
               }}
@@ -243,6 +268,9 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
               <option value="TRANSFERENCIA">Transferencia Bancaria</option>
               <option value="CHEQUE">Cheque Físico</option>
               <option value="CHEQUE_ELECTRONICO">Cheque Electrónico (E-Cheq)</option>
+              <option value="SALDO_A_FAVOR">
+                Saldo a Favor ({paymentData.imputacion === 'INTERNO' ? `Disponible Interno: $${saldoInternoFavor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : `Disponible Fiscal: $${saldoFiscalFavor.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`})
+              </option>
             </select>
           </div>
           <div>
@@ -353,6 +381,46 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
           </div>
         )}
 
+        {/* ── SECCIÓN ESPECÍFICA PARA PAGO CON SALDO A FAVOR ── */}
+        {paymentData.metodo === 'SALDO_A_FAVOR' && (
+          <div className="p-5 bg-emerald-50 border-2 border-emerald-400 space-y-3 animate-fade-in shadow-xs">
+            <div className="flex items-center justify-between border-b border-emerald-200 pb-2.5">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-2">
+                <Wallet size={15} className="text-emerald-700" />
+                Imputación con Saldo a Favor ({paymentData.imputacion === 'INTERNO' ? 'Interno / Remitos' : 'Fiscal / Oficial'})
+              </span>
+              <span className="font-mono font-black text-sm text-emerald-700 bg-white border border-emerald-300 px-2.5 py-1">
+                Disponible: ${availableFavor.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            {availableFavor <= 0 ? (
+              <div className="p-3 bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold">
+                ⚠️ El cliente no cuenta con saldo a favor disponible en el sector {paymentData.imputacion === 'INTERNO' ? 'Interno' : 'Fiscal'} para imputar. Primero debe añadir saldo a favor en dicho sector.
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-900 pt-1">
+                <span>
+                  El cobro se deducirá del crédito disponible del cliente y saldará la deuda seleccionada.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const debtMonto = selectedDebtId
+                      ? Number(visibleDebts.find((d) => d.id === selectedDebtId)?.saldoPendiente ?? visibleDebts.find((d) => d.id === selectedDebtId)?.monto ?? 0)
+                      : 0;
+                    const maxUsable = debtMonto > 0 ? Math.min(debtMonto, availableFavor) : availableFavor;
+                    setPaymentData((prev) => ({ ...prev, monto: maxUsable }));
+                  }}
+                  className="px-3 py-1.5 bg-emerald-700 text-white font-bold text-xs uppercase hover:bg-emerald-800 transition-colors cursor-pointer shrink-0"
+                >
+                  Usar Saldo a Favor ({availableFavor.toLocaleString('es-AR', { minimumFractionDigits: 2 })})
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── 3. MONTO A COBRAR ── */}
         <div>
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -371,7 +439,7 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
         {/* Submit */}
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || (paymentData.metodo === 'SALDO_A_FAVOR' && (availableFavor <= 0 || parseArgNumber(paymentData.monto) > availableFavor + 0.01))}
           className="w-full bg-emerald-600 text-white py-4 font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           {isPending ? 'Procesando cobro...' : 'Confirmar Cobro'}

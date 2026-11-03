@@ -222,3 +222,72 @@ pm2 restart 1
   * **Remitos / Comprobantes Internos:** Se ajustó para mostrar el número de remito real asignado (`N° Remito: REM-XX` o `N° Remito: R-XXXX`) en el encabezado superior y en el nombre del archivo descargado en lugar de un ID interno simple.
   * **Facturas Oficiales y Notas de Crédito:** Se garantiza el formateo estándar AFIP/ARCA a 8 dígitos para el número de comprobante (ej: `0006-00000036`), asegurando una presentación fiscal oficial.
   * **Estado de Cuenta PDF:** Se estandarizó la presentación de saldos (Saldo Fiscal ARCA, Saldo Interno Remitos y Saldo a Favor) con 2 decimales y formato de moneda argentino.
+
+## 28. Discriminación de Saldo a Favor por Sector (Fiscal vs Interno) e Imputación de Créditos a Facturas Existentes
+* **Estructura de Base de Datos y Modelado Contable (`Prisma`):**
+  * Se añadieron las columnas `saldo_a_favor_blanco Decimal @default(0)` y `saldo_a_favor_interno Decimal @default(0)` a la tabla `Client` en [`schema.prisma`](file:///C:/Users/facun/OneDrive/Escritorio/Proyectos/NexusARCA/backend/prisma/schema.prisma).
+  * Se migraron de forma segura los saldos preexistentes asignándolos al sector fiscal oficial y manteniendo la sincronización de la suma consolidada `saldo_a_favor = saldo_a_favor_blanco + saldo_a_favor_interno`.
+* **Backend y Lógica de Servicios (`ClientService` y `ClientController`):**
+  * **Carga de Saldo a Favor (`loadCredit`):**
+    * Soporta la selección explícita del sector contable (`tipo: 'BLANCO' | 'INTERNO'`).
+    * Permite la imputación directa a deudas existentes (`applyDebtData`): amortiza la deuda seleccionada en el sector elegido registrando un comprobante de pago de tipo `BLANCO` o `INTERNO` con método `SALDO_A_FAVOR`, y en caso de haber excedente lo acredita en el saldo a favor de dicho sector.
+  * **Cobro con Saldo a Favor (`registerPayment`):**
+    * Se habilitó el método `SALDO_A_FAVOR`: valida la existencia de crédito suficiente en el sector imputado (`saldo_a_favor_blanco` para Fiscal o `saldo_a_favor_interno` para Interno).
+    * Deduce el importe del crédito del cliente y cancela la deuda correspondiente de forma atómica dentro de una transacción Prisma.
+  * **Reversibilidad Contable (`deletePayment`):**
+    * Al eliminar un pago abonado con `SALDO_A_FAVOR`, se restaura automáticamente el crédito a favor en el sector fiscal o interno correspondiente además de rehabilitar la deuda del comprobante.
+* **Modal Añadir Saldo a Favor (`ClientCreditModal.tsx`):**
+  * **Paso 1 - Selección de Sector Contable:** Presenta la pregunta destacada *"¿Dónde querés añadir saldo a favor?"* con dos tarjetas interactivas de alta visibilidad:
+    * **Fiscal (Oficial ARCA):** muestra crédito fiscal actual y deuda fiscal pendiente.
+    * **Interno (Remitos / Gestión):** muestra crédito interno actual y deuda interna pendiente (con respeto al PIN de privacidad de Modo Gestión).
+  * **Paso 2 - Destino del Crédito:** Permite al operador elegir entre:
+    * *Dejar en cuenta corriente:* para utilizarlo libremente en facturaciones futuras (con opción de sumar o establecer saldo directo).
+    * *Imputar a factura existente:* despliega automáticamente las facturas y deudas pendientes filtradas por el sector elegido, autocompletando el monto exacto y la referencia para una cancelación ágil.
+* **Modal Registrar Cobro (`ClientPaymentModal.tsx`):**
+  * Se agregó la opción **"Saldo a Favor"** en el selector de Método de Pago, mostrando dinámicamente el crédito disponible en el sector fiscal o interno según la imputación seleccionada.
+  * Incluye banner interactivo con botón rápido *"Usar Saldo a Favor"* y validación que impide imputar montos superiores al crédito disponible.
+* **Visualización en Directorio y Cuenta Corriente (`ClientsTable.tsx` y `ClientDetailModal.tsx`):**
+  * En la tarjeta de Saldo a Favor de la ficha del cliente se detalla el desglose `Fiscal (Oficial)` vs `Interno (Remitos)` y se añade la acción directa *"Imputar a Factura"* junto a *"+ Añadir Saldo"*.
+  * En la tabla de clientes se muestra el crédito discriminado y formateado con estándares argentinos.
+
+## 29. Corrección y Blindaje de Imputación y Suma de Saldo a Favor
+* **Resolución de Cancelación Indebida de Facturas por Monto Superior al Saldo a Favor:**
+  * **Problema identificado:** Si un cliente disponía de \$1.000 de saldo a favor y se seleccionaba una factura de \$50.000, el sistema precompletaba \$50.000 y cancelaba la totalidad de la factura sin verificar que el crédito disponible era inferior.
+  * **Solución Frontend (`ClientCreditModal.tsx` y `ClientPaymentModal.tsx`):**
+    * Al seleccionar una deuda a cancelar, el campo de monto se limita de forma estricta a `Math.min(currentFavorSector, selectedDebtMonto)` (ej. \$1.000 en lugar de \$50.000).
+    * Se incorporó desglose en tiempo real: *"Deuda de la factura"*, *"Tu saldo a favor disponible"*, *"Monto a imputar (pago parcial)"* y *"Resta a pagar luego de la imputación"*.
+    * Si el saldo a favor es \$0 o el usuario intenta escribir un monto mayor al crédito disponible, el botón de confirmación se bloquea y se muestra una advertencia visual explicativa.
+  * **Blindaje Backend (`client.service.ts`):**
+    * En `loadCredit` y en el nuevo endpoint `imputeCredit` (`POST /api/clients/:id/impute-credit`), se valida que `monto <= availableFavor`. En caso de que se intente imputar más del saldo disponible, la transacción se rechaza arrojando `HttpError(400)`.
+    * El monto efectivamente imputado se calcula como `aImputar = Math.min(requestedMonto, availableFavor)`. Se descuenta del saldo a favor del sector correspondiente (`saldo_a_favor_blanco` o `saldo_a_favor_interno`), se reduce la deuda contable del cliente y se genera el recibo con `metodo_pago: 'SALDO_A_FAVOR'`.
+* **Cálculo Exacto de Suma de Dinero a Favor (`modo: 'add'`):**
+    * Se corrigió la lógica en backend y frontend para garantizar que al seleccionar *"Sumar al saldo actual"*, el nuevo importe se añada matemáticamente al saldo del sector (`saldo_a_favor_blanco += monto` o `saldo_a_favor_interno += monto`), sincronizando `saldo_a_favor` total.
+    * En la interfaz se muestra un desglose en tiempo real: `Saldo actual + Monto a sumar = Nuevo saldo`.
+* **Ajustes en el Motor de Conciliación Contable (`accountLedger.ts`):**
+    * Se eliminó el reseteo global que marcaba todas las deudas como saldadas cuando `client.saldo_deuda >= 0`, condicionándolo ahora a que `totalPaidAmount >= totalDebtAmount - 0.05`.
+    * Se aisló la imputación FIFO (Paso 2) para que los pagos `BLANCO` solo amortizan deudas fiscales y los pagos `INTERNO` solo deudas internas.
+    * Los cobros referenciados a un comprobante específico no derraman saldo sobre facturas no relacionadas.
+    * Las facturas con amortización parcial permanecen listadas como deudas pendientes con la etiqueta `Parcial` y el saldo restante exacto adeudado.
+
+## 30. Reconciliación Sectorial de Facturas Saldadas y Depuración de Selectores (`accountLedger.ts`, `ClientCreditModal.tsx`, `ClientPaymentModal.tsx`)
+* **Causa Raíz de Comprobantes Saldados que Seguían Apareciendo en el Selector:**
+  * Al conciliar cuentas, el motor contable exigía que `totalPaidAmount >= totalDebtAmount` a nivel global (sumando todos los comprobantes históricos de ambos sectores), lo que impedía dar por saldadas facturas en clientes con ajustes manuales de saldo o pagos globales.
+  * Además, las notas y ajustes manuales de saldo negativos se listaban como si fuesen facturas pendientes individuales (`[FISCAL (BLANCO)] Factura N° Modificación manual de saldo pendiente`).
+* **Reconciliación Contable por Sector con el Saldo Real (`Paso 2.5`):**
+  * **Sector Fiscal (`saldo_blanco`):** Si `client.saldo_blanco >= -0.05`, el cliente no tiene deuda fiscal. Todas las facturas fiscales históricas pasan inmediatamente a Pagadas (`saldoPendiente = 0`, `isPaid = true`) y desaparecen de la lista de pendientes.
+  * **Sector Interno (`saldo_interno`):** Si `client.saldo_interno >= -0.05`, todas las entregas/remitos pasan inmediatamente a Pagados.
+  * **Tope de Deuda Activa:** Cuando un sector registra deuda (ej. `saldo_blanco = -$4.840`), la suma de comprobantes pendientes se concilia estrictamente con ese importe (priorizando los comprobantes más recientes). Todas las facturas anteriores ya saldadas se dan por canceladas y no figuran en los desplegables de pago ni imputación.
+* **Depuración de Selectores de Deuda (`ClientCreditModal.tsx` y `ClientPaymentModal.tsx`):**
+  * Se filtran de forma estricta las listas de comprobantes pendientes para excluir deudas ya saldadas (`saldoPendiente <= 0.05` o `isPaid: true`) y verificar que el sector contable registre deuda activa.
+  * En caso de haber saldado todas las facturas del sector, el desplegable se oculta limpiamente mostrando el mensaje: *"No se detectan comprobantes impagos en el sector [Fiscal / Interno]"*.
+  * Se sincroniza automáticamente el comprobante seleccionado si el que estaba previamente elegido fue saldado.
+
+## 31. Suite de Pruebas Automatizadas y Auditoría de Errores Integral
+* **Implementación del Test Runner en Raíz (`npm test`):**
+  * Se configuró el comando maestro `npm test` en el `package.json` de la raíz del proyecto para ejecutar suites automatizadas con validación de aserciones estrictas (`node:assert/strict`).
+* **5 Suites de Pruebas Implementadas y Verificadas (30/30 tests aprobados):**
+  1. **Motor Contable y Cuenta Corriente (`tests/test_ledger.ts`):** Evalúa clientes con deuda cero, facturas impagas totales, pagos parciales con saldo a favor, aislamiento sectorial Fiscal vs Interno, reconciliación contable contra `saldo_blanco` / `saldo_interno`, clientes con crédito positivo sin deudas fantasmas y clasificación documental unívoca.
+  2. **Servicios Backend y Base de Datos Prisma (`tests/test_backend_services.ts`):** Valida la creación de clientes y saneamiento de CUIT con guiones/puntos, carga de saldo a favor (`modo: 'add'` y `modo: 'direct'`), rechazo estricto de imputaciones que superen el saldo disponible (HTTP 400), deducción atómica de crédito, cobro con método `SALDO_A_FAVOR`, reversibilidad en `deletePayment` y conversión de opcionales vacíos a `null`.
+  3. **Utilidades y Parseo Numérico Argentino (`tests/test_format.ts`):** Comprueba `parseArgNumber` con miles, comas, puntos, decimales negativos, cadenas vacías y fechas locales `getLocalDateString`.
+  4. **Endpoints HTTP y Seguridad JWT (`tests/test_api_endpoints.ts`):** Audita endpoints en el servidor activo (Health, Login de Administrador, Cotización BNA `/currency/dolar-oficial`, Clientes, Ventas paginadas, Presupuestos paginados, Configuración de emisor y bloqueo 401 Unauthorized sin token).
+  5. **Generación de PDFs y Códigos QR ARCA (`tests/test_pdf.ts`):** Verifica la instanciación de `jsPDF`, renderizado de tablas con `jspdf-autotable` y codificación de Data URLs de códigos QR con payload fiscal oficial de AFIP.

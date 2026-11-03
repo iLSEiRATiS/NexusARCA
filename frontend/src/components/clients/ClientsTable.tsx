@@ -80,7 +80,9 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
             {filteredClients.map((client) => {
               const blancoNum = Number(client.saldo_blanco || 0);
               const internoNum = Number(client.saldo_interno || 0);
-              const favorNum = Math.max(0, Number(client.saldo_a_favor || 0));
+              const favorFiscal = Math.max(0, Number(client.saldo_a_favor_blanco ?? client.saldo_a_favor ?? 0));
+              const favorInterno = Math.max(0, Number(client.saldo_a_favor_interno || 0));
+              const favorNum = favorFiscal + favorInterno;
 
               return (
                 <tr
@@ -148,18 +150,28 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
 
                   {/* Saldo a Favor */}
                   <td className="py-4 px-4 text-right font-black" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <span className={favorNum > 0 ? 'text-emerald-600 font-black' : 'text-slate-400 font-bold'}>
-                        ${favorNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => onOpenCredit(client)}
-                        className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
-                        title="Cargar Saldo a Favor"
-                      >
-                        <PlusCircle size={12} />
-                      </button>
+                    <div className="flex flex-col items-end">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className={favorNum > 0 ? 'text-emerald-600 font-black' : 'text-slate-400 font-bold'}>
+                          ${favorNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenCredit(client)}
+                          className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+                          title="Cargar Saldo a Favor"
+                        >
+                          <PlusCircle size={12} />
+                        </button>
+                      </div>
+                      {favorNum > 0 && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold mt-0.5">
+                          <span title="Saldo a Favor Fiscal">F: ${favorFiscal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                          {isManagementUnlocked && favorInterno > 0 && (
+                            <span title="Saldo a Favor Interno">| I: ${favorInterno.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </td>
 
@@ -221,7 +233,9 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
       {/* Vista Mobile (Tarjetas) */}
       <div className="lg:hidden divide-y divide-slate-100">
         {filteredClients.map((client) => {
-          const favorNum = Math.max(0, Number(client.saldo_a_favor || 0));
+          const favorFiscal = Math.max(0, Number(client.saldo_a_favor_blanco ?? client.saldo_a_favor ?? 0));
+          const favorInterno = Math.max(0, Number(client.saldo_a_favor_interno || 0));
+          const favorNum = favorFiscal + favorInterno;
 
           return (
             <div

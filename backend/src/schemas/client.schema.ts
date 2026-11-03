@@ -16,6 +16,8 @@ export const createClientSchema = z.object({
     saldo_blanco: z.number().optional(),
     saldo_interno: z.number().optional(),
     saldo_a_favor: z.number().optional(),
+    saldo_a_favor_blanco: z.number().optional(),
+    saldo_a_favor_interno: z.number().optional(),
   })
 });
 
@@ -36,6 +38,9 @@ export const updateClientSchema = z.object({
     saldo_interno: z.number().optional(),
     saldo_deuda: z.number().optional(),
     saldo_a_favor: z.number().optional(),
+    saldo_a_favor_blanco: z.number().optional(),
+    saldo_a_favor_interno: z.number().optional(),
+    tipo_saldo_a_favor: z.enum(['BLANCO', 'INTERNO']).optional(),
     motivo_saldo_a_favor: z.string().optional().nullable(),
     fecha_saldo_a_favor: z.string().optional().nullable(),
     metodo_saldo_a_favor: z.string().optional().nullable(),
@@ -49,9 +54,14 @@ export const updateClientSchema = z.object({
 export const loadCreditSchema = z.object({
   body: z.object({
     monto: z.union([z.number(), z.string()]),
+    tipo: z.enum(['BLANCO', 'INTERNO']).optional().default('BLANCO'),
     motivo: z.string().optional().nullable(),
     fecha: z.string().optional().nullable(),
     metodo: z.string().optional().nullable(),
     modo: z.enum(['add', 'direct']).optional().default('add'),
+    imputar_a_deuda: z.boolean().optional(),
+    deuda_referencia: z.string().optional().nullable(),
+    deuda_id: z.union([z.string(), z.number()]).optional().nullable(),
+    deuda_monto: z.union([z.number(), z.string()]).optional().nullable(),
   })
 });

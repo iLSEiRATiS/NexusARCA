@@ -85,8 +85,8 @@ export function getDocumentClassification(item: any): DocumentClassification {
   }
 
 
-    // Saldo a Favor
-  const isFavor = item.tipo === 'A_FAVOR' || item.metodo_pago === 'SALDO_A_FAVOR';
+    // Saldo a Favor (carga de crédito en cuenta)
+  const isFavor = item.tipo === 'A_FAVOR';
   const ref = item.referencia && item.referencia.trim() !== '' ? item.referencia : '';
 
   if (isFavor) {
@@ -129,6 +129,8 @@ export function getDocumentClassification(item: any): DocumentClassification {
     ? 'Cheque Físico'
     : metodoRaw === 'TRANSFERENCIA'
     ? 'Transferencia Bancaria'
+    : metodoRaw === 'SALDO_A_FAVOR'
+    ? 'Saldo a Favor'
     : metodoRaw;
 
   const title = ref || `Cobro Recibido (${metodoLabel})`;
@@ -163,10 +165,12 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
   const getFallbackDebts = (c: any) => {
     const list: any[] = [];
     if (!c) return list;
-    const saldoBlancoNum = Math.abs(Number(c.saldo_blanco || 0));
-    const saldoInternoNum = Math.abs(Number(c.saldo_interno || 0));
+    const rawBlanco = Number(c.saldo_blanco || 0);
+    const rawInterno = Number(c.saldo_interno || 0);
+    const saldoBlancoNum = rawBlanco < -0.05 ? Math.abs(rawBlanco) : 0;
+    const saldoInternoNum = rawInterno < -0.05 ? Math.abs(rawInterno) : 0;
 
-    if (saldoBlancoNum > 0.01) {
+    if (saldoBlancoNum > 0.05) {
       list.push({
         id: `saldo-blanco-${c.id || 'general'}`,
         rawId: c.id,
@@ -189,7 +193,7 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
       });
     }
 
-    if (saldoInternoNum > 0.01) {
+    if (saldoInternoNum > 0.05) {
       list.push({
         id: `saldo-interno-${c.id || 'general'}`,
         rawId: c.id,
@@ -251,9 +255,9 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
     );
   });
 
-  // 3. Extraer cobros positivos recibidos
+  // 3. Extraer cobros positivos recibidos (excluyendo cargas puras de crédito A_FAVOR que aún no fueron imputadas)
   const paymentList = transactions.filter((item) => {
-    return item.type === 'cobro' && Number(item.monto_ars) > 0;
+    return item.type === 'cobro' && Number(item.monto_ars) > 0 && item.tipo !== 'A_FAVOR';
   });
 
   interface TrackedDebt {
@@ -295,10 +299,19 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
     };
   });
 
-  const isClientDebtFree = Number(client?.saldo_deuda || 0) >= 0;
+  const isDebtFiscal = (d: TrackedDebt) => {
+    if (d.isVenta) {
+      return d.rawItem.tipo_factura !== 'REMITO' && d.rawItem.classification?.caracter !== 'INTERNO';
+    }
+    return d.rawItem.tipo === 'BLANCO';
+  };
+
+  const currentFiscalDebt = Math.max(0, -Number(client?.saldo_blanco || 0));
+  const currentInternoDebt = Math.max(0, -Number(client?.saldo_interno || 0));
+  const isClientDebtFree = currentFiscalDebt <= 0.05 && currentInternoDebt <= 0.05;
 
   if (isClientDebtFree) {
-    // Si la cartera del cliente no tiene deuda (saldo >= 0), todas las deudas históricas se consideran totalmente canceladas
+    // Si la cartera del cliente no tiene deuda en ningún sector, todas las deudas se consideran 100% saldadas
     debts.forEach((d) => {
       d.saldoPendiente = 0;
       d.totalPagado = d.totalOriginal;
@@ -311,6 +324,25 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
       p.montoAsignado = p.montoOriginal;
     });
   } else {
+    // Si un sector específico no tiene deuda, marcar inmediatamente todas sus deudas como saldadas
+    if (currentFiscalDebt <= 0.05) {
+      debts.forEach((d) => {
+        if (isDebtFiscal(d)) {
+          d.saldoPendiente = 0;
+          d.totalPagado = d.totalOriginal;
+        }
+      });
+    }
+
+    if (currentInternoDebt <= 0.05) {
+      debts.forEach((d) => {
+        if (!isDebtFiscal(d)) {
+          d.saldoPendiente = 0;
+          d.totalPagado = d.totalOriginal;
+        }
+      });
+    }
+
     // Paso 1: Matching directo por referencia específica (ej. "Cobro Factura A N° 00000036", "#00036", etc.)
     debts.forEach((d) => {
       if (d.saldoPendiente <= 0.01) return;
@@ -367,7 +399,7 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
       }
     });
 
-    // Paso 2: Imputación FIFO con pagos que aún tienen remanente sobre las deudas más antiguas
+    // Paso 2: Imputación FIFO con pagos generales que aún tienen remanente sobre las deudas más antiguas del mismo sector
     const debtsSortedByAge = [...debts].sort(
       (a, b) => new Date(a.rawItem.fecha).getTime() - new Date(b.rawItem.fecha).getTime()
     );
@@ -379,8 +411,20 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
     for (const p of paymentsSortedByAge) {
       if (p.remainingMonto <= 0.01) continue;
 
+      // Si el pago ya traía una referencia explícita a un comprobante específico distinto (ej. Factura A 00000038), no derramarlo en otras facturas distintas
+      const payRef = (p.rawItem.referencia || '').toLowerCase();
+      const hasSpecificDocRef = payRef.includes('factura') || payRef.includes('remito') || payRef.includes('#');
+      if (hasSpecificDocRef && p.montoAsignado > 0.01) {
+        continue;
+      }
+
       for (const d of debtsSortedByAge) {
         if (d.saldoPendiente <= 0.01) continue;
+
+        // No mezclar sectores: Blanco sólo con Blanco, Interno sólo con Interno
+        const isFiscal = isDebtFiscal(d);
+        const isPayFiscal = p.rawItem.tipo === 'BLANCO';
+        if (isFiscal !== isPayFiscal) continue;
 
         const deduction = Math.min(d.saldoPendiente, p.remainingMonto);
         if (deduction > 0.001) {
@@ -398,6 +442,51 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
         if (p.remainingMonto <= 0.01) {
           p.remainingMonto = 0;
           break;
+        }
+      }
+    }
+
+    // Paso 2.5: Reconciliación sectorial con el saldo deudor real del cliente (saldo_blanco y saldo_interno)
+    // El total de deudas pendientes en cada sector no puede superar la deuda contable real.
+    // Las deudas más recientes representan la deuda activa; las deudas históricas anteriores ya fueron saldadas.
+    if (currentFiscalDebt > 0.05) {
+      const fiscalPending = debts
+        .filter((d) => isDebtFiscal(d) && d.saldoPendiente > 0.05)
+        .sort((a, b) => new Date(b.rawItem.fecha).getTime() - new Date(a.rawItem.fecha).getTime());
+
+      let allowedFiscal = currentFiscalDebt;
+      for (const d of fiscalPending) {
+        if (allowedFiscal <= 0.05) {
+          d.totalPagado += d.saldoPendiente;
+          d.saldoPendiente = 0;
+        } else if (d.saldoPendiente > allowedFiscal) {
+          const diff = d.saldoPendiente - allowedFiscal;
+          d.saldoPendiente = allowedFiscal;
+          d.totalPagado += diff;
+          allowedFiscal = 0;
+        } else {
+          allowedFiscal -= d.saldoPendiente;
+        }
+      }
+    }
+
+    if (currentInternoDebt > 0.05) {
+      const internoPending = debts
+        .filter((d) => !isDebtFiscal(d) && d.saldoPendiente > 0.05)
+        .sort((a, b) => new Date(b.rawItem.fecha).getTime() - new Date(a.rawItem.fecha).getTime());
+
+      let allowedInterno = currentInternoDebt;
+      for (const d of internoPending) {
+        if (allowedInterno <= 0.05) {
+          d.totalPagado += d.saldoPendiente;
+          d.saldoPendiente = 0;
+        } else if (d.saldoPendiente > allowedInterno) {
+          const diff = d.saldoPendiente - allowedInterno;
+          d.saldoPendiente = allowedInterno;
+          d.totalPagado += diff;
+          allowedInterno = 0;
+        } else {
+          allowedInterno -= d.saldoPendiente;
         }
       }
     }
@@ -480,11 +569,12 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
   });
 
   // Si no hay comprobantes fiscales en pendingDebts pero el cliente tiene saldo fiscal deudor:
-  const saldoBlancoNum = Math.abs(Number(client?.saldo_blanco || 0));
+  const rawBlancoVal = Number(client?.saldo_blanco || 0);
+  const saldoBlancoNum = rawBlancoVal < -0.05 ? Math.abs(rawBlancoVal) : 0;
   const hasFiscalInPending = pendingDebts.some(
     (d) => d.classification?.caracter === 'FISCAL' || d.tipo === 'BLANCO'
   );
-  if (!hasFiscalInPending && saldoBlancoNum > 0.01) {
+  if (!hasFiscalInPending && saldoBlancoNum > 0.05) {
     pendingDebts.push({
       id: `saldo-blanco-${client?.id || 'general'}`,
       rawId: client?.id,
@@ -508,11 +598,12 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
   }
 
   // Si no hay comprobantes internos en pendingDebts pero el cliente tiene saldo interno deudor:
-  const saldoInternoNum = Math.abs(Number(client?.saldo_interno || 0));
+  const rawInternoVal = Number(client?.saldo_interno || 0);
+  const saldoInternoNum = rawInternoVal < -0.05 ? Math.abs(rawInternoVal) : 0;
   const hasInternoInPending = pendingDebts.some(
     (d) => d.classification?.caracter === 'INTERNO' || d.tipo === 'INTERNO'
   );
-  if (!hasInternoInPending && saldoInternoNum > 0.01) {
+  if (!hasInternoInPending && saldoInternoNum > 0.05) {
     pendingDebts.push({
       id: `saldo-interno-${client?.id || 'general'}`,
       rawId: client?.id,

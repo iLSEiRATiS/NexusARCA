@@ -77,12 +77,30 @@ export class ClientController {
   static loadCredit = asyncHandler(async (req: Request, res: Response) => {
     const clientId = Number(req.params.id);
     const rawMonto = req.body.monto !== undefined ? req.body.monto : req.body.monto_ars;
+    const tipo = (req.body.tipo as 'BLANCO' | 'INTERNO') || 'BLANCO';
     const motivo = req.body.motivo || req.body.referencia || '';
     const fecha = req.body.fecha || undefined;
     const metodo = req.body.metodo || 'SALDO_A_FAVOR';
     const modo = req.body.modo || 'add';
+    const applyDebtData = {
+      imputar_a_deuda: Boolean(req.body.imputar_a_deuda),
+      deuda_referencia: req.body.deuda_referencia || '',
+      deuda_id: req.body.deuda_id || undefined,
+      deuda_monto: req.body.deuda_monto !== undefined ? parseArgNumber(req.body.deuda_monto) : undefined,
+    };
 
-    const updated = await ClientService.loadCredit(clientId, rawMonto, motivo, fecha, metodo, modo);
+    const updated = await ClientService.loadCredit(clientId, rawMonto, tipo, motivo, fecha, metodo, modo, applyDebtData);
+    res.json(updated);
+  });
+
+  static imputeCredit = asyncHandler(async (req: Request, res: Response) => {
+    const clientId = Number(req.params.id);
+    const rawMonto = req.body.monto !== undefined ? req.body.monto : req.body.monto_ars;
+    const tipo = (req.body.tipo as 'BLANCO' | 'INTERNO') || 'BLANCO';
+    const referencia = req.body.referencia || req.body.deuda_referencia || '';
+    const fecha = req.body.fecha || undefined;
+
+    const updated = await ClientService.imputeCredit(clientId, rawMonto, tipo, referencia, fecha);
     res.json(updated);
   });
 
