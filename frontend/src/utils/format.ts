@@ -45,3 +45,59 @@ export const getLocalDateString = (d: Date = new Date()): string => {
   return `${year}-${month}-${day}`;
 };
 
+/**
+ * Formatea una fecha y hora en formato argentino: "D/M/AAAA HH:mm hs".
+ * Combina dateVal con fallbackDate (ej. createdAt) para garantizar que se muestre la hora exacta en que se registró.
+ */
+export const formatArgDateTime = (
+  dateVal: string | Date | undefined | null,
+  fallbackDate?: string | Date | null
+): string => {
+  if (!dateVal && !fallbackDate) return '-';
+
+  const d = dateVal ? new Date(dateVal) : null;
+  const fb = fallbackDate ? new Date(fallbackDate) : null;
+
+  let target: Date;
+
+  if (d && !isNaN(d.getTime())) {
+    // Si la fecha principal es medianoche o mediodía estándar por haber venido de un input YYYY-MM-DD,
+    // y tenemos un fallback (como createdAt) que tiene la hora real exacta en que se registró:
+    const hasGenericTime =
+      (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) ||
+      (d.getUTCHours() === 15 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) ||
+      (d.getUTCHours() === 12 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0);
+
+    if (hasGenericTime && fb && !isNaN(fb.getTime())) {
+      target = new Date(
+        d.getFullYear(),
+        d.getMonth(),
+        d.getDate(),
+        fb.getHours(),
+        fb.getMinutes(),
+        fb.getSeconds()
+      );
+    } else {
+      target = d;
+    }
+  } else if (fb && !isNaN(fb.getTime())) {
+    target = fb;
+  } else {
+    return '-';
+  }
+
+  const dateStr = target.toLocaleDateString('es-AR', {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+  });
+
+  const timeStr = target.toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  return `${dateStr} ${timeStr} hs`;
+};
+

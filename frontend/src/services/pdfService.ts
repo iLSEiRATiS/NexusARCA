@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import api from './api';
-import { getLocalDateString } from '../utils/format';
+import { getLocalDateString, formatArgDateTime } from '../utils/format';
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 interface EmisorConfig {
@@ -960,7 +960,7 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60, 60, 60);
   doc.text(`CUIT: ${client.cuit}`, 15, 62);
-  doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es-AR')}`, 15, 67);
+  doc.text(`Fecha y Hora de Emisión: ${formatArgDateTime(new Date())}`, 15, 67);
 
   doc.setDrawColor(200);
   doc.line(pageWidth - 85, 50, pageWidth - 15, 50);
@@ -993,7 +993,7 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
     const haber = (!isDebt && t.tipo === 'COBRO') ? `$${Number(t.monto_ars).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—';
     
     return [
-      new Date(t.fecha).toLocaleDateString('es-AR'),
+      formatArgDateTime(t.fecha, t.createdAt),
       concept,
       detail,
       debe,
@@ -1003,7 +1003,7 @@ export const generateAccountStatementPDF = (client: any, transactions: any[]) =>
 
   autoTable(doc, {
     startY: 90,
-    head: [['FECHA', 'CONCEPTO', 'DETALLE', 'DEBE (+)', 'HABER (-)']],
+    head: [['FECHA Y HORA', 'CONCEPTO', 'DETALLE', 'DEBE (+)', 'HABER (-)']],
     body: tableData,
     headStyles: { fillColor: [44, 85, 23], textColor: [255, 255, 255], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [245, 245, 245] },

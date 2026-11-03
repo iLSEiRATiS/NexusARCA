@@ -8,6 +8,7 @@ import {
 
 import { processClientLedger, getDocumentClassification, type DocumentClassification } from '../../utils/accountLedger';
 import { usePrivacy } from '../../context/PrivacyContext';
+import { formatArgDateTime } from '../../utils/format';
 
 const renderCaracterBadge = (info: DocumentClassification) => {
   if (info.caracter === 'FISCAL') {
@@ -469,7 +470,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 )}
                               </div>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
-                                {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
+                                {formatArgDateTime(item.fecha, item.createdAt)} • {info.subtitle}
                               </p>
 
                               {isPartial && (
@@ -485,6 +486,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                   <span className="font-bold text-red-600">
                                     Resta: <strong className="font-mono font-black">-${montoNum.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                                   </span>
+                                  {item.pagosAplicados && item.pagosAplicados.length > 0 && (
+                                    <>
+                                      <span className="text-amber-300 font-black">•</span>
+                                      <span className="font-bold text-slate-500">
+                                        Último cobro: <strong className="text-slate-700 font-mono">{formatArgDateTime(item.pagosAplicados[item.pagosAplicados.length - 1].payment?.fecha, item.pagosAplicados[item.pagosAplicados.length - 1].payment?.createdAt)}</strong>
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -623,13 +632,13 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
                                 {item.paymentInfo ? (
                                   <>
-                                    Cobrado el {new Date(item.paymentInfo.fecha).toLocaleDateString('es-AR')} •{' '}
+                                    Cobrado el {formatArgDateTime(item.paymentInfo.fecha, item.paymentInfo.createdAt)} •{' '}
                                     Método: {item.paymentInfo.metodo_pago}
                                     {item.paymentInfo.referencia ? ` (${item.paymentInfo.referencia})` : ''}
                                   </>
                                 ) : (
                                   <>
-                                    Fecha: {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
+                                    Fecha: {formatArgDateTime(item.fecha, item.createdAt)} • {info.subtitle}
                                   </>
                                 )}
                               </p>
@@ -722,7 +731,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                                 )}
                               </div>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
-                                {new Date(item.fecha).toLocaleDateString('es-AR')} • {info.subtitle}
+                                {formatArgDateTime(item.fecha, item.createdAt)} • {info.subtitle}
                               </p>
                             </div>
 

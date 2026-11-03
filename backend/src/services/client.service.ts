@@ -2,6 +2,23 @@ import prisma from '../config/prisma';
 import { AppError } from '../utils/AppError';
 import { parseArgNumber } from '../utils/format';
 
+function parseDateWithTime(fecha?: string | Date): Date {
+  if (!fecha) return new Date();
+  if (fecha instanceof Date) return fecha;
+  const str = String(fecha).trim();
+  if (str.includes('T')) {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
+  const parts = str.split('-').map(Number);
+  if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+    const now = new Date();
+    return new Date(parts[0], parts[1] - 1, parts[2], now.getHours(), now.getMinutes(), now.getSeconds());
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
 export class ClientService {
   static async getAll() {
     return await prisma.client.findMany({
@@ -167,13 +184,7 @@ export class ClientService {
             : `Factura N° ${trimmedFactura}`;
         }
 
-        let fechaPago = new Date();
-        if (fecha_factura) {
-          fechaPago = new Date(String(fecha_factura).includes('T') ? String(fecha_factura) : `${fecha_factura}T12:00:00`);
-          if (isNaN(fechaPago.getTime())) {
-            fechaPago = new Date();
-          }
-        }
+        let fechaPago = parseDateWithTime(fecha_factura);
 
         await prisma.payment.create({
           data: {
@@ -196,13 +207,7 @@ export class ClientService {
             : `Remito N° ${trimmedRemito}`;
         }
 
-        let fechaPagoInterno = new Date();
-        if (fecha_remito) {
-          fechaPagoInterno = new Date(String(fecha_remito).includes('T') ? String(fecha_remito) : `${fecha_remito}T12:00:00`);
-          if (isNaN(fechaPagoInterno.getTime())) {
-            fechaPagoInterno = new Date();
-          }
-        }
+        let fechaPagoInterno = parseDateWithTime(fecha_remito);
 
         await prisma.payment.create({
           data: {
@@ -238,13 +243,7 @@ export class ClientService {
       payload.saldo_a_favor_interno = newInternoFavor;
       payload.saldo_a_favor = newBlancoFavor + newInternoFavor;
 
-      let fechaPagoFavor = new Date();
-      if (fecha_saldo_a_favor) {
-        fechaPagoFavor = new Date(String(fecha_saldo_a_favor).includes('T') ? String(fecha_saldo_a_favor) : `${fecha_saldo_a_favor}T12:00:00`);
-        if (isNaN(fechaPagoFavor.getTime())) {
-          fechaPagoFavor = new Date();
-        }
-      }
+      let fechaPagoFavor = parseDateWithTime(fecha_saldo_a_favor);
 
       if (diffBlanco !== 0) {
         const refText = motivo_saldo_a_favor && String(motivo_saldo_a_favor).trim()
@@ -297,13 +296,7 @@ export class ClientService {
       const diffFavor = newFavor - oldFavor;
 
       if (diffFavor !== 0) {
-        let fechaPagoFavor = new Date();
-        if (fecha_saldo_a_favor) {
-          fechaPagoFavor = new Date(String(fecha_saldo_a_favor).includes('T') ? String(fecha_saldo_a_favor) : `${fecha_saldo_a_favor}T12:00:00`);
-          if (isNaN(fechaPagoFavor.getTime())) {
-            fechaPagoFavor = new Date();
-          }
-        }
+        let fechaPagoFavor = parseDateWithTime(fecha_saldo_a_favor);
 
         const refText = motivo_saldo_a_favor && String(motivo_saldo_a_favor).trim()
           ? `Carga de Saldo a Favor: ${String(motivo_saldo_a_favor).trim()}`
@@ -345,13 +338,7 @@ export class ClientService {
       throw new AppError('El monto debe ser un valor numérico válido mayor a 0', 400);
     }
 
-    let fechaMovimiento = new Date();
-    if (fecha) {
-      fechaMovimiento = new Date(String(fecha).includes('T') ? String(fecha) : `${fecha}T12:00:00`);
-      if (isNaN(fechaMovimiento.getTime())) {
-        fechaMovimiento = new Date();
-      }
-    }
+    let fechaMovimiento = parseDateWithTime(fecha);
 
     return await prisma.$transaction(async (tx) => {
       const client = await tx.client.findUnique({ where: { id: clientId } });
@@ -517,13 +504,7 @@ export class ClientService {
       throw new AppError('El monto debe ser un número positivo', 400);
     }
 
-    let fechaPago = new Date();
-    if (fecha) {
-      fechaPago = new Date(String(fecha).includes('T') ? String(fecha) : `${fecha}T12:00:00`);
-      if (isNaN(fechaPago.getTime())) {
-        fechaPago = new Date();
-      }
-    }
+    let fechaPago = parseDateWithTime(fecha);
 
     let vtoCheque: Date | null = null;
     if (extraData?.fecha_vto_cheque) {

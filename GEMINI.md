@@ -314,3 +314,17 @@ pm2 restart 1
   * **Uso Consistente de Datos Frescos (`accountLedger.ts` y `ClientDetailModal.tsx`):**
     * Se utiliza `effectiveClient = clientDetails || client` para que tanto el motor de conciliación contable como las tarjetas de saldos lean siempre la versión más reciente proveniente de la base de datos.
   * **Reparación de Datos Existentes:** Se regularizó en la base de datos local el cobro de $4.000 del cliente `prueba1`, imputándolo correctamente al remito `REM-70` con saldo $0 y saldos contables fiscales e internos perfectamente balanceados.
+
+## 33. Incorporación de Hora Exacta en Actividad de Cuenta Corriente y Comprobantes (`ClientDetailModal.tsx`, `format.ts`, `client.service.ts`, `pdfService.ts`)
+* **Requerimiento:** Visualizar en la ficha de cuenta corriente (*Actividad en Cuenta Corriente*), en sus tres pestañas (*Pendientes de Pago*, *Pagados*, *Historial Completo*) y en el informe exportable, la **hora exacta** en que se realizó cada cobro, factura, remito y ajuste de saldo.
+* **Implementación:**
+  * **Utilidad `formatArgDateTime` (`format.ts`):** Función de formateo con localización argentina que entrega `D/M/AAAA HH:mm hs`. Resuelve inteligentemente la combinación entre la fecha del comprobante (`fecha`) y la marca temporal de creación en base de datos (`createdAt`), asegurando que siempre se visualice la hora real en que se registró la operación.
+  * **Pestañas de Cuenta Corriente (`ClientDetailModal.tsx`):**
+    * **Pendientes de Pago:** Cada tarjeta ahora muestra la fecha y hora de emisión (ej: `3/11/2026 12:42 hs • Comprobante de Gestión Interna`). En cobros parciales se añade el indicador del último cobro registrado con su hora exacta (`Último cobro: 3/11/2026 12:44 hs`).
+    * **Pagados:** Muestra `Cobrado el 3/11/2026 12:44 hs • Método: EFECTIVO...`.
+    * **Historial Completo:** Muestra la fecha y hora exacta de cada facturación, cobro y ajuste de saldo registrado.
+  * **Estado de Cuenta PDF (`pdfService.ts`):**
+    * El encabezado del reporte exportable ahora incluye `Fecha y Hora de Emisión`.
+    * La tabla de movimientos renombra la columna a `FECHA Y HORA` con el detalle horario de cada transacción.
+  * **Preservación de Hora en Backend (`client.service.ts`):**
+    * La función `parseDateWithTime` combina cualquier fecha enviada como `YYYY-MM-DD` con la hora, minuto y segundo actual del servidor, impidiendo que los nuevos registros se guarden con la medianoche o mediodía genérico.
