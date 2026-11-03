@@ -46,8 +46,8 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
   const deudaInterno = rawInterno < -0.05 ? Math.abs(rawInterno) : 0;
   const deudaTotal = saldoFiscalPendiente + deudaInterno;
 
-  // En Modo Fiscal Oficial, sólo se muestran deudas fiscales. Filtrar deudas que tengan saldo adeudado y no estén saldadas.
-  const visibleDebts = (isManagementUnlocked
+  // En Modo Fiscal Oficial, sólo se muestran deudas fiscales a menos que no haya deuda fiscal y sí deuda interna o se esté imputando a interno
+  const visibleDebts = (isManagementUnlocked || paymentData.imputacion === 'INTERNO' || saldoFiscalPendiente <= 0.05
     ? pendingDebts
     : pendingDebts.filter((d) => d.classification?.caracter === 'FISCAL' || d.tipo === 'BLANCO')
   ).filter((d) => {
@@ -61,6 +61,11 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
 
   // Sincronizar selección cuando cambia el cliente o la referencia
   useEffect(() => {
+    if (!isOpen) {
+      setSelectedDebtId('');
+      return;
+    }
+
     if (visibleDebts.length === 0) {
       setSelectedDebtId('');
       return;
@@ -75,6 +80,20 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
         setSelectedDebtId(matched.id);
         return;
       }
+    }
+
+    // Auto-selección inteligente: Si hay exactamente una única deuda pendiente y aún no hay comprobante seleccionado
+    if (visibleDebts.length === 1 && !selectedDebtId) {
+      const single = visibleDebts[0];
+      setSelectedDebtId(single.id);
+      onSelectDebt(single);
+      const isSingleInterno = single.tipo === 'INTERNO' || single.classification?.caracter === 'INTERNO';
+      setPaymentData((prev) => ({
+        ...prev,
+        imputacion: isSingleInterno ? 'INTERNO' : 'BLANCO',
+        monto: single.saldoPendiente !== undefined ? Number(single.saldoPendiente) : Number(single.monto || 0),
+        referencia: `Cobro ${single.classification?.title || single.displayTitle || single.label}`,
+      }));
     }
   }, [isOpen, client?.id, visibleDebts.length, paymentData.referencia]);
 
@@ -114,14 +133,14 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
         <div className="p-4 bg-white border border-slate-200 flex justify-between items-center shadow-sm">
           <div>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-              {isManagementUnlocked ? 'Deuda Total Consolidada' : 'Saldo Fiscal Pendiente'}
+              {isManagementUnlocked || saldoFiscalPendiente <= 0.05 ? 'Deuda Total Pendiente' : 'Saldo Fiscal Pendiente'}
             </span>
             <span className="text-xl font-black text-slate-900">
-              ${(isManagementUnlocked ? deudaTotal : saldoFiscalPendiente).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${(isManagementUnlocked || saldoFiscalPendiente <= 0.05 ? deudaTotal : saldoFiscalPendiente).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="text-right">
-            {isManagementUnlocked ? (
+            {isManagementUnlocked || deudaInterno > 0.05 ? (
               <>
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Remitos / Gestión</span>
                 <span className="text-xl font-black text-slate-900">
@@ -164,28 +183,39 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
                         ...prev,
                         monto: '',
                         referencia: '',
-                        imputacion: 'BLANCO',
                       }));
                       return;
                     }
                     const found = visibleDebts.find((d) => d.id === val);
                     if (found) {
                       onSelectDebt(found);
-                      if (paymentData.metodo === 'SALDO_A_FAVOR') {
-                        const rawDebtMonto = found.saldoPendiente !== undefined ? Number(found.saldoPendiente) : Number(found.monto || 0);
-                        const cap = Math.min(rawDebtMonto, availableFavor);
-                        setPaymentData((prev) => ({ ...prev, monto: cap > 0 ? cap : '' }));
-                      }
+                      const isFoundInterno = found.tipo === 'INTERNO' || found.classification?.caracter === 'INTERNO';
+                      setPaymentData((prev) => {
+                        const newImputacion = isFoundInterno ? 'INTERNO' : 'BLANCO';
+                        let newMonto = found.saldoPendiente !== undefined ? Number(found.saldoPendiente) : Number(found.monto || 0);
+                        if (prev.metodo === 'SALDO_A_FAVOR') {
+                          const sectorFavor = newImputacion === 'INTERNO' ? saldoInternoFavor : saldoFiscalFavor;
+                          newMonto = Math.min(newMonto, sectorFavor);
+                        }
+                        return {
+                          ...prev,
+                          imputacion: newImputacion,
+                          monto: newMonto > 0 ? newMonto : '',
+                        };
+                      });
                     }
                   }}
                   className="w-full bg-blue-50/70 border-2 border-blue-500 rounded-none px-3 py-2.5 font-bold text-slate-900 focus:border-blue-700 outline-none uppercase text-xs cursor-pointer shadow-xs"
                 >
                   <option value="">— Seleccionar Factura o Deuda a Pagar —</option>
-                  {visibleDebts.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.label} — ${d.monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </option>
-                  ))}
+                  {visibleDebts.map((d) => {
+                    const debtMonto = d.saldoPendiente !== undefined ? Number(d.saldoPendiente) : Number(d.monto || 0);
+                    return (
+                      <option key={d.id} value={d.id}>
+                        {d.label} — ${debtMonto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
@@ -277,28 +307,18 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
               Imputación Contable
             </label>
-            {isManagementUnlocked ? (
-              <select
-                value={paymentData.imputacion === 'INTERNO' ? 'INTERNO' : 'BLANCO'}
-                onChange={(e) => setPaymentData({ ...paymentData, imputacion: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs cursor-pointer"
-              >
-                <option value="BLANCO">
-                  Solo Fiscal (Oficial ARCA)
-                </option>
-                <option value="INTERNO">
-                  Solo Remitos / Gestión Comercial
-                </option>
-              </select>
-            ) : (
-              <select
-                value="BLANCO"
-                disabled
-                className="w-full bg-slate-100 border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-700 outline-none uppercase text-xs cursor-not-allowed"
-              >
-                <option value="BLANCO">Oficial / Fiscal (Cuenta Corriente)</option>
-              </select>
-            )}
+            <select
+              value={paymentData.imputacion === 'INTERNO' ? 'INTERNO' : 'BLANCO'}
+              onChange={(e) => setPaymentData({ ...paymentData, imputacion: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-none px-3 py-3 font-bold text-slate-900 focus:border-blue-600 outline-none uppercase text-xs cursor-pointer"
+            >
+              <option value="BLANCO">
+                Solo Fiscal (Oficial ARCA)
+              </option>
+              <option value="INTERNO">
+                Solo Remitos / Gestión Comercial
+              </option>
+            </select>
           </div>
         </div>
 

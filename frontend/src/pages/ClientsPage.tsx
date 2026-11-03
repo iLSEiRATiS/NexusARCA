@@ -15,11 +15,9 @@ import { ClientCreditModal } from '../components/clients/ClientCreditModal';
 import { ClientsTable } from '../components/clients/ClientsTable';
 import { processClientLedger, getDocumentClassification } from '../utils/accountLedger';
 import { getLocalDateString, parseArgNumber } from '../utils/format';
-import { usePrivacy } from '../context/PrivacyContext';
 
 const ClientsPage = () => {
   const queryClient = useQueryClient();
-  const { isManagementUnlocked } = usePrivacy();
   const [searchTerm, setSearchBar] = useState('');
 
   // Modales
@@ -133,9 +131,12 @@ const ClientsPage = () => {
       if (!selectedClient?.id) throw new Error('No hay cliente seleccionado');
       return clientService.registerPayment(selectedClient.id, data);
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', selectedClient?.id] });
+      if (result?.client) {
+        setSelectedClient(result.client);
+      }
       setIsPaymentModalOpen(false);
       setIsDetailsModalOpen(true);
       setPaymentData({
@@ -227,11 +228,14 @@ const ClientsPage = () => {
 
   const handleOpenPayment = (client: Client) => {
     setSelectedClient(client);
+    const defaultImputacion = (Number(client.saldo_blanco || 0) >= -0.05 && Number(client.saldo_interno || 0) < -0.05)
+      ? 'INTERNO'
+      : 'BLANCO';
     setPaymentData({
       monto: '',
       metodo: 'EFECTIVO',
       referencia: '',
-      imputacion: 'BLANCO',
+      imputacion: defaultImputacion,
       fecha: getLocalDateString(),
       nro_cheque: '',
       fecha_vto_cheque: '',
@@ -269,11 +273,7 @@ const ClientsPage = () => {
       : (isVenta ? Number(item.total_real_ars || item.monto_ars || 0) : Math.abs(Number(item.monto_ars || 0)));
 
     const info = item.classification || getDocumentClassification(item);
-    const imputacion = info.caracter === 'FISCAL' 
-      ? 'BLANCO' 
-      : (info.caracter === 'INTERNO' 
-          ? (isManagementUnlocked ? 'INTERNO' : 'BLANCO') 
-          : 'BLANCO');
+    const imputacion = (info.caracter === 'INTERNO' || item.tipo === 'INTERNO') ? 'INTERNO' : 'BLANCO';
     const referencia = `Cobro ${info.title}`;
 
     setPaymentData({

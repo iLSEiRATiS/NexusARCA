@@ -62,7 +62,7 @@ export class ClientController {
     const fecha_vto_cheque = req.body.fecha_vto_cheque || undefined;
     const caja = req.body.caja || undefined;
     
-    const payment = await ClientService.registerPayment(
+    const result = await ClientService.registerPayment(
       Number(req.params.id), 
       monto, 
       tipo, 
@@ -71,7 +71,7 @@ export class ClientController {
       fecha,
       { nro_cheque, fecha_vto_cheque, caja }
     );
-    res.status(201).json(payment);
+    res.status(201).json(result);
   });
 
   static loadCredit = asyncHandler(async (req: Request, res: Response) => {

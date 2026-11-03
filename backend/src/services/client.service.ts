@@ -638,7 +638,7 @@ export class ClientService {
       // Sincronizar deuda total y saldo a favor total
       const newDeuda = newSaldoBlanco + newSaldoInterno;
       const newTotalFavor = newFavorBlanco + newFavorInterno;
-      await tx.client.update({
+      const updatedClient = await tx.client.update({
         where: { id: clientId },
         data: {
           saldo_blanco: newSaldoBlanco,
@@ -650,7 +650,7 @@ export class ClientService {
         }
       });
 
-      return payment;
+      return { payment, client: updatedClient };
     });
   }
 

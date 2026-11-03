@@ -69,12 +69,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const { isManagementUnlocked } = usePrivacy();
   const [activeTab, setActiveTab] = useState<'pendientes' | 'pagados' | 'historial'>('pendientes');
 
+  const effectiveClient = clientDetails || client;
+
   // Procesar estado contable real: transacciones, pendientes y pagados (debe invocarse incondicionalmente por Reglas de Hooks)
   const { transactions, pendingDebts, paidDebts } = useMemo(() => {
-    if (!isOpen || !client) {
+    if (!isOpen || !effectiveClient) {
       return { transactions: [], pendingDebts: [], paidDebts: [] };
     }
-    const fullLedger = processClientLedger(client, clientDetails);
+    const fullLedger = processClientLedger(effectiveClient, clientDetails);
     if (isManagementUnlocked) {
       return fullLedger;
     }
@@ -84,14 +86,14 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       pendingDebts: fullLedger.pendingDebts.filter((d) => d.classification?.caracter === 'FISCAL'),
       paidDebts: fullLedger.paidDebts.filter((p) => p.classification?.caracter === 'FISCAL'),
     };
-  }, [isOpen, client, clientDetails, isManagementUnlocked]);
+  }, [isOpen, effectiveClient, clientDetails, isManagementUnlocked]);
 
-  if (!isOpen || !client) return null;
+  if (!isOpen || !client || !effectiveClient) return null;
 
-  const saldoBlancoNum = Number(client.saldo_blanco || 0);
-  const saldoInternoNum = Number(client.saldo_interno || 0);
-  const saldoAFavorFiscal = Math.max(0, Number(client.saldo_a_favor_blanco ?? client.saldo_a_favor ?? 0));
-  const saldoAFavorInterno = Math.max(0, Number(client.saldo_a_favor_interno || 0));
+  const saldoBlancoNum = Number(effectiveClient.saldo_blanco || 0);
+  const saldoInternoNum = Number(effectiveClient.saldo_interno || 0);
+  const saldoAFavorFiscal = Math.max(0, Number(effectiveClient.saldo_a_favor_blanco ?? effectiveClient.saldo_a_favor ?? 0));
+  const saldoAFavorInterno = Math.max(0, Number(effectiveClient.saldo_a_favor_interno || 0));
   const saldoAFavorNum = saldoAFavorFiscal + saldoAFavorInterno;
 
   return (
@@ -102,8 +104,8 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest block mb-1">
             Ficha de Cuenta Corriente
           </span>
-          <h2 className="text-2xl font-black uppercase tracking-tight">{client.razon_social}</h2>
-          <p className="text-xs font-bold text-slate-400 mt-0.5">CUIT/DNI: {client.cuit}</p>
+          <h2 className="text-2xl font-black uppercase tracking-tight">{effectiveClient.razon_social}</h2>
+          <p className="text-xs font-bold text-slate-400 mt-0.5">CUIT/DNI: {effectiveClient.cuit}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -146,36 +148,36 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
                 <Mail size={12} /> Email
               </p>
-              <p className="text-xs font-black text-slate-900 truncate" title={client.email || 'S/D'}>
-                {client.email || '—'}
+              <p className="text-xs font-black text-slate-900 truncate" title={effectiveClient.email || 'S/D'}>
+                {effectiveClient.email || '—'}
               </p>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
                 <Phone size={12} /> Teléfono
               </p>
-              <p className="text-xs font-black text-slate-900 uppercase">{client.telefono || '—'}</p>
+              <p className="text-xs font-black text-slate-900 uppercase">{effectiveClient.telefono || '—'}</p>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
                 <Building2 size={12} /> Condición IVA
               </p>
               <p className="text-xs font-black text-slate-900 uppercase">
-                {client.condicion_iva ? client.condicion_iva.replace(/_/g, ' ') : '—'}
+                {effectiveClient.condicion_iva ? effectiveClient.condicion_iva.replace(/_/g, ' ') : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
                 <Hash size={12} /> Nro. IIBB
               </p>
-              <p className="text-xs font-black text-slate-900 uppercase">{client.nro_iibb || '—'}</p>
+              <p className="text-xs font-black text-slate-900 uppercase">{effectiveClient.nro_iibb || '—'}</p>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1">
                 <MapPin size={12} /> Dirección
               </p>
-              <p className="text-xs font-black text-slate-900 uppercase truncate" title={client.direccion || 'S/D'}>
-                {client.direccion || '—'}
+              <p className="text-xs font-black text-slate-900 uppercase truncate" title={effectiveClient.direccion || 'S/D'}>
+                {effectiveClient.direccion || '—'}
               </p>
             </div>
           </div>

@@ -283,11 +283,34 @@ pm2 restart 1
   * Se sincroniza automáticamente el comprobante seleccionado si el que estaba previamente elegido fue saldado.
 
 ## 31. Suite de Pruebas Automatizadas y Auditoría de Errores Integral
-* **Implementación del Test Runner en Raíz (`npm test`):**
-  * Se configuró el comando maestro `npm test` en el `package.json` de la raíz del proyecto para ejecutar suites automatizadas con validación de aserciones estrictas (`node:assert/strict`).
-* **5 Suites de Pruebas Implementadas y Verificadas (30/30 tests aprobados):**
-  1. **Motor Contable y Cuenta Corriente (`tests/test_ledger.ts`):** Evalúa clientes con deuda cero, facturas impagas totales, pagos parciales con saldo a favor, aislamiento sectorial Fiscal vs Interno, reconciliación contable contra `saldo_blanco` / `saldo_interno`, clientes con crédito positivo sin deudas fantasmas y clasificación documental unívoca.
-  2. **Servicios Backend y Base de Datos Prisma (`tests/test_backend_services.ts`):** Valida la creación de clientes y saneamiento de CUIT con guiones/puntos, carga de saldo a favor (`modo: 'add'` y `modo: 'direct'`), rechazo estricto de imputaciones que superen el saldo disponible (HTTP 400), deducción atómica de crédito, cobro con método `SALDO_A_FAVOR`, reversibilidad en `deletePayment` y conversión de opcionales vacíos a `null`.
-  3. **Utilidades y Parseo Numérico Argentino (`tests/test_format.ts`):** Comprueba `parseArgNumber` con miles, comas, puntos, decimales negativos, cadenas vacías y fechas locales `getLocalDateString`.
-  4. **Endpoints HTTP y Seguridad JWT (`tests/test_api_endpoints.ts`):** Audita endpoints en el servidor activo (Health, Login de Administrador, Cotización BNA `/currency/dolar-oficial`, Clientes, Ventas paginadas, Presupuestos paginados, Configuración de emisor y bloqueo 401 Unauthorized sin token).
-  5. **Generación de PDFs y Códigos QR ARCA (`tests/test_pdf.ts`):** Verifica la instanciación de `jsPDF`, renderizado de tablas con `jspdf-autotable` y codificación de Data URLs de códigos QR con payload fiscal oficial de AFIP.
+* **Auditoría Local y Exclusión de Entorno Productivo:**
+  * Se diseñaron y ejecutaron 5 suites de pruebas locales automatizadas con aserciones estrictas (`node:assert/strict`) para verificar el 100% de los flujos críticos.
+  * Para mantener el repositorio de producción y el VPS limpios, la carpeta `tests/` y cualquier archivo de pruebas se configuraron en `.gitignore` para no ser transferidos al servidor productivo.
+* **5 Suites de Pruebas Verificadas con Éxito (30/30 tests aprobados):**
+  1. **Motor Contable y Cuenta Corriente (`test_ledger.ts`):** Evalúa clientes con deuda cero, facturas impagas totales, pagos parciales con saldo a favor, aislamiento sectorial Fiscal vs Interno, reconciliación contable contra `saldo_blanco` / `saldo_interno`, clientes con crédito positivo sin deudas fantasmas y clasificación documental unívoca.
+  2. **Servicios Backend y Base de Datos Prisma (`test_backend_services.ts`):** Valida la creación de clientes y saneamiento de CUIT con guiones/puntos, carga de saldo a favor (`modo: 'add'` y `modo: 'direct'`), rechazo estricto de imputaciones que superen el saldo disponible (HTTP 400), deducción atómica de crédito, cobro con método `SALDO_A_FAVOR`, reversibilidad en `deletePayment` y conversión de opcionales vacíos a `null`.
+  3. **Utilidades y Parseo Numérico Argentino (`test_format.ts`):** Comprueba `parseArgNumber` con miles, comas, puntos, decimales negativos, cadenas vacías y fechas locales `getLocalDateString`.
+  4. **Endpoints HTTP y Seguridad JWT (`test_api_endpoints.ts`):** Audita endpoints en el servidor activo (Health, Login de Administrador, Cotización BNA `/currency/dolar-oficial`, Clientes, Ventas paginadas, Presupuestos paginados, Configuración de emisor y bloqueo 401 Unauthorized sin token).
+  5. **Generación de PDFs y Códigos QR ARCA (`test_pdf.ts`):** Verifica la instanciación de `jsPDF`, renderizado de tablas con `jspdf-autotable` y codificación de Data URLs de códigos QR con payload fiscal oficial de AFIP.
+
+## 32. Corrección Integral de Cobro de Saldos Restantes en Facturas y Remitos (`ClientPaymentModal.tsx`, `ClientsPage.tsx`, `client.service.ts`, `accountLedger.ts`)
+* **Diagnóstico del Problema Reportado:**
+  * Al cobrar una factura o comprobante con saldo restante (ej. total de $84.000 con cobro previo de $80.000 y cancelación posterior del remanente de $4.000), el sistema seguía indicando que el cliente adeudaba $4.000 a pesar de haber registrado el cobro.
+  * **Causa Raíz Identificada:**
+    1. **Imputación Sectorial Errónea:** En `ClientsPage.tsx` (`handleOpenPayment`), la imputación se inicializaba por defecto en `'BLANCO'`. Si el usuario no desplegaba manualmente la lista de comprobantes para seleccionar el remito interno, o si el usuario tenía el Modo Gestión bloqueado (modo estándar oficial), `applyDebtToPayment` forzaba la imputación a `'BLANCO'` (`isManagementUnlocked ? 'INTERNO' : 'BLANCO'`). Al imputarse a `'BLANCO'`, el pago acreditaba el saldo fiscal (haciéndolo positivo +$4.000) pero dejaba el saldo interno intacto en -$4.000 con el comprobante impago.
+    2. **Falta de Auto-Selección Inteligente de la Deuda:** Al abrir el modal de cobro existiendo una única deuda pendiente, el desplegable no autoseleccionaba automáticamente el comprobante ni prellenaba el saldo adeudado real (`saldoPendiente`), requiriendo intervención manual y registrando pagos sin referencia ni tipo asociado.
+    3. **Estado React Desactualizado (Stale State):** `ClientService.registerPayment` solo retornaba el objeto `payment`, sin devolver el estado fresco del cliente (`updatedClient`), obligando al frontend a esperar la invalidación asíncrona de React Query mientras el modal de detalle leía saldos obsoletos.
+* **Soluciones Implementadas:**
+  * **Respeto Estricto de la Naturaleza del Comprobante (`applyDebtToPayment`):** Se eliminó la dependencia de `isManagementUnlocked` para la imputación contable. Si el comprobante a cancelar es un Remito Interno (`info.caracter === 'INTERNO'` o `item.tipo === 'INTERNO'`), la imputación contable es obligatoriamente `'INTERNO'`, impidiendo que se acredite erróneamente en el sector fiscal.
+  * **Inicialización Inteligente del Sector (`handleOpenPayment`):** Si el cliente no registra deuda fiscal (`saldo_blanco >= -0.05`) y sí adeuda remitos internos (`saldo_interno < -0.05`), el modal de cobro abre por defecto con imputación `'INTERNO'`.
+  * **Auto-Selección y Prellenado de Deuda Única (`ClientPaymentModal.tsx`):**
+    * Si el cliente tiene una única deuda pendiente, el modal autoselecciona automáticamente dicho comprobante en el desplegable.
+    * Prellena el campo de monto con el saldo pendiente exacto (`d.saldoPendiente`), la referencia descriptiva (`Cobro [Nombre del Comprobante]`) y el sector contable correspondiente (`BLANCO` o `INTERNO`).
+    * El desplegable muestra en cada opción el saldo pendiente real en lugar del monto original del comprobante.
+    * Se desbloqueó la selección de imputación en el modal para que refleje fielmente el sector sin forzarse a `BLANCO`.
+  * **Sincronización Inmediata en Backend y Frontend (`client.service.ts` y `client.controller.ts`):**
+    * `ClientService.registerPayment` retorna atómicamente `{ payment, client: updatedClient }`.
+    * En `ClientsPage.tsx`, la mutación actualiza inmediatamente el cliente seleccionado (`setSelectedClient(result.client)`), logrando que la apertura de la ficha de detalle refleje al instante saldo $0 y 0 comprobantes pendientes sin demoras ni valores desactualizados.
+  * **Uso Consistente de Datos Frescos (`accountLedger.ts` y `ClientDetailModal.tsx`):**
+    * Se utiliza `effectiveClient = clientDetails || client` para que tanto el motor de conciliación contable como las tarjetas de saldos lean siempre la versión más reciente proveniente de la base de datos.
+  * **Reparación de Datos Existentes:** Se regularizó en la base de datos local el cobro de $4.000 del cliente `prueba1`, imputándolo correctamente al remito `REM-70` con saldo $0 y saldos contables fiscales e internos perfectamente balanceados.

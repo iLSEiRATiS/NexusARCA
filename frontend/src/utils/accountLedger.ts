@@ -162,6 +162,7 @@ export function getDocumentClassification(item: any): DocumentClassification {
  * - Historial Completo (todas las transacciones cronológicas)
  */
 export function processClientLedger(client: any, clientDetails: any): LedgerResult {
+  const effectiveClient = clientDetails || client;
   const getFallbackDebts = (c: any) => {
     const list: any[] = [];
     if (!c) return list;
@@ -219,7 +220,7 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
   };
 
   if (!clientDetails) {
-    return { transactions: [], pendingDebts: getFallbackDebts(client), paidDebts: [] };
+    return { transactions: [], pendingDebts: getFallbackDebts(effectiveClient), paidDebts: [] };
   }
 
   // 1. Unificar ventas y cobros para el historial cronológico con su clasificación
@@ -306,8 +307,8 @@ export function processClientLedger(client: any, clientDetails: any): LedgerResu
     return d.rawItem.tipo === 'BLANCO';
   };
 
-  const currentFiscalDebt = Math.max(0, -Number(client?.saldo_blanco || 0));
-  const currentInternoDebt = Math.max(0, -Number(client?.saldo_interno || 0));
+  const currentFiscalDebt = Math.max(0, -Number(effectiveClient?.saldo_blanco || 0));
+  const currentInternoDebt = Math.max(0, -Number(effectiveClient?.saldo_interno || 0));
   const isClientDebtFree = currentFiscalDebt <= 0.05 && currentInternoDebt <= 0.05;
 
   if (isClientDebtFree) {
