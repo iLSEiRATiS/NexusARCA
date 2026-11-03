@@ -9,6 +9,8 @@ frontend/dist-electron/
 frontend/backend-dist/
 backend/afip_res/
 .tmp/
+tests/
+package.json
 backend/test_*
 backend/check_*
 backend/query_*
